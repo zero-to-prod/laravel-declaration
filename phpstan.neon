@@ -9,3 +9,5 @@ parameters:
     excludePaths:
         analyse:
             - tests/Feature
+    ignoreErrors:
+        - identifier: property.uninitializedReadonly

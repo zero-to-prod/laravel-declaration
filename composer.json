@@ -1,18 +1,20 @@
 {
-    "name": "zero-to-prod/laravel-package",
-    "description": "A Laravel package.",
+    "name": "zero-to-prod/laravel-declaration",
+    "description": "A declarative plugin for Laravel",
     "type": "library",
     "license": "MIT",
     "authors": [
         {
-            "name": "Zero to Prod",
-            "email": "author@example.com"
+            "name": "david_smith",
+            "email": "dave0016@gmail.com"
         }
     ],
     "require": {
         "php": "^8.5",
         "illuminate/console": "^13.0",
-        "illuminate/support": "^13.0"
+        "illuminate/support": "^13.0",
+        "zero-to-prod/data-model": "^81.20",
+        "zero-to-prod/data-model-helper": "^82.1"
     },
     "require-dev": {
         "laravel/mcp": "^0.9",
@@ -28,18 +30,18 @@
     },
     "autoload": {
         "psr-4": {
-            "ZeroToProd\\LaravelPackage\\": "src/"
+            "ZeroToProd\\LaravelDeclaration\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "ZeroToProd\\LaravelPackage\\Tests\\": "tests/"
+            "ZeroToProd\\LaravelDeclaration\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "ZeroToProd\\LaravelPackage\\LaravelPackageServiceProvider"
+                "LaravelDeclarationProvider"
             ]
         }
     },

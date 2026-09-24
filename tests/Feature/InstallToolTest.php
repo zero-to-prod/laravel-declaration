@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\File;
-use ZeroToProd\LaravelPackage\Internal\Installer;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Server;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Tools\Install;
+use ZeroToProd\LaravelDeclaration\Internal\Installer;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools\Install;
 
 beforeEach(function (): void {
     File::delete(Installer::path());
@@ -19,7 +19,7 @@ it('describes the tool so an agent knows when to call it', function (): void {
     $tool = new Install;
 
     expect($tool->name())->toBe('install')
-        ->and($tool->description())->toContain('laravel-package:install')
+        ->and($tool->description())->toContain('laravel-declaration:install')
         ->and($tool->toArray()['inputSchema']['properties'])->toHaveKeys(['enabled', 'handle', 'overwrite']);
 });
 
@@ -41,7 +41,7 @@ it('falls back to the current configuration for anything the agent omits', funct
 
     expect(File::get(Installer::path()))
         ->toContain("'enabled' => true,")
-        ->toContain("'handle' => 'laravel-package',");
+        ->toContain("'handle' => 'laravel-declaration',");
 });
 
 it('turns the MCP server off', function (): void {

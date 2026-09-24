@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelPackage;
+namespace ZeroToProd\LaravelDeclaration;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Override;
-use ZeroToProd\LaravelPackage\Internal\Commands\InstallCommand;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Server;
+use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
 
 /** @internal */
-class LaravelPackageServiceProvider extends ServiceProvider
+class LaravelDeclarationProvider extends ServiceProvider
 {
     /** @internal */
     #[Override]
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/laravel-package.php', 'laravel-package');
+        $this->mergeConfigFrom(__DIR__.'/../config/laravel-declaration.php', 'laravel-declaration');
     }
 
     /** @internal */
@@ -32,8 +32,8 @@ class LaravelPackageServiceProvider extends ServiceProvider
             ]);
 
             $this->publishes([
-                __DIR__.'/../config/laravel-package.php' => config_path('laravel-package.php'),
-            ], 'laravel-package-config');
+                __DIR__.'/../config/laravel-declaration.php' => config_path('laravel-declaration.php'),
+            ], 'laravel-declaration-config');
         }
     }
 
@@ -45,10 +45,10 @@ class LaravelPackageServiceProvider extends ServiceProvider
         }
         // @codeCoverageIgnoreEnd
 
-        if (! Config::boolean('laravel-package.mcp.enabled', true)) {
+        if (! Config::boolean('laravel-declaration.mcp.enabled', true)) {
             return;
         }
 
-        Mcp::local(Config::string('laravel-package.mcp.handle', 'laravel-package'), Server::class);
+        Mcp::local(Config::string('laravel-declaration.mcp.handle', 'laravel-declaration'), Server::class);
     }
 }

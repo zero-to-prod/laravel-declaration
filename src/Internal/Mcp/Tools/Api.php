@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelPackage\Internal\Mcp\Tools;
+namespace ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools;
 
 use FilesystemIterator;
 use JsonException;
@@ -36,7 +36,7 @@ class Api extends Tool
 
     public function handle(): Response
     {
-        return Response::text(self::render(dirname(__DIR__, 3), 'ZeroToProd\\LaravelPackage'));
+        return Response::text(self::render(dirname(__DIR__, 3), 'ZeroToProd\\LaravelDeclaration'));
     }
 
     /**

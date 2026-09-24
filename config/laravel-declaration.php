@@ -13,7 +13,7 @@ return [
     | meant to be used. It requires laravel/mcp, and is a no-op without it:
     |
     |     composer require --dev laravel/mcp
-    |     php artisan mcp:start laravel-package
+    |     php artisan mcp:start laravel-declaration
     |
     | The `handle` is the name the server is registered under, which is the
     | argument to `mcp:start` and the name your agent refers to it by.
@@ -22,7 +22,7 @@ return [
 
     'mcp' => [
         'enabled' => true,
-        'handle' => 'laravel-package',
+        'handle' => 'laravel-declaration',
     ],
 
 ];

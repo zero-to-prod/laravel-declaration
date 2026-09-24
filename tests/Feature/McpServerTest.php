@@ -3,26 +3,26 @@
 declare(strict_types=1);
 
 use Laravel\Mcp\Server\Registrar;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Server;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Tools\Readme;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools\Readme;
 
-it('registers the server under the laravel-package handle', function (): void {
-    expect($this->app->make(Registrar::class)->getLocalServer('laravel-package'))->not->toBeNull();
+it('registers the server under the laravel-declaration handle', function (): void {
+    expect($this->app->make(Registrar::class)->getLocalServer('laravel-declaration'))->not->toBeNull();
 });
 
 it('registers nothing when the server is disabled', function (): void {
-    $this->withConfig(['laravel-package.mcp.enabled' => false]);
+    $this->withConfig(['laravel-declaration.mcp.enabled' => false]);
 
-    expect($this->app->make(Registrar::class)->getLocalServer('laravel-package'))->toBeNull();
+    expect($this->app->make(Registrar::class)->getLocalServer('laravel-declaration'))->toBeNull();
 });
 
 it('registers under a configured handle', function (): void {
-    $this->withConfig(['laravel-package.mcp.handle' => 'package-docs']);
+    $this->withConfig(['laravel-declaration.mcp.handle' => 'package-docs']);
 
     $registrar = $this->app->make(Registrar::class);
 
     expect($registrar->getLocalServer('package-docs'))->not->toBeNull()
-        ->and($registrar->getLocalServer('laravel-package'))->toBeNull();
+        ->and($registrar->getLocalServer('laravel-declaration'))->toBeNull();
 });
 
 it('returns the readme', function (): void {

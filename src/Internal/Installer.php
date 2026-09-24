@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelPackage\Internal;
+namespace ZeroToProd\LaravelDeclaration\Internal;
 
 use Closure;
 use Illuminate\Support\Facades\File;
@@ -17,7 +17,7 @@ final class Installer
 {
     public static function path(): string
     {
-        return config_path('laravel-package.php');
+        return config_path('laravel-declaration.php');
     }
 
     /** The shipped configuration file, carrying the given values. */
@@ -25,11 +25,11 @@ final class Installer
     {
         return str_replace([
             "'enabled' => true,",
-            "'handle' => 'laravel-package',",
+            "'handle' => 'laravel-declaration',",
         ], [
             "'enabled' => ".var_export($mcp, true).',',
             "'handle' => ".var_export($handle, true).',',
-        ], File::get(dirname(__DIR__, 2).'/config/laravel-package.php'));
+        ], File::get(dirname(__DIR__, 2).'/config/laravel-declaration.php'));
     }
 
     /**

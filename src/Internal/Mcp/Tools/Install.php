@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelPackage\Internal\Mcp\Tools;
+namespace ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Config;
@@ -10,17 +10,17 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
-use ZeroToProd\LaravelPackage\Internal\Installer;
+use ZeroToProd\LaravelDeclaration\Internal\Installer;
 
 /**
- * What [laravel-package:install] does, without a prompt to answer.
+ * What [laravel-declaration:install] does, without a prompt to answer.
  *
  * @internal
  */
 #[IsIdempotent]
 class Install extends Tool
 {
-    protected string $description = 'Installs the package by writing its configuration file. Mirrors the laravel-package:install command.';
+    protected string $description = 'Installs the package by writing its configuration file. Mirrors the laravel-declaration:install command.';
 
     /** @return array<string, mixed> */
     #[\Override]
@@ -38,8 +38,8 @@ class Install extends Tool
 
     public function handle(Request $request): Response
     {
-        $enabled = $request->has('enabled') ? $request->boolean('enabled') : Config::boolean('laravel-package.mcp.enabled', true);
-        $handle = $request->has('handle') ? $request->string('handle')->toString() : Config::string('laravel-package.mcp.handle', 'laravel-package');
+        $enabled = $request->has('enabled') ? $request->boolean('enabled') : Config::boolean('laravel-declaration.mcp.enabled', true);
+        $handle = $request->has('handle') ? $request->string('handle')->toString() : Config::string('laravel-declaration.mcp.handle', 'laravel-declaration');
 
         $status = Installer::write(
             Installer::configuration($enabled, $handle),

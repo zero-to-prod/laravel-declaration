@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use ZeroToProd\LaravelPackage\Internal\Mcp\Server;
-use ZeroToProd\LaravelPackage\Internal\Mcp\Tools\Api;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
+use ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools\Api;
 
 function renderFixtures(): string
 {
     return Api::render(
-        dirname(__DIR__).'/Fixtures/PublicApi',
-        'ZeroToProd\\LaravelPackage\\Tests\\Fixtures\\PublicApi',
+        __DIR__.'/../Fixtures/PublicApi',
+        'ZeroToProd\\LaravelDeclaration\\Tests\\Fixtures\\PublicApi',
     );
 }
 
@@ -22,7 +22,7 @@ it('reports the packages own public api', function (): void {
 });
 
 it('omits internal classes from the packages own public api', function (): void {
-    expect(Api::render(dirname(__DIR__, 2).'/src', 'ZeroToProd\\LaravelPackage'))
+    expect(Api::render(dirname(__DIR__, 2).'/src', 'ZeroToProd\\LaravelDeclaration'))
         ->not->toContain('ServiceProvider')
         ->not->toContain('Internal');
 });
@@ -36,7 +36,7 @@ it('describes the tool so an agent knows when to call it', function (): void {
 
 it('renders a class declaration with its summary', function (): void {
     expect(renderFixtures())
-        ->toContain("## ZeroToProd\LaravelPackage\Tests\Fixtures\PublicApi\Widget\n\nA widget.\n\n```php\nfinal class Widget implements ZeroToProd\LaravelPackage\Tests\Fixtures\PublicApi\Shape\n{");
+        ->toContain("## ZeroToProd\LaravelDeclaration\Tests\Fixtures\PublicApi\Widget\n\nA widget.\n\n```php\nfinal class Widget implements ZeroToProd\LaravelDeclaration\Tests\Fixtures\PublicApi\Shape\n{");
 });
 
 it('renders interfaces, traits and enums', function (): void {
@@ -54,7 +54,7 @@ it('renders public properties and signatures in full', function (): void {
         ->toContain('public readonly array $tags;')
         ->toContain('/** @param  list<string>  $tags */')
         ->toContain('public function __construct(array $tags = [], string $secret = "sealed");')
-        ->toContain('public static function tally(array &$carry, ?string $label = null, int|float $weight = 1, bool $strict = true, array $options = {"depth":1}, $extra = null, ZeroToProd\LaravelPackage\Tests\Fixtures\PublicApi\Status $status = \ZeroToProd\LaravelPackage\Tests\Fixtures\PublicApi\Status::Draft, string ...$tags): static;');
+        ->toContain('public static function tally(array &$carry, ?string $label = null, int|float $weight = 1, bool $strict = true, array $options = {"depth":1}, $extra = null, ZeroToProd\LaravelDeclaration\Tests\Fixtures\PublicApi\Status $status = \ZeroToProd\LaravelDeclaration\Tests\Fixtures\PublicApi\Status::Draft, string ...$tags): static;');
 });
 
 it('collapses a multi line doc comment onto one line', function (): void {

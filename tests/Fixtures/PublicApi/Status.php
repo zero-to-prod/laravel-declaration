@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelPackage\Tests\Fixtures\PublicApi;
+namespace ZeroToProd\LaravelDeclaration\Tests\Fixtures\PublicApi;
 
 enum Status: string
 {

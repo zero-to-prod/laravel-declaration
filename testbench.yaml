@@ -1,2 +1,2 @@
 providers:
-  - ZeroToProd\LaravelPackage\LaravelPackageServiceProvider
+  - ZeroToProd\LaravelDeclaration\LaravelDeclarationServiceProvider
