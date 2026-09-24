@@ -1,0 +1,330 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+|------------------------------------------------------------------------------
+| Template initialisation
+|------------------------------------------------------------------------------
+|
+| Renames this template to your package. Run it once, from the repository root:
+|
+|     php init
+|
+| The template is a working package named `zero-to-prod/laravel-package`, so
+| every value below is a real string in real files rather than a placeholder.
+| That is deliberate: the template's own `composer check` passes, which is what
+| makes it worth copying. This script rewrites those strings, renames the two
+| files whose names carry one, and then deletes itself.
+|
+| Nothing is written until you have seen the summary and confirmed it.
+|
+*/
+
+const TEMPLATE = [
+    'vendor' => 'zero-to-prod',
+    'slug' => 'laravel-package',
+    'vendor_namespace' => 'ZeroToProd',
+    'namespace' => 'LaravelPackage',
+    'title' => 'Laravel Package',
+    'description' => 'A Laravel package.',
+    'author' => 'Zero to Prod',
+    'email' => 'author@example.com',
+    'year' => '2026',
+];
+
+/** Directories that are never rewritten, whatever they contain. */
+const SKIP_DIRECTORIES = ['.git', '.idea', 'vendor', 'build', 'node_modules'];
+
+/** Files that are never rewritten. `init` is here so it cannot rewrite itself. */
+const SKIP_FILES = ['init', 'composer.lock', '.DS_Store'];
+
+$root = __DIR__;
+
+if (! is_file($root.'/composer.json')) {
+    fwrite(STDERR, "init: run this from the repository root.\n");
+
+    exit(1);
+}
+
+writeln('');
+writeln('  Laravel package template');
+writeln('  Press enter to accept the value in brackets.');
+
+$answers = [];
+
+do {
+    // Answering "no" comes back here with what you said last time as the
+    // defaults, so correcting one value does not mean retyping the rest.
+    $answers = ask_all($root, $answers);
+
+    summarise($answers);
+} while (! confirm('Write these values', true));
+
+strip_template_section($root.'/README.md');
+
+$changed = rewrite($root, replacements($answers));
+$renamed = rename_files($root, $answers);
+
+writeln('');
+writeln(sprintf('  Rewrote %d file%s, renamed %d.', $changed, $changed === 1 ? '' : 's', $renamed));
+writeln('');
+
+if (confirm('Delete init', true)) {
+    remove_self($root);
+}
+
+writeln('');
+writeln('  Next:');
+writeln('');
+writeln('    composer update');
+writeln('    composer fix     # your namespace sorts differently, so imports move');
+writeln('    composer check');
+writeln('');
+writeln('  Then write your package under src/. The MCP server exposes the README');
+writeln('  and every non-internal class in src/ to your coding agent.');
+writeln('');
+
+exit(0);
+
+// ---------------------------------------------------------------------------
+// Prompts
+// ---------------------------------------------------------------------------
+
+/**
+ * @param  array<string, string>  $previous  Answers from a rejected round
+ * @return array<string, string>
+ */
+function ask_all(string $root, array $previous = []): array
+{
+    writeln('');
+
+    $was = static fn (string $key, string $fallback): string => $previous[$key] ?? $fallback;
+
+    $vendor = slugify(ask('Composer vendor', $was('vendor', slugify(git('config user.name')) ?: TEMPLATE['vendor'])));
+    $slug = slugify(ask('Package name', $was('slug', slugify(basename($root)))));
+
+    return [
+        'vendor' => $vendor,
+        'slug' => $slug,
+        'description' => ask('Description', $was('description', TEMPLATE['description'])),
+        'vendor_namespace' => studly(ask('Vendor namespace', $was('vendor_namespace', studly($vendor)))),
+        'namespace' => studly(ask('Package namespace', $was('namespace', studly($slug)))),
+        'title' => ask('Human readable title', $was('title', titleise($slug))),
+        'author' => ask('Author name', $was('author', git('config user.name') ?: TEMPLATE['author'])),
+        'email' => ask('Author email', $was('email', git('config user.email') ?: TEMPLATE['email'])),
+        'organisation' => slugify(ask('GitHub organisation', $was('organisation', $vendor))),
+        'year' => date('Y'),
+    ];
+}
+
+/** @param  array<string, string>  $answers */
+function summarise(array $answers): void
+{
+    writeln('');
+    writeln('  This is what will be written:');
+    writeln('');
+
+    $rows = [
+        'Composer package' => $answers['vendor'].'/'.$answers['slug'],
+        'Description' => $answers['description'],
+        'Root namespace' => $answers['vendor_namespace'].'\\'.$answers['namespace'],
+        'Service provider' => $answers['vendor_namespace'].'\\'.$answers['namespace'].'\\'.$answers['namespace'].'ServiceProvider',
+        'Config file' => 'config/'.$answers['slug'].'.php',
+        'Config key' => $answers['slug'],
+        'Publish tag' => $answers['slug'].'-config',
+        'MCP handle' => $answers['slug'],
+        'MCP server name' => $answers['title'],
+        'Repository' => 'https://github.com/'.$answers['organisation'].'/'.$answers['slug'],
+        'Copyright' => $answers['year'].' '.$answers['author'],
+        'Author' => $answers['author'].' <'.$answers['email'].'>',
+    ];
+
+    foreach ($rows as $label => $value) {
+        writeln(sprintf('    %-18s %s', $label, $value));
+    }
+
+    writeln('');
+}
+
+// ---------------------------------------------------------------------------
+// Rewriting
+// ---------------------------------------------------------------------------
+
+/**
+ * strtr() replaces the longest key that matches at each position and never
+ * reconsiders what it has written, so `zero-to-prod/laravel-package` cannot be
+ * rewritten a second time by the narrower `zero-to-prod` key below it.
+ *
+ * @param  array<string, string>  $answers
+ * @return array<string, string>
+ */
+function replacements(array $answers): array
+{
+    return [
+        'github.com/'.TEMPLATE['vendor'] => 'github.com/'.$answers['organisation'],
+        TEMPLATE['vendor'].'/'.TEMPLATE['slug'] => $answers['vendor'].'/'.$answers['slug'],
+        'Copyright (c) '.TEMPLATE['year'] => 'Copyright (c) '.$answers['year'],
+        TEMPLATE['description'] => $answers['description'],
+        TEMPLATE['title'] => $answers['title'],
+        TEMPLATE['author'] => $answers['author'],
+        TEMPLATE['email'] => $answers['email'],
+        TEMPLATE['slug'] => $answers['slug'],
+        TEMPLATE['vendor'] => $answers['vendor'],
+        TEMPLATE['namespace'] => $answers['namespace'],
+        TEMPLATE['vendor_namespace'] => $answers['vendor_namespace'],
+    ];
+}
+
+/** @param  array<string, string>  $replacements */
+function rewrite(string $root, array $replacements): int
+{
+    $changed = 0;
+
+    foreach (files($root) as $file) {
+        $contents = (string) file_get_contents($file);
+        $rewritten = strtr($contents, $replacements);
+
+        if ($rewritten === $contents) {
+            continue;
+        }
+
+        file_put_contents($file, $rewritten);
+
+        $changed++;
+    }
+
+    return $changed;
+}
+
+/** @param  array<string, string>  $answers */
+function rename_files(string $root, array $answers): int
+{
+    $renames = [
+        'src/'.TEMPLATE['namespace'].'ServiceProvider.php' => 'src/'.$answers['namespace'].'ServiceProvider.php',
+        'config/'.TEMPLATE['slug'].'.php' => 'config/'.$answers['slug'].'.php',
+    ];
+
+    $renamed = 0;
+
+    foreach ($renames as $from => $to) {
+        if ($from !== $to && is_file($root.'/'.$from)) {
+            rename($root.'/'.$from, $root.'/'.$to);
+
+            $renamed++;
+        }
+    }
+
+    return $renamed;
+}
+
+/**
+ * The README doubles as the template's landing page and the package's own
+ * README, which the MCP server serves. Everything down to the marker is about
+ * the template, so it goes.
+ */
+function strip_template_section(string $readme): void
+{
+    if (! is_file($readme)) {
+        return;
+    }
+
+    $contents = (string) file_get_contents($readme);
+    $end = strpos($contents, '<!-- template:end -->');
+
+    if ($end === false) {
+        return;
+    }
+
+    file_put_contents($readme, ltrim(substr($contents, $end + strlen('<!-- template:end -->'))));
+}
+
+function remove_self(string $root): void
+{
+    unlink(__FILE__);
+
+    $attributes = $root.'/.gitattributes';
+
+    if (is_file($attributes)) {
+        file_put_contents($attributes, preg_replace('#^/init\s.*\R#m', '', (string) file_get_contents($attributes)));
+    }
+}
+
+/**
+ * Every file under $root that is not excluded.
+ *
+ * @return list<string>
+ */
+function files(string $root): array
+{
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveCallbackFilterIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            static fn (SplFileInfo $file): bool => $file->isDir()
+                ? ! in_array($file->getFilename(), SKIP_DIRECTORIES, true)
+                : ! in_array($file->getFilename(), SKIP_FILES, true),
+        ),
+    );
+
+    $files = [];
+
+    /** @var SplFileInfo $file */
+    foreach ($iterator as $file) {
+        if ($file->isFile()) {
+            $files[] = $file->getPathname();
+        }
+    }
+
+    sort($files);
+
+    return $files;
+}
+
+// ---------------------------------------------------------------------------
+// Console
+// ---------------------------------------------------------------------------
+
+function ask(string $question, string $default): string
+{
+    echo sprintf('  %s [%s]: ', $question, $default);
+
+    $answer = trim((string) fgets(STDIN));
+
+    return $answer === '' ? $default : $answer;
+}
+
+function confirm(string $question, bool $default = false): bool
+{
+    echo sprintf('  %s? [%s] ', $question, $default ? 'Y/n' : 'y/N');
+
+    $answer = strtolower(trim((string) fgets(STDIN)));
+
+    return $answer === '' ? $default : in_array($answer, ['y', 'yes'], true);
+}
+
+function writeln(string $line): void
+{
+    echo $line, PHP_EOL;
+}
+
+function git(string $arguments): string
+{
+    return trim((string) shell_exec('git '.$arguments.' 2>/dev/null'));
+}
+
+/** Lower kebab case, which is what Composer and the config file name want. */
+function slugify(string $value): string
+{
+    return trim((string) preg_replace('/-+/', '-', (string) preg_replace('/[^a-z0-9]+/', '-', strtolower($value))), '-');
+}
+
+function studly(string $value): string
+{
+    return str_replace(' ', '', titleise($value));
+}
+
+function titleise(string $value): string
+{
+    return ucwords((string) preg_replace('/[^a-zA-Z0-9]+/', ' ', $value));
+}

@@ -1,0 +1,10 @@
+/vendor
+/build
+composer.lock
+.phpunit.result.cache
+.phpunit.cache
+.pint.cache
+/.rector
+.DS_Store
+.idea
+.claude/settings.local.json

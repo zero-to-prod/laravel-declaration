@@ -1,0 +1,11 @@
+includes:
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+        - tests
+    excludePaths:
+        analyse:
+            - tests/Feature

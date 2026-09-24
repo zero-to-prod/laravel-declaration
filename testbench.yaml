@@ -1,0 +1,2 @@
+providers:
+  - ZeroToProd\LaravelPackage\LaravelPackageServiceProvider

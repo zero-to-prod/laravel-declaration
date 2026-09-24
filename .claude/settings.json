@@ -1,0 +1,18 @@
+{
+    "hooks": {
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/composer-check.sh\"",
+                        "asyncRewake": true,
+                        "timeout": 300,
+                        "statusMessage": "Running composer check",
+                        "rewakeSummary": "composer check failed"
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -1,0 +1,40 @@
+name: composer_require_checker
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composer-require-checker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  composer-require-checker:
+    name: Composer Require Checker / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '8.5' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml, curl
+          coverage: none
+          tools: composer:v2
+
+      - name: Run ComposerRequireChecker
+        run: bin/require-check.sh
