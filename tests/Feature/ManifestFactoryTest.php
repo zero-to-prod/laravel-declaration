@@ -2,19 +2,17 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Yaml\Yaml;
-use ZeroToProd\LaravelDeclaration\Manifest;
+use Illuminate\Contracts\Container\BindingResolutionException;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass;
 
-it('returns a Manifest', function (): void {
-    $manifest =
-        <<<'YAML'
-app:
-  providers:
-    - name: app
-      description: Framework configuration and the routes the manifest does not own.
-YAML;
+it('returns a defines providers', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/app.yml']);
 
-    $Manifest = Manifest::from(Yaml::parse($manifest));
-
-    expect($Manifest)->toBeInstanceOf(Manifest::class);
+    expect(app(MockClass::class)->name)->toBe('name');
 });
+
+it('does not register a directory', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest']);
+
+    expect(app(MockClass::class));
+})->throws(BindingResolutionException::class);

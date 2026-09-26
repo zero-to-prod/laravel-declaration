@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
 
+    'manifest' => 'manifest/app.yml',
+
     /*
     |--------------------------------------------------------------------------
     | MCP Server

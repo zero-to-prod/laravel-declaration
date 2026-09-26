@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Override;
+use Symfony\Component\Yaml\Yaml;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
 
@@ -24,6 +25,7 @@ class LaravelDeclarationProvider extends ServiceProvider
     /** @internal */
     public function boot(): void
     {
+        $this->registerManifestProviders();
         $this->registerMcpServer();
 
         if ($this->app->runningInConsole()) {
@@ -34,6 +36,21 @@ class LaravelDeclarationProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/laravel-declaration.php' => config_path('laravel-declaration.php'),
             ], 'laravel-declaration-config');
+        }
+    }
+
+    private function registerManifestProviders(): void
+    {
+        $file = Config::string('laravel-declaration.manifest', 'manifest/app.yml');
+
+        if (! is_file($file)) {
+            return;
+        }
+
+        /** @var array<string> $manifest */
+        $manifest = Yaml::parseFile($file) ?? [];
+        foreach (Manifest::from($manifest)->app->providers as $Provider) {
+            $this->app->register($Provider->class);
         }
     }
 

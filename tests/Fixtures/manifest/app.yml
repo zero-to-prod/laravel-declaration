@@ -1,0 +1,3 @@
+app:
+  providers:
+    - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
