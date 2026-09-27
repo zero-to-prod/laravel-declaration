@@ -81,6 +81,94 @@ composer mcp call api '{}'             # call one
 `composer check` requires a coverage driver (Xdebug or pcov); without one Pest
 cannot satisfy the `--min=100` gate.
 
+## Manifest
+
+`LaravelDeclarationProvider` resolves the YAML file at
+`laravel-declaration.manifest` (default `manifest/app.yml`) and reads it in
+`boot()`. A missing or invalid file registers nothing. Tests:
+`tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`.
+
+The top-level key is `app`, holding `providers` and `routes`. Complete structure
+per feature under [Providers](#providers) and [Routes](#routes).
+
+## Providers
+
+`app.providers` entries declare a `class`: a
+[`ServiceProvider`](https://laravel.com/docs/providers) class-string. At boot,
+`LaravelDeclarationProvider` calls `$this->app->register()` with each one, so the
+declared providers boot before `app.routes` register. A directory path or a
+non-`ServiceProvider` class fails; see `tests/Feature/ManifestFactoryTest.php`.
+
+Complete structure:
+
+```yaml
+app:
+  providers:
+    - class: App\Providers\AppServiceProvider   # ServiceProvider class-string
+```
+
+## Routes
+
+`app.routes` entries map 1:1 onto
+[`Illuminate\Routing\Route`](https://laravel.com/docs/routing) builders: every
+key except the three reserved ones (`path`, `methods`, `action`, which feed
+`Router::addRoute()`) is a `Route` method name, and its value is that method's
+argument. `LaravelDeclarationProvider` uppercases `methods`, then applies the
+rest in YAML document order — `prefix` before `domain` (`prefix()` resets
+domain binding fields). See `tests/Feature/RouteRegistrationTest.php` and
+[docs/declarative-routing.md](docs/declarative-routing.md).
+
+`methods` is exactly one verb — `GET` (implies `HEAD`), `POST`, `PUT`, `PATCH`,
+`DELETE`, `OPTIONS` or `HEAD`. `ANY` never matches. Sharing a path across verbs
+means separate entries.
+
+`action` accepts every YAML callable form: a `Class@method` string, an invokable
+FQCN, or a `[Class, 'method']` array.
+
+Complete structure:
+
+```yaml
+app:
+  routes:
+    - path: "users/{user}"
+      methods: GET                         # one verb, uppercased by the provider
+      action: [App\Http\Controllers\UserController, show]
+      name: users.show                     # -> Route::name()
+      prefix: api                          # -> Route::prefix() (applied before domain)
+      domain: "{account}.example.com"      # -> Route::domain()
+      middleware:                          # -> Route::middleware() (appends)
+        - auth:sanctum
+        - verified
+      withoutMiddleware: [web]             # -> Route::withoutMiddleware()
+      can:                                 # -> Route::can(ability: ..., models: ...)
+        ability: view
+        models: user                       # route parameter name or FQCN
+      where:                               # -> Route::where()
+        user: '[0-9]+'
+      setDefaults:                         # -> Route::setDefaults()
+        user: 1
+      missing: App\Http\Handlers\UserMissingHandler   # -> Route::missing(); invokable class wrapped in a cache-safe Closure
+      scopeBindings: true                  # -> Route::scopeBindings(); false skips the call
+      withoutScopedBindings: false         # -> Route::withoutScopedBindings(); false skips the call
+      withTrashed: true                    # -> Route::withTrashed()
+      block:                               # -> Route::block(lockSeconds: ..., waitSeconds: ...)
+        lockSeconds: 10
+        waitSeconds: 5
+      withoutBlocking: false               # -> Route::withoutBlocking(); false skips the call
+      metadata:                            # -> Route::metadata()
+        group: admin
+
+    - path: "{any}"
+      methods: GET
+      action: App\Http\Controllers\FallbackController   # fallback routes require an action
+      where:
+        any: '.*'                          # mirrors Router::fallback(); without it {any} matches one segment
+      fallback: true                       # -> Route::fallback()
+```
+
+`missing` handlers must be invokable; a non-invokable class throws
+`LogicException` when invoked.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

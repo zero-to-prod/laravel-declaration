@@ -7,6 +7,7 @@ namespace ZeroToProd\LaravelDeclaration;
 use Closure;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
@@ -28,6 +29,7 @@ class LaravelDeclarationProvider extends ServiceProvider
 
     /**
      * @throws BindingResolutionException
+     *
      * @internal
      */
     public function boot(): void
@@ -41,12 +43,12 @@ class LaravelDeclarationProvider extends ServiceProvider
                 __DIR__.'/../config/laravel-declaration.php' => config_path('laravel-declaration.php'),
             ], 'laravel-declaration-config');
         }
-        if (!\Illuminate\Support\Facades\App::isProduction()) {
+        if (! App::isProduction()) {
             $this->registerMcpServer();
         }
 
         $Manifest = $this->resolveManifest(Config::string('laravel-declaration.manifest', 'manifest/app.yml'));
-        if (!$Manifest instanceof Manifest) {
+        if (! $Manifest instanceof Manifest) {
             return;
         }
 
@@ -56,7 +58,7 @@ class LaravelDeclarationProvider extends ServiceProvider
 
     private function resolveManifest(string $filename): ?Manifest
     {
-        if (!is_file($filename)) {
+        if (! is_file($filename)) {
             return null;
         }
 
@@ -106,7 +108,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         return static function ($request, $e) use ($handler): mixed {
             $Handler = app($handler);
 
-            if (!is_callable($Handler)) {
+            if (! is_callable($Handler)) {
                 throw new LogicException("The `missing` handler [{$handler}] must be invokable.");
             }
 
@@ -117,12 +119,12 @@ class LaravelDeclarationProvider extends ServiceProvider
     private function registerMcpServer(): void
     {
         // @codeCoverageIgnoreStart
-        if (!class_exists(Mcp::class)) {
+        if (! class_exists(Mcp::class)) {
             return;
         }
         // @codeCoverageIgnoreEnd
 
-        if (!Config::boolean('laravel-declaration.mcp.enabled', true)) {
+        if (! Config::boolean('laravel-declaration.mcp.enabled', true)) {
             return;
         }
 
