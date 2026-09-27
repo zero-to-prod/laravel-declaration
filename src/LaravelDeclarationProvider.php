@@ -7,7 +7,6 @@ namespace ZeroToProd\LaravelDeclaration;
 use Closure;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Routing\Router;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
@@ -27,12 +26,12 @@ class LaravelDeclarationProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/laravel-declaration.php', 'laravel-declaration');
     }
 
-    /** @internal */
+    /**
+     * @throws BindingResolutionException
+     * @internal
+     */
     public function boot(): void
     {
-        $this->registerManifestProviders();
-        $this->registerMcpServer();
-
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
@@ -42,39 +41,45 @@ class LaravelDeclarationProvider extends ServiceProvider
                 __DIR__.'/../config/laravel-declaration.php' => config_path('laravel-declaration.php'),
             ], 'laravel-declaration-config');
         }
-    }
+        if (!\Illuminate\Support\Facades\App::isProduction()) {
+            $this->registerMcpServer();
+        }
 
-    private function registerManifestProviders(): void
-    {
-        $file = Config::string('laravel-declaration.manifest', 'manifest/app.yml');
-
-        if (! is_file($file)) {
+        $Manifest = $this->resolveManifest(Config::string('laravel-declaration.manifest', 'manifest/app.yml'));
+        if (!$Manifest instanceof Manifest) {
             return;
         }
 
-        /** @var array<string, mixed> $manifest */
-        $manifest = Yaml::parseFile($file) ?? [];
-        $Manifest = Manifest::from($manifest);
+        $this->registerProviders($Manifest);
+        $this->registerRoutes($Manifest, $this->app->make(Router::class));
+    }
 
+    private function resolveManifest(string $filename): ?Manifest
+    {
+        if (!is_file($filename)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $manifest */
+        $manifest = Yaml::parseFile($filename) ?? [];
+
+        return Manifest::from($manifest);
+    }
+
+    private function registerProviders(Manifest $Manifest): void
+    {
         foreach ($Manifest->app->providers as $Provider) {
             $this->app->register($Provider->class);
         }
-
-        $this->registerManifestRoutes($Manifest->app->routes);
     }
 
-    /**
-     * @param  Collection<int, Route>  $routes
-     *
-     * @throws BindingResolutionException
-     */
-    private function registerManifestRoutes(Collection $routes): void
+    private function registerRoutes(Manifest $Manifest, Router $Router): void
     {
-        $Router = $this->app->make(Router::class);
-
-        foreach ($routes as $Route) {
+        foreach ($Manifest->app->routes as $Route) {
             $route = $Router->addRoute(
-                strtoupper($Route->methods), $Route->path, $Route->action,
+                strtoupper($Route->methods),
+                $Route->path,
+                $Route->action,
             );
 
             foreach ($Route->builders() as $method => $value) {
@@ -85,7 +90,8 @@ class LaravelDeclarationProvider extends ServiceProvider
                     Route::withoutBlocking => $value ? $route->{$method}() : null,
                     Route::can => $route->can($Route->can['ability'], $Route->can['models'] ?? []),
                     Route::block => $route->block(
-                        $Route->block['lockSeconds'] ?? null, $Route->block['waitSeconds'] ?? null,
+                        $Route->block['lockSeconds'] ?? null,
+                        $Route->block['waitSeconds'] ?? null,
                     ),
                     Route::missing => $route->missing($this->wrapMissingHandler($Route->missingHandler())),
                     default => $route->{$method}($value),
@@ -100,7 +106,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         return static function ($request, $e) use ($handler): mixed {
             $Handler = app($handler);
 
-            if (! is_callable($Handler)) {
+            if (!is_callable($Handler)) {
                 throw new LogicException("The `missing` handler [{$handler}] must be invokable.");
             }
 
@@ -111,12 +117,12 @@ class LaravelDeclarationProvider extends ServiceProvider
     private function registerMcpServer(): void
     {
         // @codeCoverageIgnoreStart
-        if (! class_exists(Mcp::class)) {
+        if (!class_exists(Mcp::class)) {
             return;
         }
         // @codeCoverageIgnoreEnd
 
-        if (! Config::boolean('laravel-declaration.mcp.enabled', true)) {
+        if (!Config::boolean('laravel-declaration.mcp.enabled', true)) {
             return;
         }
 
