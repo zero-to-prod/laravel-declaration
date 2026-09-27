@@ -21,7 +21,7 @@ trait DataModel
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return $this->collect()->toArray();
+        return get_object_vars($this);
     }
 
     /** @return Collection<string, mixed> */

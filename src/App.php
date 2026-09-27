@@ -19,4 +19,11 @@ final readonly class App
         'key_by' => Provider::name,
     ])]
     public Collection $providers;
+
+    /** @var Collection<int, Route> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Route::class,
+    ])]
+    public Collection $routes;
 }
