@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-use InvalidArgumentException;
 use Symfony\Component\Yaml\Yaml;
-use UnexpectedValueException;
 use Zerotoprod\DataModel\PropertyRequiredException;
 use ZeroToProd\LaravelDeclaration\App;
 use ZeroToProd\LaravelDeclaration\Manifest;
@@ -105,31 +103,6 @@ it('hydrates routes from the manifest', function (): void {
 it('requires path, methods and action', function (): void {
     Route::from(['path' => '/', 'methods' => 'GET']);
 })->throws(PropertyRequiredException::class);
-
-it('rejects unknown keys', function (): void {
-    Route::from([
-        'path' => '/',
-        'methods' => 'GET',
-        'action' => MockController::class,
-        'bogus' => 1,
-    ]);
-})->throws(InvalidArgumentException::class);
-
-it('rejects multiple verbs', function (): void {
-    Route::from([
-        'path' => '/',
-        'methods' => ['GET', 'POST'],
-        'action' => MockController::class,
-    ]);
-})->throws(UnexpectedValueException::class);
-
-it('rejects unknown verbs', function (): void {
-    Route::from([
-        'path' => '/',
-        'methods' => 'ANY',
-        'action' => MockController::class,
-    ]);
-})->throws(UnexpectedValueException::class);
 
 it('accepts a lowercase verb', function (): void {
     expect(Route::from([

@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "php": "^8.5",
+        "php": "^8.4",
         "illuminate/console": "^13.0",
         "illuminate/support": "^13.0",
         "zero-to-prod/data-model": "^81.20",

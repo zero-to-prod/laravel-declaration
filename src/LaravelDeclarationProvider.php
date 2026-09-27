@@ -65,6 +65,7 @@ class LaravelDeclarationProvider extends ServiceProvider
 
     /**
      * @param  Collection<int, Route>  $routes
+     *
      * @throws BindingResolutionException
      */
     private function registerManifestRoutes(Collection $routes): void

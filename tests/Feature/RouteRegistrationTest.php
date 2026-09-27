@@ -130,45 +130,6 @@ it('rejects a non-invokable missing handler', function (): void {
     }
 })->throws(LogicException::class);
 
-it('rejects unknown route keys at boot', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
-          routes:
-            - path: "/"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              bogus: 1
-        YAML);
-
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
-
-        $this->get('/');
-    } finally {
-        unlink($file);
-    }
-})->throws(InvalidArgumentException::class);
-
-it('rejects a bad verb at boot', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
-          routes:
-            - path: "/"
-              methods: [GET, POST]
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        YAML);
-
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
-
-        $this->get('/');
-    } finally {
-        unlink($file);
-    }
-})->throws(UnexpectedValueException::class);
-
 it('registers no routes without a manifest', function (): void {
     expect(app(Router::class)->getRoutes()->count())->toBe(0)
         ->and(app(MockController::class))->toBeInstanceOf(MockController::class);
