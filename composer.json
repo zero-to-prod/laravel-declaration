@@ -44,14 +44,14 @@
     "extra": {
         "laravel": {
             "providers": [
-                "LaravelDeclarationProvider"
+                "ZeroToProd\\LaravelDeclaration\\LaravelDeclarationProvider"
             ]
         }
     },
     "scripts": {
-        "test-fresh": "pest --tia --fresh",
-        "test": "pest --tia",
-        "coverage": "pest --tia --fresh --coverage --min=100",
+        "test-fresh": "pest",
+        "test": "pest --no-tia",
+        "coverage": "pest --no-tia --coverage --min=100",
         "analyse": "phpstan analyse",
         "format": "pint",
         "lint": "pint --test",

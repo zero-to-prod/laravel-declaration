@@ -25,8 +25,14 @@ abstract class TestCase extends Orchestra
         ];
     }
 
-    protected function defineEnvironment($app): void
+    /**
+     * Applied right after the config files load, before any provider
+     * registers — where a host's own config/*.php values sit.
+     */
+    protected function resolveApplicationConfiguration($app): void
     {
+        parent::resolveApplicationConfiguration($app);
+
         $config = $app->make(Repository::class);
 
         foreach ($this->environmentConfig as $key => $value) {

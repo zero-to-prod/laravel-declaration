@@ -7,6 +7,7 @@ namespace ZeroToProd\LaravelDeclaration;
 use Closure;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +26,12 @@ class LaravelDeclarationProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/laravel-declaration.php', 'laravel-declaration');
+
+        $Manifest = $this->resolveManifest(Config::string('laravel-declaration.manifest', 'manifest/app.yml'));
+
+        $this->app->instance(Manifest::class, $Manifest);
+
+        $this->registerConfig($Manifest);
     }
 
     /**
@@ -47,28 +54,33 @@ class LaravelDeclarationProvider extends ServiceProvider
             $this->registerMcpServer();
         }
 
-        $Manifest = $this->resolveManifest(Config::string('laravel-declaration.manifest', 'manifest/app.yml'));
-
-        $this->app->instance(Manifest::class, $Manifest ?? Manifest::from([Manifest::app => []]));
-
-        if (! $Manifest instanceof Manifest) {
-            return;
-        }
+        $Manifest = $this->app->make(Manifest::class);
 
         $this->registerProviders($Manifest);
         $this->registerRoutes($Manifest, $this->app->make(Router::class));
     }
 
-    private function resolveManifest(string $filename): ?Manifest
+    private function resolveManifest(string $filename): Manifest
     {
         if (! is_file($filename)) {
-            return null;
+            return Manifest::from([Manifest::app => []]);
         }
 
         /** @var array<string, mixed> $manifest */
         $manifest = Yaml::parseFile($filename) ?? [];
 
         return Manifest::from($manifest);
+    }
+
+    private function registerConfig(Manifest $Manifest): void
+    {
+        foreach ($Manifest->app->config as $file => $values) {
+            if (! is_array($values)) {
+                throw new LogicException("The `config.$file` entry must be a map of config keys.");
+            }
+
+            Config::set(Arr::prependKeysWith($values, "$file."));
+        }
     }
 
     private function registerProviders(Manifest $Manifest): void

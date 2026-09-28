@@ -84,14 +84,45 @@ cannot satisfy the `--min=100` gate.
 ## Manifest
 
 `LaravelDeclarationProvider` resolves the YAML file at
-`laravel-declaration.manifest` (default `manifest/app.yml`) and reads it in
-`boot()`. A missing or invalid file registers nothing. Tests:
+`laravel-declaration.manifest` (default `manifest/app.yml`) in `register()`,
+applies its `config` there, and registers its providers and routes in `boot()`.
+A missing file registers nothing. Tests:
 `tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
-`tests/Feature/DeclaredRequestTest.php`.
+`tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`.
 
-The top-level key is `app`, holding `providers`, `routes` and `requests`.
-Complete structure per feature under [Providers](#providers), [Routes](#routes)
-and [Requests](#requests).
+The top-level key is `app`, holding `config`, `providers`, `routes` and
+`requests`. Complete structure per feature under [Config](#config),
+[Providers](#providers), [Routes](#routes) and [Requests](#requests).
+
+## Config
+
+`app.config` is the argument to `config([...])`, written in YAML: every
+`<file>.<key>` path is a `config()` key, set with `Config::set()` in
+`register()`. `app` is `./config/app.php`, so `app: {name: X}` is
+`config(['app.name' => 'X'])` and every other `app.*` key survives. A key may
+be a dot-path (`stores.redis.connection`) to change one nested value; a map
+value replaces that node whole. A file key no config file declares is gained
+whole; a scalar under a file key throws a `LogicException`. Every provider's
+`boot()` and every declared provider see the values. Keys Laravel consumes
+before providers register (`app.env`, `app.timezone`) change in `config()`
+only. Values pass through as YAML decoded them — declare literals, not
+`env(...)` expressions. `config:cache` bakes the values in, like any config
+file: re-run it after editing `app.config`. See
+`tests/Feature/ConfigRegistrationTest.php` and
+[docs/declarative-configuration.md](docs/declarative-configuration.md).
+
+Complete structure:
+
+```yaml
+app:
+  config:                       # the config() key space
+    app:                        # ./config/app.php
+      name: Tenant Console      # config('app.name'); other app.* keys survive
+    cache:
+      stores.redis.connection: cache  # one nested key; the rest of stores.redis survives
+    sentinel:                   # a key no file declares: gained whole
+      meters: true
+```
 
 ## Providers
 

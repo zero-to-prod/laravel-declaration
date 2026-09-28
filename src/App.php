@@ -12,6 +12,12 @@ final readonly class App
 {
     use DataModel;
 
+    public const string config = 'config';
+
+    /** @var array<string, mixed> */
+    #[Describe([Describe::default => []])]
+    public array $config;
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],
