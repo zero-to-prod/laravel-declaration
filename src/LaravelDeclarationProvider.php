@@ -63,7 +63,7 @@ class LaravelDeclarationProvider extends ServiceProvider
     private function resolveManifest(string $filename): Manifest
     {
         if (! is_file($filename)) {
-            return Manifest::from([Manifest::app => []]);
+            return Manifest::from([]);
         }
 
         /** @var array<string, mixed> $manifest */
@@ -74,7 +74,7 @@ class LaravelDeclarationProvider extends ServiceProvider
 
     private function registerConfig(Manifest $Manifest): void
     {
-        foreach ($Manifest->app->config as $file => $values) {
+        foreach ($Manifest->config as $file => $values) {
             if (! is_array($values)) {
                 throw new LogicException("The `config.$file` entry must be a map of config keys.");
             }
@@ -85,14 +85,14 @@ class LaravelDeclarationProvider extends ServiceProvider
 
     private function registerProviders(Manifest $Manifest): void
     {
-        foreach ($Manifest->app->providers as $Provider) {
+        foreach ($Manifest->providers as $Provider) {
             $this->app->register($Provider->class);
         }
     }
 
     private function registerRoutes(Manifest $Manifest, Router $Router): void
     {
-        foreach ($Manifest->app->routes as $Route) {
+        foreach ($Manifest->routes as $Route) {
             $route = $Router->addRoute(
                 strtoupper($Route->methods),
                 $Route->path,

@@ -16,11 +16,10 @@ function configManifest(string $yaml): string
 
 it('merges the declared values over the file array, YAML winning', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            app:
-              name: Tenant Console
-              timezone: UTC
+        config:
+          app:
+            name: Tenant Console
+            timezone: UTC
         YAML);
 
     try {
@@ -36,13 +35,12 @@ it('merges the declared values over the file array, YAML winning', function (): 
 
 it('merges per top-level key, replacing nested maps whole', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            cache:
-              default: redis
-            database:
-              redis:
-                host: redis-host
+        config:
+          cache:
+            default: redis
+          database:
+            redis:
+              host: redis-host
         YAML);
 
     try {
@@ -61,10 +59,9 @@ it('merges per top-level key, replacing nested maps whole', function (): void {
 
 it('sets a dotted key as a config() path, keeping its siblings', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            cache:
-              stores.array.serialize: true
+        config:
+          cache:
+            stores.array.serialize: true
         YAML);
 
     try {
@@ -79,10 +76,9 @@ it('sets a dotted key as a config() path, keeping its siblings', function (): vo
 
 it('configures this package before its own boot', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            laravel-declaration:
-              mcp.enabled: false
+        config:
+          laravel-declaration:
+            mcp.enabled: false
         YAML);
 
     try {
@@ -96,11 +92,10 @@ it('configures this package before its own boot', function (): void {
 
 it('gains keys no file declares, with typed YAML values', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            sentinel:
-              meters: true
-              limit: 10
+        config:
+          sentinel:
+            meters: true
+            limit: 10
         YAML);
 
     try {
@@ -116,9 +111,8 @@ it('gains keys no file declares, with typed YAML values', function (): void {
 
 it('merges nothing when the manifest has no config block', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          providers:
-            - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
+        providers:
+          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
         YAML);
 
     try {
@@ -138,12 +132,11 @@ it('merges nothing without a manifest', function (): void {
 
 it('declared providers see the merged values in register and boot', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            app:
-              name: Tenant Console
-          providers:
-            - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
+        config:
+          app:
+            name: Tenant Console
+        providers:
+          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
         YAML);
 
     try {
@@ -161,9 +154,8 @@ it('declared providers see the merged values in register and boot', function ():
 
 it('rejects a scalar under a file key', function (): void {
     $manifest = configManifest(<<<'YAML'
-        app:
-          config:
-            app: "foo"
+        config:
+          app: "foo"
         YAML);
 
     try {

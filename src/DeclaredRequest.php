@@ -143,11 +143,11 @@ class DeclaredRequest extends FormRequest
         $name = $this->route()->getMetadata('request');
 
         /** @var Request|null $Request */
-        $Request = $this->container->make(Manifest::class)->app->requests->get($name);
+        $Request = $this->container->make(Manifest::class)->requests->get($name);
 
         return $Request
             ?? throw new LogicException(
-                "The route declares no `metadata.request`, or [{$name}] is not declared under `app.requests`.",
+                "The route declares no `metadata.request`, or [{$name}] is not declared under `requests`.",
             );
     }
 

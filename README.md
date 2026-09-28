@@ -90,13 +90,15 @@ A missing file registers nothing. Tests:
 `tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
 `tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`.
 
-The top-level key is `app`, holding `config`, `providers`, `routes` and
-`requests`. Complete structure per feature under [Config](#config),
-[Providers](#providers), [Routes](#routes) and [Requests](#requests).
+The top-level keys are `config`, `providers`, `routes` and `requests`.
+Complete structure per feature under [Config](#config),
+[Providers](#providers), [Routes](#routes) and [Requests](#requests). `app` is
+reserved for the `Application` surface, proposed in
+[docs/declarative-application.md](docs/declarative-application.md).
 
 ## Config
 
-`app.config` is the argument to `config([...])`, written in YAML: every
+The `config` block is the argument to `config([...])`, written in YAML: every
 `<file>.<key>` path is a `config()` key, set with `Config::set()` in
 `register()`. `app` is `./config/app.php`, so `app: {name: X}` is
 `config(['app.name' => 'X'])` and every other `app.*` key survives. A key may
@@ -107,42 +109,40 @@ whole; a scalar under a file key throws a `LogicException`. Every provider's
 before providers register (`app.env`, `app.timezone`) change in `config()`
 only. Values pass through as YAML decoded them — declare literals, not
 `env(...)` expressions. `config:cache` bakes the values in, like any config
-file: re-run it after editing `app.config`. See
+file: re-run it after editing the `config` block. See
 `tests/Feature/ConfigRegistrationTest.php` and
 [docs/declarative-configuration.md](docs/declarative-configuration.md).
 
 Complete structure:
 
 ```yaml
-app:
-  config:                       # the config() key space
-    app:                        # ./config/app.php
-      name: Tenant Console      # config('app.name'); other app.* keys survive
-    cache:
-      stores.redis.connection: cache  # one nested key; the rest of stores.redis survives
-    sentinel:                   # a key no file declares: gained whole
-      meters: true
+config:                       # the config() key space
+  app:                        # ./config/app.php
+    name: Tenant Console      # config('app.name'); other app.* keys survive
+  cache:
+    stores.redis.connection: cache  # one nested key; the rest of stores.redis survives
+  sentinel:                   # a key no file declares: gained whole
+    meters: true
 ```
 
 ## Providers
 
-`app.providers` entries declare a `class`: a
+`providers` entries declare a `class`: a
 [`ServiceProvider`](https://laravel.com/docs/providers) class-string. At boot,
 `LaravelDeclarationProvider` calls `$this->app->register()` with each one, so the
-declared providers boot before `app.routes` register. A directory path or a
+declared providers boot before `routes` register. A directory path or a
 non-`ServiceProvider` class fails; see `tests/Feature/ManifestFactoryTest.php`.
 
 Complete structure:
 
 ```yaml
-app:
-  providers:
-    - class: App\Providers\AppServiceProvider   # ServiceProvider class-string
+providers:
+  - class: App\Providers\AppServiceProvider   # ServiceProvider class-string
 ```
 
 ## Routes
 
-`app.routes` entries map 1:1 onto
+`routes` entries map 1:1 onto
 [`Illuminate\Routing\Route`](https://laravel.com/docs/routing) builders: every
 key except the three reserved ones (`path`, `methods`, `action`, which feed
 `Router::addRoute()`) is a `Route` method name, and its value is that method's
@@ -161,42 +161,41 @@ FQCN, or a `[Class, 'method']` array.
 Complete structure:
 
 ```yaml
-app:
-  routes:
-    - path: "users/{user}"
-      methods: GET                         # one verb, uppercased by the provider
-      action: [App\Http\Controllers\UserController, show]
-      name: users.show                     # -> Route::name()
-      prefix: api                          # -> Route::prefix() (applied before domain)
-      domain: "{account}.example.com"      # -> Route::domain()
-      middleware:                          # -> Route::middleware() (appends)
-        - auth:sanctum
-        - verified
-      withoutMiddleware: [web]             # -> Route::withoutMiddleware()
-      can:                                 # -> Route::can(ability: ..., models: ...)
-        ability: view
-        models: user                       # route parameter name or FQCN
-      where:                               # -> Route::where()
-        user: '[0-9]+'
-      setDefaults:                         # -> Route::setDefaults()
-        user: 1
-      missing: App\Http\Handlers\UserMissingHandler   # -> Route::missing(); invokable class wrapped in a cache-safe Closure
-      scopeBindings: true                  # -> Route::scopeBindings(); false skips the call
-      withoutScopedBindings: false         # -> Route::withoutScopedBindings(); false skips the call
-      withTrashed: true                    # -> Route::withTrashed()
-      block:                               # -> Route::block(lockSeconds: ..., waitSeconds: ...)
-        lockSeconds: 10
-        waitSeconds: 5
-      withoutBlocking: false               # -> Route::withoutBlocking(); false skips the call
-      metadata:                            # -> Route::metadata()
-        group: admin
+routes:
+  - path: "users/{user}"
+    methods: GET                         # one verb, uppercased by the provider
+    action: [App\Http\Controllers\UserController, show]
+    name: users.show                     # -> Route::name()
+    prefix: api                          # -> Route::prefix() (applied before domain)
+    domain: "{account}.example.com"      # -> Route::domain()
+    middleware:                          # -> Route::middleware() (appends)
+      - auth:sanctum
+      - verified
+    withoutMiddleware: [web]             # -> Route::withoutMiddleware()
+    can:                                 # -> Route::can(ability: ..., models: ...)
+      ability: view
+      models: user                       # route parameter name or FQCN
+    where:                               # -> Route::where()
+      user: '[0-9]+'
+    setDefaults:                         # -> Route::setDefaults()
+      user: 1
+    missing: App\Http\Handlers\UserMissingHandler   # -> Route::missing(); invokable class wrapped in a cache-safe Closure
+    scopeBindings: true                  # -> Route::scopeBindings(); false skips the call
+    withoutScopedBindings: false         # -> Route::withoutScopedBindings(); false skips the call
+    withTrashed: true                    # -> Route::withTrashed()
+    block:                               # -> Route::block(lockSeconds: ..., waitSeconds: ...)
+      lockSeconds: 10
+      waitSeconds: 5
+    withoutBlocking: false               # -> Route::withoutBlocking(); false skips the call
+    metadata:                            # -> Route::metadata()
+      group: admin
 
-    - path: "{any}"
-      methods: GET
-      action: App\Http\Controllers\FallbackController   # fallback routes require an action
-      where:
-        any: '.*'                          # mirrors Router::fallback(); without it {any} matches one segment
-      fallback: true                       # -> Route::fallback()
+  - path: "{any}"
+    methods: GET
+    action: App\Http\Controllers\FallbackController   # fallback routes require an action
+    where:
+      any: '.*'                          # mirrors Router::fallback(); without it {any} matches one segment
+    fallback: true                       # -> Route::fallback()
 ```
 
 `missing` handlers must be invokable; a non-invokable class throws
@@ -204,7 +203,7 @@ app:
 
 ## Requests
 
-`app.requests` entries map 1:1 onto
+`requests` entries map 1:1 onto
 [`Illuminate\Foundation\Http\FormRequest`](https://laravel.com/docs/validation#form-request-validation)
 members: every key except the reserved `name` is a `FormRequest` method or
 property name, and its value is what that member returns (or holds). A route
@@ -231,42 +230,41 @@ passes to Laravel untouched.
 Complete structure:
 
 ```yaml
-app:
-  requests:
-    - name: user                                   # reserved: the handle routes reference
-      authorize: App\Http\Gates\CreateUser          # -> authorize(); bool | reference; absent -> true
-      rules:                                        # -> rules(); map | reference
-        name: [required, string, max:255]           # Laravel rules, untouched
-        nickname: nullable|string|max:32            # pipe string, untouched
-        role: [required, 'exists:App\Models\Role,name']   # `\` after the `:` -> Laravel param
-        slug: [required, App\Rules\Slug]            # rule class -> make()
-        email: [required, 'App\Rules\UniqueTenantEmail::forRequest']   # called -> returns the rule
-      messages:                                     # -> messages(); map | reference
-        name.required: A name is required.
-      attributes:                                   # -> attributes(); map | reference
-        email: email address
-      validationData: App\Http\Hooks\Data@handle    # -> validationData(); absent -> $this->all()
-      prepareForValidation: App\Http\Hooks\TitleCaseName@handle   # -> prepareForValidation()
-      passedValidation: App\Http\Hooks\Audit@handle # -> passedValidation()
-      withValidator: App\Http\Hooks\Extra@handle    # -> withValidator(); receives $validator
-      after:                                        # -> after(); list of references, each receives $validator
-        - App\Validation\ValidateUserStatus
-      validator: App\Http\Hooks\Build@make          # -> validator(); receives $factory; replaces rules/messages/attributes
-      failedValidation: App\Http\Hooks\Respond@handle     # runs, then Laravel throws ValidationException
-      failedAuthorization: App\Http\Hooks\Deny@handle     # runs, then Laravel throws AuthorizationException
-      redirect: /users                              # -> $redirect ≙ #[RedirectTo]
-      redirectRoute: users.index                    # -> $redirectRoute ≙ #[RedirectToRoute]
-      redirectAction: App\Http\Controllers\UserController@index   # -> $redirectAction
-      errorBag: user                                # -> $errorBag ≙ #[ErrorBag]
-      stopOnFirstFailure: true                      # -> $stopOnFirstFailure ≙ #[StopOnFirstFailure]
-      failOnUnknownFields: true                     # -> shouldFailOnUnknownFields() ≙ #[FailOnUnknownFields]
+requests:
+  - name: user                                   # reserved: the handle routes reference
+    authorize: App\Http\Gates\CreateUser          # -> authorize(); bool | reference; absent -> true
+    rules:                                        # -> rules(); map | reference
+      name: [required, string, max:255]           # Laravel rules, untouched
+      nickname: nullable|string|max:32            # pipe string, untouched
+      role: [required, 'exists:App\Models\Role,name']   # `\` after the `:` -> Laravel param
+      slug: [required, App\Rules\Slug]            # rule class -> make()
+      email: [required, 'App\Rules\UniqueTenantEmail::forRequest']   # called -> returns the rule
+    messages:                                     # -> messages(); map | reference
+      name.required: A name is required.
+    attributes:                                   # -> attributes(); map | reference
+      email: email address
+    validationData: App\Http\Hooks\Data@handle    # -> validationData(); absent -> $this->all()
+    prepareForValidation: App\Http\Hooks\TitleCaseName@handle   # -> prepareForValidation()
+    passedValidation: App\Http\Hooks\Audit@handle # -> passedValidation()
+    withValidator: App\Http\Hooks\Extra@handle    # -> withValidator(); receives $validator
+    after:                                        # -> after(); list of references, each receives $validator
+      - App\Validation\ValidateUserStatus
+    validator: App\Http\Hooks\Build@make          # -> validator(); receives $factory; replaces rules/messages/attributes
+    failedValidation: App\Http\Hooks\Respond@handle     # runs, then Laravel throws ValidationException
+    failedAuthorization: App\Http\Hooks\Deny@handle     # runs, then Laravel throws AuthorizationException
+    redirect: /users                              # -> $redirect ≙ #[RedirectTo]
+    redirectRoute: users.index                    # -> $redirectRoute ≙ #[RedirectToRoute]
+    redirectAction: App\Http\Controllers\UserController@index   # -> $redirectAction
+    errorBag: user                                # -> $errorBag ≙ #[ErrorBag]
+    stopOnFirstFailure: true                      # -> $stopOnFirstFailure ≙ #[StopOnFirstFailure]
+    failOnUnknownFields: true                     # -> shouldFailOnUnknownFields() ≙ #[FailOnUnknownFields]
 
-  routes:
-    - path: users
-      methods: POST
-      action: [App\Http\Controllers\UserController, store]
-      metadata:
-        request: user                               # -> Route::metadata(['request' => 'user'])
+routes:
+  - path: users
+    methods: POST
+    action: [App\Http\Controllers\UserController, store]
+    metadata:
+      request: user                               # -> Route::metadata(['request' => 'user'])
 ```
 
 The action:

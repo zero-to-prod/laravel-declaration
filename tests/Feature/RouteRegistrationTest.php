@@ -110,13 +110,12 @@ it('wraps the missing handler in a cache-safe Closure', function () use ($manife
 it('rejects a non-invokable missing handler', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        app:
-          routes:
-            - path: "/"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              name: temp-home
-              missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
+        routes:
+          - path: "/"
+            methods: GET
+            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+            name: temp-home
+            missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
         YAML);
 
     try {

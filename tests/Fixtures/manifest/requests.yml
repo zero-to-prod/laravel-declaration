@@ -1,117 +1,116 @@
-app:
-  requests:
-    - name: user
-      authorize: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\AllowUser
-      rules:
-        name: [required, string, max:255]
-        nickname: nullable|string|max:32
-        email:
-          - required
-          - email
-          - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Rules\TenantEmailRule::forRequest'
-          - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\declared_tenant_email'
-        slug: [required, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Rules\Slug']
-        code: [['regex', '/^ok$/']]
-      messages:
-        name.required: A name is required.
-      attributes:
-        email: email address
-      prepareForValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\TitleCaseName@handle'
-      after:
-        - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\ValidateUserStatus'
-      errorBag: user
-      stopOnFirstFailure: true
-      failOnUnknownFields: true
-      bogus: ignored
+requests:
+  - name: user
+    authorize: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\AllowUser
+    rules:
+      name: [required, string, max:255]
+      nickname: nullable|string|max:32
+      email:
+        - required
+        - email
+        - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Rules\TenantEmailRule::forRequest'
+        - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\declared_tenant_email'
+      slug: [required, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Rules\Slug']
+      code: [['regex', '/^ok$/']]
+    messages:
+      name.required: A name is required.
+    attributes:
+      email: email address
+    prepareForValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\TitleCaseName@handle'
+    after:
+      - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\ValidateUserStatus'
+    errorBag: user
+    stopOnFirstFailure: true
+    failOnUnknownFields: true
+    bogus: ignored
 
-    - name: data
-      rules:
-        name: [required, string]
-        extra: [required, string]
-      validationData: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\ExtraData@handle'
-      passedValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\FlagPassed@handle'
-      redirectRoute: home
-      redirectAction: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController@avatar'
+  - name: data
+    rules:
+      name: [required, string]
+      extra: [required, string]
+    validationData: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\ExtraData@handle'
+    passedValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\FlagPassed@handle'
+    redirectRoute: home
+    redirectAction: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController@avatar'
 
-    - name: avatar
-      authorize: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\AllowUser
-      validator: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\AvatarValidator@make'
-      withValidator: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\WithValidator@handle'
-      redirect: /failed
-      errorBag: avatar
+  - name: avatar
+    authorize: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\AllowUser
+    validator: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\AvatarValidator@make'
+    withValidator: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\WithValidator@handle'
+    redirect: /failed
+    errorBag: avatar
 
-    - name: custom-failure
-      rules:
-        name: required
-      messages: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\CustomMessages@handle'
-      attributes: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\CustomAttributes@handle'
-      prepareForValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\declared_prepare'
-      failedValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\RespondWithJson@handle'
+  - name: custom-failure
+    rules:
+      name: required
+    messages: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\CustomMessages@handle'
+    attributes: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\CustomAttributes@handle'
+    prepareForValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\declared_prepare'
+    failedValidation: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\RespondWithJson@handle'
 
-    - name: denied
-      authorize: false
-      failedAuthorization: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\Unauthorized@handle'
+  - name: denied
+    authorize: false
+    failedAuthorization: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\Unauthorized@handle'
 
-    - name: forbidden
-      authorize: false
+  - name: forbidden
+    authorize: false
 
-    - name: granted
-      authorize: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\ResponseGate'
-      rules:
-        name: [required, string]
+  - name: granted
+    authorize: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Gates\ResponseGate'
+    rules:
+      name: [required, string]
 
-  routes:
-    - path: users
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: user
+routes:
+  - path: users
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: user
 
-    - path: data
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: data
+  - path: data
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: data
 
-    - path: avatar
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, avatar]
-      middleware: [web]
-      metadata:
-        request: avatar
+  - path: avatar
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, avatar]
+    middleware: [web]
+    metadata:
+      request: avatar
 
-    - path: hooks
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, hook]
-      metadata:
-        request: custom-failure
+  - path: hooks
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, hook]
+    metadata:
+      request: custom-failure
 
-    - path: denied
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: denied
+  - path: denied
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: denied
 
-    - path: forbidden
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: forbidden
+  - path: forbidden
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: forbidden
 
-    - path: granted
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: granted
+  - path: granted
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: granted
 
-    # names an undeclared request
-    - path: ghost
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: undeclared
+  # names an undeclared request
+  - path: ghost
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+    metadata:
+      request: undeclared
 
-    # no `metadata.request`: the type-hint still resolves, and fails
-    - path: untyped
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+  # no `metadata.request`: the type-hint still resolves, and fails
+  - path: untyped
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]

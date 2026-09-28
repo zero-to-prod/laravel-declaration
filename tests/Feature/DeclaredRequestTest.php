@@ -168,7 +168,7 @@ it('throws when the route declares no metadata.request', function () use ($manif
 it('throws when no manifest is declared, binding an empty one', function (): void {
     app(Router::class)->post('manual', [RequestController::class, 'store']);
 
-    expect(app(Manifest::class)->app->requests->count())->toBe(0);
+    expect(app(Manifest::class)->requests->count())->toBe(0);
 
     $this->withoutExceptionHandling();
 

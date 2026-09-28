@@ -1,60 +1,58 @@
 app:
-  providers:
-    - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
-  routes:
-    - path: "/"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      name: home
+providers:
+  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
+routes:
+  - path: "/"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+    name: home
 
-    - path: "users/{user}"
-      methods: GET
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
-      name: users.show
-      where:
-        user: '[0-9]+'
-      setDefaults:
-        user: 1
-      metadata:
-        group: admin
-      missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+  - path: "users/{user}"
+    methods: GET
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
+    name: users.show
+    where:
+      user: '[0-9]+'
+    setDefaults:
+      user: 1
+    metadata:
+      group: admin
+    missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
 
-    - path: "users/{user}"
-      methods: PUT
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.update
-      withoutMiddleware: [web]
+  - path: "users/{user}"
+    methods: PUT
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+    name: users.update
+    withoutMiddleware: [web]
 
-    - path: "users/{user}"
-      methods: DELETE
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
-      name: users.destroy
-      prefix: api
-      domain: "{account}.example.com"
-      block:
-        lockSeconds: 10
-        waitSeconds: 5
+  - path: "users/{user}"
+    methods: DELETE
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
+    name: users.destroy
+    prefix: api
+    domain: "{account}.example.com"
+    block:
+      lockSeconds: 10
+      waitSeconds: 5
 
-    # lowercase verb: the provider uppercases it
-    - path: "users/{user}"
-      methods: patch
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.patch
-      scopeBindings: true
+  - path: "users/{user}"
+    methods: patch
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+    name: users.patch
+    scopeBindings: true
 
-    - path: "users/{user}"
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.store
-      can:
-        ability: view
-        models: user
-      withTrashed: true
+  - path: "users/{user}"
+    methods: POST
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+    name: users.store
+    can:
+      ability: view
+      models: user
+    withTrashed: true
 
-    # fallback route: an action is required (null action = LogicException at dispatch)
-    - path: "{any}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
-      where:
-        any: '.*'
-      fallback: true
+  - path: "{any}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
+    where:
+      any: '.*'
+    fallback: true

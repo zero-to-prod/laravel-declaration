@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
+use Illuminate\Support\Collection;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
@@ -11,8 +12,32 @@ readonly class Manifest
 {
     use DataModel;
 
-    public const string app = 'app';
+    public const string config = 'config';
 
-    #[Describe([Describe::required => true])]
-    public App $app;
+    /** @var array<string, mixed> */
+    #[Describe([Describe::default => []])]
+    public array $config;
+
+    /** @var Collection<string, Provider> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Provider::class,
+        'key_by' => Provider::name,
+    ])]
+    public Collection $providers;
+
+    /** @var Collection<string, Request> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Request::class,
+        'key_by' => Request::name,
+    ])]
+    public Collection $requests;
+
+    /** @var Collection<int, Route> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Route::class,
+    ])]
+    public Collection $routes;
 }

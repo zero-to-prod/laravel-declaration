@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 use Zerotoprod\DataModel\PropertyRequiredException;
-use ZeroToProd\LaravelDeclaration\App;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Route;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController;
@@ -12,7 +11,7 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler;
 
 it('defaults to no routes', function (): void {
-    expect(App::from([])->routes->count())->toBe(0);
+    expect(Manifest::from([])->routes->count())->toBe(0);
 });
 
 it('hydrates a route declaration', function (): void {
@@ -84,17 +83,17 @@ it('hydrates routes from the manifest', function (): void {
         Yaml::parseFile(__DIR__.'/../Fixtures/manifest/app.yml'),
     );
 
-    expect($manifest->app->routes->count())->toBe(7)
-        ->and($manifest->app->routes->first()->path)->toBe('/')
-        ->and($manifest->app->routes->first()->methods)->toBe('GET')
-        ->and($manifest->app->routes->first()->action)->toBe(
+    expect($manifest->routes->count())->toBe(7)
+        ->and($manifest->routes->first()->path)->toBe('/')
+        ->and($manifest->routes->first()->methods)->toBe('GET')
+        ->and($manifest->routes->first()->action)->toBe(
             MockController::class,
         )
-        ->and($manifest->app->routes->first()->builders())->toBe(['name' => 'home'])
-        ->and($manifest->app->routes->get(5)->builders()['can'])->toBe(
+        ->and($manifest->routes->first()->builders())->toBe(['name' => 'home'])
+        ->and($manifest->routes->get(5)->builders()['can'])->toBe(
             ['ability' => 'view', 'models' => 'user'],
         )
-        ->and($manifest->app->routes->last()->builders())->toBe([
+        ->and($manifest->routes->last()->builders())->toBe([
             'where' => ['any' => '.*'],
             'fallback' => true,
         ]);
