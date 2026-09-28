@@ -64,9 +64,11 @@ class LaravelDeclarationProvider extends ServiceProvider
         }
 
         $Manifest = $this->app->make(Manifest::class);
+        $Router = $this->app->make(Router::class);
 
+        $this->registerRouter($Manifest, $Router);
         $this->registerProviders($Manifest);
-        $this->registerRoutes($Manifest, $this->app->make(Router::class));
+        $this->registerRoutes($Manifest, $Router);
     }
 
     private function resolveManifest(string $filename): Manifest
@@ -89,6 +91,13 @@ class LaravelDeclarationProvider extends ServiceProvider
             }
 
             Config::set(Arr::prependKeysWith($values, "$file."));
+        }
+    }
+
+    private function registerRouter(Manifest $Manifest, Router $Router): void
+    {
+        foreach ($Manifest->router->pattern ?? [] as $key => $pattern) {
+            $Router->pattern($key, $pattern);
         }
     }
 

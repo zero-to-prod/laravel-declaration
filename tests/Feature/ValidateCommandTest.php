@@ -14,6 +14,12 @@ test('laravel-declaration:validate accepts a manifest that matches the schema', 
         ->assertSuccessful();
 });
 
+test('laravel-declaration:validate accepts the router block', function (): void {
+    $this->artisan('laravel-declaration:validate', ['--manifest' => __DIR__.'/../Fixtures/manifest/router.yml'])
+        ->expectsOutputToContain('is valid')
+        ->assertSuccessful();
+});
+
 test('laravel-declaration:validate reports each schema violation', function (): void {
     File::put(storage_path('invalid.yml'), "routes: 5\nbogus: 1\n");
 

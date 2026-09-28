@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+router:
+  pattern:
+    id: '[0-9]+'
+    account: '[a-z]+'
+
+routes:
+  - path: "posts/{id}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+
+  - path: "slugs/{id}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+    where:
+      id: '[a-z]+'
+
+  - path: tenants
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+    domain: "{account}.example.com"

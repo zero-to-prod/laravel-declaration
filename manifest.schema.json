@@ -7,6 +7,7 @@
   "properties": {
     "config": { "$ref": "#/definitions/config" },
     "app": { "$ref": "#/definitions/app" },
+    "router": { "$ref": "#/definitions/router" },
     "providers": {
       "description": "ServiceProviders registered in boot(), before `routes`.",
       "type": "array",
@@ -175,6 +176,18 @@
         "terminating": {
           "description": "-> terminating(); after the response, injected by type-hint only",
           "$ref": "#/definitions/closureList"
+        }
+      }
+    },
+    "router": {
+      "description": "Illuminate\\Routing\\Router methods: every key is a method name, its value the argument(s). Applied first in boot(), before `providers` and `routes`. An unknown key throws LogicException.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "pattern": {
+          "description": "-> pattern($key, $pattern), one call per entry: a global `where`, merged into every route created afterwards (URI and domain parameters). A route's own `where` wins. Single-quote the regex: `[` starts a YAML list.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
         }
       }
     },

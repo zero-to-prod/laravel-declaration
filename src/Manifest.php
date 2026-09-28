@@ -24,6 +24,12 @@ readonly class Manifest
     #[Describe([Describe::nullable => true])]
     public ?App $app;
 
+    public const string router = 'router';
+
+    /** The `Router` surface; null when the manifest has no (or an empty) `router:` block */
+    #[Describe([Describe::nullable => true])]
+    public ?Router $router;
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],

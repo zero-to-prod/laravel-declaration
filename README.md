@@ -86,16 +86,17 @@ cannot satisfy the `--min=100` gate.
 `LaravelDeclarationProvider` resolves the YAML file at
 `laravel-declaration.manifest` (default `manifest/app.yml`) in `register()`,
 applies its `config` there, applies its `app` block once every eager provider
-has registered, and registers its providers and routes in `boot()`. A missing
+has registered, applies its `router` block and registers its providers and routes in `boot()`. A missing
 file registers nothing. Tests:
 `tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
+`tests/Feature/RouterRegistrationTest.php`,
 `tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`,
 `tests/Feature/ApplicationRegistrationTest.php`.
 
-The top-level keys are `config`, `app`, `providers`, `routes` and `requests`.
-Complete structure per feature under [Config](#config),
-[Application](#application), [Providers](#providers), [Routes](#routes) and
-[Requests](#requests).
+The top-level keys are `config`, `app`, `router`, `providers`, `routes` and
+`requests`. Complete structure per feature under [Config](#config),
+[Application](#application), [Router](#router), [Providers](#providers),
+[Routes](#routes) and [Requests](#requests).
 
 ## Config
 
@@ -240,6 +241,35 @@ list item, or a `.php` file that returns anything but a `Closure` where one is
 required, throws `LogicException` at registration. Everything else passes
 through as YAML decoded it and fails with Laravel's own exception at first
 `make()`.
+
+## Router
+
+The `router` block maps 1:1 onto
+[`Illuminate\Routing\Router`](https://laravel.com/docs/routing#parameters-global-constraints)
+methods: every key is a `Router` method name, and its value is that method's
+argument(s). A map is one call per entry, its key the first argument.
+`LaravelDeclarationProvider` applies the block first in `boot()`, before
+`providers` and `routes`. See `tests/Feature/RouterRegistrationTest.php` and
+[docs/declarative-router.md](docs/declarative-router.md).
+
+`pattern` is `Router::pattern($key, $pattern)`, a global `where`. Laravel
+merges every pattern into each route as the route is created, so it constrains
+`{key}` in the URI or domain of every route created afterwards: the manifest's
+`routes`, `routes/*.php`, and routes of providers that boot later. Routes
+created earlier are not constrained. A route's own `where` wins. Single-quote
+every regex: `[` starts a YAML list, and `"\d"` is a YAML escape error.
+`route:cache` bakes patterns into each cached route, so re-run it after
+editing the block. An unknown key throws a `LogicException`. `patterns` is
+not a key, because the map form of `pattern` is that loop.
+
+Complete structure:
+
+```yaml
+router:
+  pattern:                    # -> pattern($key, $pattern), one call per entry
+    id: '[0-9]+'              # every {id} of every route created afterwards
+    account: '[a-z]+'         # domain parameters too: {account}.example.com
+```
 
 ## Providers
 

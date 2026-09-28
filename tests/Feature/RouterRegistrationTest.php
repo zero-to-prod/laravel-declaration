@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Routing\Router;
+
+$manifest = __DIR__.'/../Fixtures/manifest/router.yml';
+
+it('sets every declared pattern on the router', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    expect(app(Router::class)->getPatterns())->toBe(['id' => '[0-9]+', 'account' => '[a-z]+']);
+});
+
+it('constrains the parameter on every route created afterwards', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/posts/5')->assertOk();
+    $this->get('/posts/abc')->assertNotFound();
+});
+
+it('lets a route where override the pattern', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/slugs/abc')->assertOk();
+    $this->get('/slugs/5')->assertNotFound();
+});
+
+it('constrains domain parameters', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('https://acme.example.com/tenants')->assertOk();
+    $this->get('https://acme1.example.com/tenants')->assertNotFound();
+});
+
+it('sets no pattern without a router block', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/requests.yml']);
+
+    expect(app(Router::class)->getPatterns())->toBeEmpty();
+});
+
+it('rejects unknown router keys', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        router:
+          patterns:
+            id: '[0-9]+'
+        YAML);
+
+    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
+        ->toThrow(LogicException::class, 'unknown key(s): patterns');
+});
