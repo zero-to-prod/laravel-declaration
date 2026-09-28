@@ -48,6 +48,9 @@ class LaravelDeclarationProvider extends ServiceProvider
         }
 
         $Manifest = $this->resolveManifest(Config::string('laravel-declaration.manifest', 'manifest/app.yml'));
+
+        $this->app->instance(Manifest::class, $Manifest ?? Manifest::from([Manifest::app => []]));
+
         if (! $Manifest instanceof Manifest) {
             return;
         }

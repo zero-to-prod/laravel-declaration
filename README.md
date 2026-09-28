@@ -86,10 +86,12 @@ cannot satisfy the `--min=100` gate.
 `LaravelDeclarationProvider` resolves the YAML file at
 `laravel-declaration.manifest` (default `manifest/app.yml`) and reads it in
 `boot()`. A missing or invalid file registers nothing. Tests:
-`tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`.
+`tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
+`tests/Feature/DeclaredRequestTest.php`.
 
-The top-level key is `app`, holding `providers` and `routes`. Complete structure
-per feature under [Providers](#providers) and [Routes](#routes).
+The top-level key is `app`, holding `providers`, `routes` and `requests`.
+Complete structure per feature under [Providers](#providers), [Routes](#routes)
+and [Requests](#requests).
 
 ## Providers
 
@@ -168,6 +170,89 @@ app:
 
 `missing` handlers must be invokable; a non-invokable class throws
 `LogicException` when invoked.
+
+## Requests
+
+`app.requests` entries map 1:1 onto
+[`Illuminate\Foundation\Http\FormRequest`](https://laravel.com/docs/validation#form-request-validation)
+members: every key except the reserved `name` is a `FormRequest` method or
+property name, and its value is what that member returns (or holds). A route
+opts in with `metadata: {request: <name>}`, and its action type-hints
+`DeclaredRequest`, which Laravel resolves and validates like any
+`FormRequest`. See `tests/Feature/DeclaredRequestTest.php` and
+[docs/declarative-requests.md](docs/declarative-requests.md).
+
+A string value is a PHP reference, run through `Container::call()` in the
+member's place: an invokable FQCN, `Class@method`, `Class::method` (static) or a
+namespaced function (load it via Composer `autoload.files`). There is no array
+form. Write references plain or single-quoted; double quotes make `\` an escape.
+
+A reference receives `$request` (the `DeclaredRequest`), plus `$validator`
+(`withValidator`, `after`, `failedValidation`) or `$factory` (`validator`).
+Parameters match by **name**: `DeclaredRequest $req` re-resolves the request
+and recurses until PHP crashes.
+
+In a field's rule list, an entry whose rule name (text before the first `:`)
+contains `\` is a reference: a class is `make()`d as the rule, and any other
+form is called and returns the rule. Everything else, including pipe strings,
+passes to Laravel untouched.
+
+Complete structure:
+
+```yaml
+app:
+  requests:
+    - name: user                                   # reserved: the handle routes reference
+      authorize: App\Http\Gates\CreateUser          # -> authorize(); bool | reference; absent -> true
+      rules:                                        # -> rules(); map | reference
+        name: [required, string, max:255]           # Laravel rules, untouched
+        nickname: nullable|string|max:32            # pipe string, untouched
+        role: [required, 'exists:App\Models\Role,name']   # `\` after the `:` -> Laravel param
+        slug: [required, App\Rules\Slug]            # rule class -> make()
+        email: [required, 'App\Rules\UniqueTenantEmail::forRequest']   # called -> returns the rule
+      messages:                                     # -> messages(); map | reference
+        name.required: A name is required.
+      attributes:                                   # -> attributes(); map | reference
+        email: email address
+      validationData: App\Http\Hooks\Data@handle    # -> validationData(); absent -> $this->all()
+      prepareForValidation: App\Http\Hooks\TitleCaseName@handle   # -> prepareForValidation()
+      passedValidation: App\Http\Hooks\Audit@handle # -> passedValidation()
+      withValidator: App\Http\Hooks\Extra@handle    # -> withValidator(); receives $validator
+      after:                                        # -> after(); list of references, each receives $validator
+        - App\Validation\ValidateUserStatus
+      validator: App\Http\Hooks\Build@make          # -> validator(); receives $factory; replaces rules/messages/attributes
+      failedValidation: App\Http\Hooks\Respond@handle     # runs, then Laravel throws ValidationException
+      failedAuthorization: App\Http\Hooks\Deny@handle     # runs, then Laravel throws AuthorizationException
+      redirect: /users                              # -> $redirect ≙ #[RedirectTo]
+      redirectRoute: users.index                    # -> $redirectRoute ≙ #[RedirectToRoute]
+      redirectAction: App\Http\Controllers\UserController@index   # -> $redirectAction
+      errorBag: user                                # -> $errorBag ≙ #[ErrorBag]
+      stopOnFirstFailure: true                      # -> $stopOnFirstFailure ≙ #[StopOnFirstFailure]
+      failOnUnknownFields: true                     # -> shouldFailOnUnknownFields() ≙ #[FailOnUnknownFields]
+
+  routes:
+    - path: users
+      methods: POST
+      action: [App\Http\Controllers\UserController, store]
+      metadata:
+        request: user                               # -> Route::metadata(['request' => 'user'])
+```
+
+The action:
+
+```php
+use ZeroToProd\LaravelDeclaration\DeclaredRequest;
+
+public function store(DeclaredRequest $request): RedirectResponse
+{
+    $validated = $request->validated();   // runtime accessors unchanged
+}
+```
+
+An action without a `DeclaredRequest` type-hint does not validate. A
+`DeclaredRequest` on a route with no `metadata.request`, or one naming an
+undeclared request, throws `LogicException`. `name` is not checked for
+uniqueness; the last duplicate wins.
 
 ## License
 

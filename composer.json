@@ -36,7 +36,10 @@
     "autoload-dev": {
         "psr-4": {
             "ZeroToProd\\LaravelDeclaration\\Tests\\": "tests/"
-        }
+        },
+        "files": [
+            "tests/Fixtures/App/Requests/functions.php"
+        ]
     },
     "extra": {
         "laravel": {

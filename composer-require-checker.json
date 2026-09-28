@@ -2,6 +2,7 @@
     "symbol-whitelist": [
         "app",
         "base_path",
+        "collect",
         "config",
         "config_path",
         "storage_path",
@@ -15,6 +16,13 @@
         "Laravel\\Mcp\\Server\\Tool",
         "Laravel\\Mcp\\Server\\Tools\\Annotations\\IsIdempotent",
 
-        "Illuminate\\Contracts\\JsonSchema\\JsonSchema"
+        "Illuminate\\Auth\\Access\\AuthorizationException",
+        "Illuminate\\Contracts\\Validation\\Factory",
+        "Illuminate\\Contracts\\Validation\\Validator",
+        "Illuminate\\Contracts\\JsonSchema\\JsonSchema",
+        "Illuminate\\Foundation\\Http\\FormRequest",
+        "Illuminate\\Routing\\Router",
+        "Illuminate\\Support\\Collection",
+        "Symfony\\Component\\Yaml\\Yaml"
     ]
 }
