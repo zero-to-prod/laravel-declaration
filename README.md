@@ -1,10 +1,10 @@
 # Laravel Declaration
 
-A declarative plugin for Laravel
+A declarative plugin for Laravel.
 
 ## Requirements
 
-- PHP `^8.5`
+- PHP `^8.4`
 - [Laravel](https://laravel.com/) 13
 
 ## Installation
@@ -15,17 +15,13 @@ composer require zero-to-prod/laravel-declaration
 
 ### Configuration
 
-CLI install. It asks for every value the package can be configured with and
-writes `config/laravel-declaration.php`:
+Interactive CLI installation. Writes values to `config/laravel-declaration.php`:
 
 ```bash
 php artisan laravel-declaration:install
 ```
 
-Rerunning it is safe: the file reports `created`, `unchanged` or `updated`, and
-is only overwritten once you confirm.
-
-To publish the configuration file by itself instead:
+Publish the configuration file:
 
 ```bash
 php artisan vendor:publish --tag=laravel-declaration-config
@@ -33,10 +29,7 @@ php artisan vendor:publish --tag=laravel-declaration-config
 
 ## Agent development
 
-The package registers an [MCP](https://modelcontextprotocol.io/) server so
-coding agents can read how it is meant to be used. It requires
-[`laravel/mcp`](https://github.com/laravel/mcp), and registers nothing without
-it.
+The package ships with an [MCP](https://modelcontextprotocol.io/) server for agent development.
 
 ```bash
 composer require --dev laravel/mcp
@@ -49,26 +42,6 @@ Register it with your agent:
 claude mcp add laravel-declaration -- php artisan mcp:start laravel-declaration
 ```
 
-Three tools are exposed:
-
-- `readme` — this document.
-- `api` — the exact signature of every public class, property and method.
-  Anything unlisted is internal and may change in any release.
-- `install` — what `laravel-declaration:install` does, without a prompt to answer.
-  Takes `enabled` and `handle`, each defaulting to the current setting, and
-  writes `config/laravel-declaration.php`. A file that already says something else
-  is left alone and reported until the call passes `overwrite: true`.
-
-Point the handle somewhere else, or turn the server off, in
-`config/laravel-declaration.php`:
-
-```php
-'mcp' => [
-    'enabled' => true,
-    'handle' => 'laravel-declaration',
-],
-```
-
 ## Development
 
 ```bash
@@ -78,42 +51,17 @@ composer mcp list                      # the server's tools
 composer mcp call api '{}'             # call one
 ```
 
-`composer check` requires a coverage driver (Xdebug or pcov); without one Pest
-cannot satisfy the `--min=100` gate.
-
 ## Manifest
 
-`LaravelDeclarationProvider` resolves the YAML file at
-`laravel-declaration.manifest` (default `manifest/app.yml`) in `register()`,
-applies its `config` there, applies its `app` block once every eager provider
-has registered, applies its `router` block, queues its `view` block for the view factory, and registers its providers and routes in `boot()`. A missing
-file registers nothing. Tests:
-`tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
-`tests/Feature/RouterRegistrationTest.php`, `tests/Feature/ViewRegistrationTest.php`,
-`tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`,
-`tests/Feature/ApplicationRegistrationTest.php`.
+Your application can be defined by a single file called a `manifest`. 
 
-The top-level keys are `config`, `app`, `router`, `view`, `providers`, `routes` and
-`requests`. Complete structure per feature under [Config](#config),
-[Application](#application), [Router](#router), [View](#view), [Providers](#providers),
-[Routes](#routes) and [Requests](#requests).
+The default location for this file is `./manifest/app.yml`.
 
 ## Config
 
-The `config` block is the argument to `config([...])`, written in YAML: every
-`<file>.<key>` path is a `config()` key, set with `Config::set()` in
-`register()`. `app` is `./config/app.php`, so `app: {name: X}` is
-`config(['app.name' => 'X'])` and every other `app.*` key survives. A key may
-be a dot-path (`stores.redis.connection`) to change one nested value; a map
-value replaces that node whole. A file key no config file declares is gained
-whole; a scalar under a file key throws a `LogicException`. Every provider's
-`boot()` and every declared provider see the values. Keys Laravel consumes
-before providers register (`app.env`, `app.timezone`) change in `config()`
-only. Values pass through as YAML decoded them — declare literals, not
-`env(...)` expressions. `config:cache` bakes the values in, like any config
-file: re-run it after editing the `config` block. See
-`tests/Feature/ConfigRegistrationTest.php` and
-[docs/declarative-configuration.md](docs/declarative-configuration.md).
+You can define your applications configuration in the `config` object.
+
+Your existing configurations are merged. The `manifest` values win over existing values.
 
 Complete structure:
 
@@ -129,56 +77,7 @@ config:                       # the config() key space
 
 ## Application
 
-The `app` block maps 1:1 onto
-[`Illuminate\Foundation\Application`](https://laravel.com/docs/container)
-methods: every key is an `Application` (or inherited `Container`) method name,
-and its value is that method's argument(s). A map is one call per entry
-(`abstract: concrete`); a list is one call per item. `LaravelDeclarationProvider`
-applies the block in a `registered()` callback, after every eager provider's
-`register()` and once deferred services are known — the phase
-`ApplicationBuilder::withBindings()` uses. Every provider's `boot()`, every
-declared provider and everything at runtime see the declarations; an eager
-provider's `register()` does not. The top-level `app` block is the
-`Application`; `config.app` is `./config/app.php`. See
-`tests/Feature/ApplicationRegistrationTest.php` and
-[docs/declarative-application.md](docs/declarative-application.md).
-
-Keys apply in a fixed order, not document order: the six binding keys,
-`instance`, `alias`, `extend`, the paths, `setLocale`, `setFallbackLocale`, then
-the hooks. When two keys name the same abstract the later one wins, except the
-`*If` keys, which skip an abstract that is already bound (deferred services
-included).
-
-A binding value is a class-string or another bound abstract (not
-`Class@method`), `~` for a self-binding, or a `.php` file. A list item is the
-abstract itself and self-binds. `extend` and the hook keys take a PHP
-reference: an invokable FQCN, `Class@method`, `Class::method` (static) or a
-namespaced function (load it via Composer `autoload.files`). There is no array
-form. Write references plain or single-quoted; double quotes make `\` an
-escape.
-
-A string ending in `.php` is a file, required once per process, whose return
-value is used — the only way to declare a Closure. It must return a `Closure`
-everywhere except `instance`. A `.php` binding is Laravel's factory, called
-positionally as `($app, $parameters)`; a `.php` list item binds under its
-Closure's return types. A relative file or path resolves under `basePath()`;
-one starting with `/` or `\` is used as-is.
-
-`extend` and `registered`/`booting`/`booted` references run through
-`Container::call()` with `$instance` (the extended value, `extend` only) and
-`$app`. Parameters match by **name**: `Repository $store` in an extender is a
-fresh `make()`, not the instance being extended. A `terminating` reference
-receives no named arguments — Laravel's `terminate()` calls it, so everything is
-injected by type-hint.
-
-`instance` `make()`s a class- or interface-string eagerly, binds a `.php` file's
-return value, and binds anything else exactly as YAML decoded it. `use*Path`
-rebinds its `path.*` instance and moves its helper (`app_path()`,
-`storage_path()`, ...) from then on; config values `./config/*.php` computed
-from those helpers keep the old path, so declare them in `config` too. The
-config, bootstrap and `.env` paths are consumed before any provider runs and
-have no key. `setLocale` dispatches `LocaleUpdated` before the application's
-`EventServiceProvider` attaches its listeners.
+Define your application in the `app` object.
 
 Complete structure:
 
@@ -222,7 +121,7 @@ app:
     - App\Hooks\FlushMetrics
 ```
 
-The extender:
+Extend functionality:
 
 ```php
 // app/extensions/store-cache.php — the file IS the extender
@@ -234,46 +133,9 @@ return static function (Repository $instance, Application $app): Repository {
 };
 ```
 
-An unknown key (`singelton`) throws `LogicException` when the manifest is read,
-and so does a `.php` list item under `bindIf`/`singletonIf`/`scopedIf`
-(Laravel's `bound()` cannot take the file's Closure; use the map form). A `~`
-list item, or a `.php` file that returns anything but a `Closure` where one is
-required, throws `LogicException` at registration. Everything else passes
-through as YAML decoded it and fails with Laravel's own exception at first
-`make()`.
-
 ## Router
 
-The `router` block maps 1:1 onto
-[`Illuminate\Routing\Router`](https://laravel.com/docs/routing#parameters-global-constraints)
-methods: every key is a `Router` method name, and its value is that method's
-argument(s). A map is one call per entry, its key the first argument.
-`LaravelDeclarationProvider` applies the block first in `boot()`, before
-`providers` and `routes`. See `tests/Feature/RouterRegistrationTest.php`,
-[docs/declarative-router.md](docs/declarative-router.md) and
-[docs/declarative-router-bindings.md](docs/declarative-router-bindings.md).
-
-`pattern` is `Router::pattern($key, $pattern)`, a global `where`. Laravel
-merges every pattern into each route as the route is created, so it constrains
-`{key}` in the URI or domain of every route created afterwards: the manifest's
-`routes`, `routes/*.php`, and routes of providers that boot later. Routes
-created earlier are not constrained. A route's own `where` wins. Single-quote
-every regex: `[` starts a YAML list, and `"\d"` is a YAML escape error.
-`route:cache` bakes patterns into each cached route, so re-run it after
-editing the block. An unknown key throws a `LogicException`. `patterns` is
-not a key, because the map form of `pattern` is that loop.
-
-`model` is `Router::model($key, $class)` and `bind` is `Router::bind($key, $binder)`:
-explicit route binding. Laravel runs every binder in the `SubstituteBindings`
-middleware, which the `web` and `api` groups include. So `{key}` is bound on
-every route that runs it, whenever the route was created and whether or not
-its action type-hints the parameter. Without it, the parameter stays a string.
-`model` resolves `$class::resolveRouteBinding($value)`. A `null` result is a 404,
-which a route's `missing` handles. It ignores `{key:field}` and `scopeBindings`.
-`bind` takes `Class` (method `bind`) or `Class@method`. Laravel `make()`s it and
-calls it with `($value, $route)`. An invokable-only class or `Class::method`
-fails. A later `Route::model()` or `Route::bind()` for the same key replaces
-the manifest's for every route, for example in `AppServiceProvider::boot()`.
+Define your application's global routes in the `router` object.
 
 Complete structure:
 
@@ -291,27 +153,7 @@ router:
 
 ## View
 
-The `view` block maps 1:1 onto
-[`Illuminate\View\Factory`](https://laravel.com/docs/views#view-composers)
-methods: every key is a `Factory` method name, and its value is that method's
-argument(s). A list is one call per item, a map one call per entry.
-`LaravelDeclarationProvider` queues the block in `boot()` with
-`callAfterResolving('view')`, as Laravel's `loadViewsFrom()` does. It applies
-when Laravel first builds the view factory, and a request that renders nothing
-never builds it. See `tests/Feature/ViewRegistrationTest.php` and
-[docs/declarative-view.md](docs/declarative-view.md).
-
-`addLocation` and `prependLocation` add a view directory after or before
-`config('view.paths')`. `addNamespace`, `prependNamespace` and `replaceNamespace`
-register `namespace::view` directories. A relative path resolves under
-`basePath()`. `addExtension` renders `.extension` files with an existing engine
-(`blade`, `php`, `file`). `share` is `Factory::share()`: every entry reaches every
-view as YAML decoded it, and view data, creators and composers override it.
-`composer` and `creator` take `Factory::composers()`'s map. The key is the
-callback: `Class` (method `compose` / `create`) or `Class@method`. The value is a
-view name, a `*` pattern or a list. Laravel `make()`s the class and calls it with
-the `View`. Creators run when the view is made, composers when it renders.
-Exact names run before patterns. An unknown key throws a `LogicException`.
+Define your application's view composers and factories in the `view` object.
 
 Complete structure:
 
@@ -339,11 +181,7 @@ view:
 
 ## Providers
 
-`providers` entries declare a `class`: a
-[`ServiceProvider`](https://laravel.com/docs/providers) class-string. At boot,
-`LaravelDeclarationProvider` calls `$this->app->register()` with each one, so the
-declared providers boot before `routes` register. A directory path or a
-non-`ServiceProvider` class fails; see `tests/Feature/ManifestFactoryTest.php`.
+Define your applications providers.
 
 Complete structure:
 
@@ -354,21 +192,7 @@ providers:
 
 ## Routes
 
-`routes` entries map 1:1 onto
-[`Illuminate\Routing\Route`](https://laravel.com/docs/routing) builders: every
-key except the three reserved ones (`path`, `methods`, `action`, which feed
-`Router::addRoute()`) is a `Route` method name, and its value is that method's
-argument. `LaravelDeclarationProvider` uppercases `methods`, then applies the
-rest in YAML document order — `prefix` before `domain` (`prefix()` resets
-domain binding fields). See `tests/Feature/RouteRegistrationTest.php` and
-[docs/declarative-routing.md](docs/declarative-routing.md).
-
-`methods` is exactly one verb — `GET` (implies `HEAD`), `POST`, `PUT`, `PATCH`,
-`DELETE`, `OPTIONS` or `HEAD`. `ANY` never matches. Sharing a path across verbs
-means separate entries.
-
-`action` accepts every YAML callable form: a `Class@method` string, an invokable
-FQCN, or a `[Class, 'method']` array.
+Define your applications routes.
 
 Complete structure:
 
@@ -410,34 +234,9 @@ routes:
     fallback: true                       # -> Route::fallback()
 ```
 
-`missing` handlers must be invokable; a non-invokable class throws
-`LogicException` when invoked.
-
 ## Requests
 
-`requests` entries map 1:1 onto
-[`Illuminate\Foundation\Http\FormRequest`](https://laravel.com/docs/validation#form-request-validation)
-members: every key except the reserved `name` is a `FormRequest` method or
-property name, and its value is what that member returns (or holds). A route
-opts in with `metadata: {request: <name>}`, and its action type-hints
-`DeclaredRequest`, which Laravel resolves and validates like any
-`FormRequest`. See `tests/Feature/DeclaredRequestTest.php` and
-[docs/declarative-requests.md](docs/declarative-requests.md).
-
-A string value is a PHP reference, run through `Container::call()` in the
-member's place: an invokable FQCN, `Class@method`, `Class::method` (static) or a
-namespaced function (load it via Composer `autoload.files`). There is no array
-form. Write references plain or single-quoted; double quotes make `\` an escape.
-
-A reference receives `$request` (the `DeclaredRequest`), plus `$validator`
-(`withValidator`, `after`, `failedValidation`) or `$factory` (`validator`).
-Parameters match by **name**: `DeclaredRequest $req` re-resolves the request
-and recurses until PHP crashes.
-
-In a field's rule list, an entry whose rule name (text before the first `:`)
-contains `\` is a reference: a class is `make()`d as the rule, and any other
-form is called and returns the rule. Everything else, including pipe strings,
-passes to Laravel untouched.
+Define your applications requests.
 
 Complete structure:
 
@@ -489,11 +288,6 @@ public function store(DeclaredRequest $request): RedirectResponse
     $validated = $request->validated();   // runtime accessors unchanged
 }
 ```
-
-An action without a `DeclaredRequest` type-hint does not validate. A
-`DeclaredRequest` on a route with no `metadata.request`, or one naming an
-undeclared request, throws `LogicException`. `name` is not checked for
-uniqueness; the last duplicate wins.
 
 ## License
 
