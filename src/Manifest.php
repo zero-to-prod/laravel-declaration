@@ -18,6 +18,12 @@ readonly class Manifest
     #[Describe([Describe::default => []])]
     public array $config;
 
+    public const string app = 'app';
+
+    /** The `Application` surface; null when the manifest has no (or an empty) `app:` block */
+    #[Describe([Describe::nullable => true])]
+    public ?App $app;
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],

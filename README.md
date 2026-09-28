@@ -85,16 +85,17 @@ cannot satisfy the `--min=100` gate.
 
 `LaravelDeclarationProvider` resolves the YAML file at
 `laravel-declaration.manifest` (default `manifest/app.yml`) in `register()`,
-applies its `config` there, and registers its providers and routes in `boot()`.
-A missing file registers nothing. Tests:
+applies its `config` there, applies its `app` block once every eager provider
+has registered, and registers its providers and routes in `boot()`. A missing
+file registers nothing. Tests:
 `tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
-`tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`.
+`tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`,
+`tests/Feature/ApplicationRegistrationTest.php`.
 
-The top-level keys are `config`, `providers`, `routes` and `requests`.
+The top-level keys are `config`, `app`, `providers`, `routes` and `requests`.
 Complete structure per feature under [Config](#config),
-[Providers](#providers), [Routes](#routes) and [Requests](#requests). `app` is
-reserved for the `Application` surface, proposed in
-[docs/declarative-application.md](docs/declarative-application.md).
+[Application](#application), [Providers](#providers), [Routes](#routes) and
+[Requests](#requests).
 
 ## Config
 
@@ -124,6 +125,121 @@ config:                       # the config() key space
   sentinel:                   # a key no file declares: gained whole
     meters: true
 ```
+
+## Application
+
+The `app` block maps 1:1 onto
+[`Illuminate\Foundation\Application`](https://laravel.com/docs/container)
+methods: every key is an `Application` (or inherited `Container`) method name,
+and its value is that method's argument(s). A map is one call per entry
+(`abstract: concrete`); a list is one call per item. `LaravelDeclarationProvider`
+applies the block in a `registered()` callback, after every eager provider's
+`register()` and once deferred services are known — the phase
+`ApplicationBuilder::withBindings()` uses. Every provider's `boot()`, every
+declared provider and everything at runtime see the declarations; an eager
+provider's `register()` does not. The top-level `app` block is the
+`Application`; `config.app` is `./config/app.php`. See
+`tests/Feature/ApplicationRegistrationTest.php` and
+[docs/declarative-application.md](docs/declarative-application.md).
+
+Keys apply in a fixed order, not document order: the six binding keys,
+`instance`, `alias`, `extend`, the paths, `setLocale`, `setFallbackLocale`, then
+the hooks. When two keys name the same abstract the later one wins, except the
+`*If` keys, which skip an abstract that is already bound (deferred services
+included).
+
+A binding value is a class-string or another bound abstract (not
+`Class@method`), `~` for a self-binding, or a `.php` file. A list item is the
+abstract itself and self-binds. `extend` and the hook keys take a PHP
+reference: an invokable FQCN, `Class@method`, `Class::method` (static) or a
+namespaced function (load it via Composer `autoload.files`). There is no array
+form. Write references plain or single-quoted; double quotes make `\` an
+escape.
+
+A string ending in `.php` is a file, required once per process, whose return
+value is used — the only way to declare a Closure. It must return a `Closure`
+everywhere except `instance`. A `.php` binding is Laravel's factory, called
+positionally as `($app, $parameters)`; a `.php` list item binds under its
+Closure's return types. A relative file or path resolves under `basePath()`;
+one starting with `/` or `\` is used as-is.
+
+`extend` and `registered`/`booting`/`booted` references run through
+`Container::call()` with `$instance` (the extended value, `extend` only) and
+`$app`. Parameters match by **name**: `Repository $store` in an extender is a
+fresh `make()`, not the instance being extended. A `terminating` reference
+receives no named arguments — Laravel's `terminate()` calls it, so everything is
+injected by type-hint.
+
+`instance` `make()`s a class- or interface-string eagerly, binds a `.php` file's
+return value, and binds anything else exactly as YAML decoded it. `use*Path`
+rebinds its `path.*` instance and moves its helper (`app_path()`,
+`storage_path()`, ...) from then on; config values `./config/*.php` computed
+from those helpers keep the old path, so declare them in `config` too. The
+config, bootstrap and `.env` paths are consumed before any provider runs and
+have no key. `setLocale` dispatches `LocaleUpdated` before the application's
+`EventServiceProvider` attaches its listeners.
+
+Complete structure:
+
+```yaml
+app:
+  bind:                                         # -> bind($abstract, $concrete)
+    App\Contracts\Pdf: App\Services\DomPdf      # class-string or another bound abstract
+    App\Contracts\Slugger: app/binders/slugger.php   # .php: the returned Closure, called ($app, $parameters)
+  bindIf:                                       # -> bindIf(); skipped when bound, deferred services included
+    App\Contracts\Cache: App\Services\RedisCache
+  singleton:                                    # -> singleton()
+    App\Services\TenantContext: ~               # ~ -> self-binding
+  singletonIf:                                  # -> singletonIf()
+    - App\Services\SlowWarmup                   # list: every item self-binds; no .php under *If
+  scoped:                                       # -> scoped(); shared until forgetScopedInstances()
+    - app/binders/request-log.php               # .php list item: bound under its Closure's return types
+  scopedIf:                                     # -> scopedIf()
+    App\Services\BudgetGuard: ~
+  instance:                                     # -> instance($abstract, $instance)
+    app.signature: "1.0"                        # literal, bound as YAML decoded it
+    App\Contracts\Clock: App\Services\Clock     # class-string -> make()d eagerly
+    app.rate_limiter: app/instances/limiter.php # .php: its return value, any type
+  alias:                                        # -> alias($abstract, $alias); abstract first
+    App\Services\TenantContext: context         # app('context') resolves the singleton
+  extend:                                       # -> extend($abstract, Closure); receives $instance, $app
+    cache.store: app/extensions/store-cache.php
+  useAppPath: src                               # -> useAppPath(base_path('src')); rebinds `path`
+  useDatabasePath: database                     # -> useDatabasePath()
+  useLangPath: resources/lang                   # -> useLangPath(); applied before setLocale
+  usePublicPath: public                         # -> usePublicPath()
+  useStoragePath: /var/app/storage              # -> useStoragePath(); absolute, used as-is
+  setLocale: fr                                 # -> setLocale(); dispatches LocaleUpdated
+  setFallbackLocale: en                         # -> setFallbackLocale()
+  registered:                                   # -> registered(); fires right after the block, receives $app
+    - app/hooks/registered.php
+  booting:                                      # -> booting(); first in boot()
+    - App\Hooks\WarmConnections
+  booted:                                       # -> booted(); last in boot()
+    - App\Hooks\Metrics@warm
+  terminating:                                  # -> terminating(); after the response, type-hints only
+    - App\Hooks\FlushMetrics
+```
+
+The extender:
+
+```php
+// app/extensions/store-cache.php — the file IS the extender
+use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Foundation\Application;
+
+return static function (Repository $instance, Application $app): Repository {
+    return $instance;   // $instance and $app match by name; anything else by type-hint
+};
+```
+
+An unknown key (`singelton`) throws `LogicException` when the manifest is read,
+and so does a `.php` list item under `bindIf`/`singletonIf`/`scopedIf`
+(Laravel's `bound()` cannot take the file's Closure; use the map form). A `~`
+list item, or a `.php` file that returns anything but a `Closure` where one is
+required, throws `LogicException` at registration. Everything else passes
+through as YAML decoded it and fails with Laravel's own exception at first
+`make()`.
 
 ## Providers
 

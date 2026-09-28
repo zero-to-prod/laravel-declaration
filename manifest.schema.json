@@ -1,0 +1,421 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Laravel Declaration manifest",
+  "description": "The YAML file at `laravel-declaration.manifest` (default `manifest/app.yml`). See README.md#manifest.",
+  "type": ["object", "null"],
+  "additionalProperties": false,
+  "properties": {
+    "config": { "$ref": "#/definitions/config" },
+    "app": { "$ref": "#/definitions/app" },
+    "providers": {
+      "description": "ServiceProviders registered in boot(), before `routes`.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/provider" }
+    },
+    "routes": {
+      "description": "One entry per Router::addRoute() call. Sharing a path across verbs means separate entries.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/route" }
+    },
+    "requests": {
+      "description": "FormRequest declarations. A route opts in with `metadata: {request: <name>}`.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/request" }
+    }
+  },
+  "definitions": {
+    "classString": {
+      "description": "A fully-qualified class name. Write it plain or single-quoted; double quotes make `\\` an escape.",
+      "type": "string",
+      "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$"
+    },
+    "reference": {
+      "description": "A PHP reference: an invokable FQCN, `Class@method`, `Class::method` (static) or a namespaced function. There is no array form.",
+      "type": "string",
+      "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*((@|::)[A-Za-z_][A-Za-z0-9_]*)?$"
+    },
+    "phpFile": {
+      "description": "A `.php` file, required once per process; its return value is used. Relative paths resolve under basePath(); one starting with `/` or `\\` is used as-is.",
+      "type": "string",
+      "pattern": "\\.php$"
+    },
+    "closure": {
+      "description": "A PHP reference, or a `.php` file returning a Closure.",
+      "anyOf": [
+        { "$ref": "#/definitions/reference" },
+        { "$ref": "#/definitions/phpFile" }
+      ]
+    },
+    "closureList": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/closure" }
+    },
+    "concrete": {
+      "description": "A class-string or another bound abstract (not `Class@method`), `~` for a self-binding, or a `.php` file returning a Closure called as ($app, $parameters).",
+      "type": ["string", "null"],
+      "not": { "type": "string", "pattern": "@" }
+    },
+    "binding": {
+      "description": "A map is one call per `abstract: concrete` entry; a list is one call per item, each self-binding (a `.php` item binds under its Closure's return types).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/concrete" }
+        },
+        {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      ]
+    },
+    "bindingIf": {
+      "description": "Like the unconditional form, but skipped when the abstract is already bound (deferred services included). A `.php` list item throws; use the map form.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/concrete" }
+        },
+        {
+          "type": "array",
+          "items": { "type": "string", "not": { "pattern": "\\.php$" } }
+        }
+      ]
+    },
+    "config": {
+      "description": "The argument to config([...]): every `<file>.<key>` path is a config() key. A key may be a dot-path; a map value replaces that node whole. Declare literals, not env(...) expressions.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "A config file key (e.g. `app` is ./config/app.php). A scalar here throws LogicException.",
+        "type": "object"
+      }
+    },
+    "app": {
+      "description": "Illuminate\\Foundation\\Application methods: every key is a method name, its value the argument(s). Applied in a fixed order, not document order. An unknown key throws LogicException.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "bind": {
+          "description": "-> bind($abstract, $concrete)",
+          "$ref": "#/definitions/binding"
+        },
+        "bindIf": {
+          "description": "-> bindIf(); skipped when bound, deferred services included",
+          "$ref": "#/definitions/bindingIf"
+        },
+        "singleton": {
+          "description": "-> singleton()",
+          "$ref": "#/definitions/binding"
+        },
+        "singletonIf": {
+          "description": "-> singletonIf()",
+          "$ref": "#/definitions/bindingIf"
+        },
+        "scoped": {
+          "description": "-> scoped(); shared until forgetScopedInstances()",
+          "$ref": "#/definitions/binding"
+        },
+        "scopedIf": {
+          "description": "-> scopedIf()",
+          "$ref": "#/definitions/bindingIf"
+        },
+        "instance": {
+          "description": "-> instance($abstract, $instance). A class- or interface-string is make()d eagerly, a `.php` file binds its return value (any type), anything else binds as YAML decoded it.",
+          "type": "object"
+        },
+        "alias": {
+          "description": "-> alias($abstract, $alias); abstract first",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "extend": {
+          "description": "-> extend($abstract, Closure); parameters `$instance` and `$app` match by name",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/closure" }
+        },
+        "useAppPath": {
+          "description": "-> useAppPath(); rebinds `path` and moves app_path()",
+          "type": "string"
+        },
+        "useDatabasePath": {
+          "description": "-> useDatabasePath()",
+          "type": "string"
+        },
+        "useLangPath": {
+          "description": "-> useLangPath(); applied before setLocale",
+          "type": "string"
+        },
+        "usePublicPath": {
+          "description": "-> usePublicPath()",
+          "type": "string"
+        },
+        "useStoragePath": {
+          "description": "-> useStoragePath()",
+          "type": "string"
+        },
+        "setLocale": {
+          "description": "-> setLocale(); dispatches LocaleUpdated",
+          "type": "string"
+        },
+        "setFallbackLocale": {
+          "description": "-> setFallbackLocale()",
+          "type": "string"
+        },
+        "registered": {
+          "description": "-> registered(); fires right after the block, receives $app",
+          "$ref": "#/definitions/closureList"
+        },
+        "booting": {
+          "description": "-> booting(); first in boot(), receives $app",
+          "$ref": "#/definitions/closureList"
+        },
+        "booted": {
+          "description": "-> booted(); last in boot(), receives $app",
+          "$ref": "#/definitions/closureList"
+        },
+        "terminating": {
+          "description": "-> terminating(); after the response, injected by type-hint only",
+          "$ref": "#/definitions/closureList"
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "description": "A ServiceProvider class-string, passed to $app->register().",
+          "$ref": "#/definitions/classString"
+        }
+      }
+    },
+    "route": {
+      "description": "`path`, `methods` and `action` feed Router::addRoute(); every other key is an Illuminate\\Routing\\Route method, applied in document order.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "methods", "action"],
+      "properties": {
+        "path": {
+          "description": "The URI, e.g. \"users/{user}\".",
+          "type": "string"
+        },
+        "methods": {
+          "description": "Exactly one verb, uppercased by the provider. GET implies HEAD. ANY never matches.",
+          "type": "string",
+          "enum": [
+            "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD",
+            "get", "post", "put", "patch", "delete", "options", "head"
+          ]
+        },
+        "action": {
+          "description": "A `Class@method` string, an invokable FQCN, or a [Class, method] array.",
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                { "$ref": "#/definitions/classString" },
+                { "type": "string" }
+              ]
+            }
+          ]
+        },
+        "name": {
+          "description": "-> Route::name()",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "-> Route::prefix(); declare before `domain` (prefix() resets domain binding fields)",
+          "type": "string"
+        },
+        "domain": {
+          "description": "-> Route::domain()",
+          "type": "string"
+        },
+        "middleware": {
+          "description": "-> Route::middleware() (appends)",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "withoutMiddleware": {
+          "description": "-> Route::withoutMiddleware()",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "can": {
+          "description": "-> Route::can(ability: ..., models: ...)",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ability"],
+          "properties": {
+            "ability": { "type": "string" },
+            "models": {
+              "description": "Route parameter name(s) or FQCN(s).",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } }
+              ]
+            }
+          }
+        },
+        "where": {
+          "description": "-> Route::where(); parameter => regex",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "setDefaults": {
+          "description": "-> Route::setDefaults()",
+          "type": "object"
+        },
+        "missing": {
+          "description": "-> Route::missing(); an invokable class, wrapped in a cache-safe Closure",
+          "$ref": "#/definitions/classString"
+        },
+        "scopeBindings": {
+          "description": "-> Route::scopeBindings(); false skips the call",
+          "type": "boolean"
+        },
+        "withoutScopedBindings": {
+          "description": "-> Route::withoutScopedBindings(); false skips the call",
+          "type": "boolean"
+        },
+        "withTrashed": {
+          "description": "-> Route::withTrashed(); false skips the call",
+          "type": "boolean"
+        },
+        "block": {
+          "description": "-> Route::block(lockSeconds: ..., waitSeconds: ...)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lockSeconds": { "type": ["integer", "null"] },
+            "waitSeconds": { "type": ["integer", "null"] }
+          }
+        },
+        "withoutBlocking": {
+          "description": "-> Route::withoutBlocking(); false skips the call",
+          "type": "boolean"
+        },
+        "fallback": {
+          "description": "-> Route::fallback(); requires an action",
+          "type": "boolean"
+        },
+        "metadata": {
+          "description": "-> Route::metadata()",
+          "type": "object",
+          "properties": {
+            "request": {
+              "description": "The `name` of a declared request; the action must type-hint DeclaredRequest.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "request": {
+      "description": "Every key except the reserved `name` is an Illuminate\\Foundation\\Http\\FormRequest method or property. A string value on a method is a reference run through Container::call() with `$request`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "Reserved: the handle routes reference via `metadata.request`. The last duplicate wins.",
+          "type": "string"
+        },
+        "authorize": {
+          "description": "-> authorize(); absent -> true",
+          "oneOf": [
+            { "type": "boolean" },
+            { "$ref": "#/definitions/reference" }
+          ]
+        },
+        "rules": {
+          "description": "-> rules(). In a rule list, an entry whose rule name (before the first `:`) contains `\\` is a reference; everything else passes to Laravel untouched.",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "description": "A rule list or a pipe string.",
+                "type": ["array", "string"]
+              }
+            },
+            { "$ref": "#/definitions/reference" }
+          ]
+        },
+        "messages": {
+          "description": "-> messages()",
+          "oneOf": [
+            { "type": "object", "additionalProperties": { "type": "string" } },
+            { "$ref": "#/definitions/reference" }
+          ]
+        },
+        "attributes": {
+          "description": "-> attributes()",
+          "oneOf": [
+            { "type": "object", "additionalProperties": { "type": "string" } },
+            { "$ref": "#/definitions/reference" }
+          ]
+        },
+        "validationData": {
+          "description": "-> validationData(); absent -> $this->all()",
+          "$ref": "#/definitions/reference"
+        },
+        "prepareForValidation": {
+          "description": "-> prepareForValidation()",
+          "$ref": "#/definitions/reference"
+        },
+        "passedValidation": {
+          "description": "-> passedValidation()",
+          "$ref": "#/definitions/reference"
+        },
+        "withValidator": {
+          "description": "-> withValidator(); receives $validator",
+          "$ref": "#/definitions/reference"
+        },
+        "after": {
+          "description": "-> after(); each reference receives $validator",
+          "type": "array",
+          "items": { "$ref": "#/definitions/reference" }
+        },
+        "validator": {
+          "description": "-> validator(); receives $factory; replaces rules/messages/attributes",
+          "$ref": "#/definitions/reference"
+        },
+        "failedValidation": {
+          "description": "Runs, then Laravel throws ValidationException; receives $validator",
+          "$ref": "#/definitions/reference"
+        },
+        "failedAuthorization": {
+          "description": "Runs, then Laravel throws AuthorizationException",
+          "$ref": "#/definitions/reference"
+        },
+        "redirect": {
+          "description": "-> $redirect (#[RedirectTo])",
+          "type": "string"
+        },
+        "redirectRoute": {
+          "description": "-> $redirectRoute (#[RedirectToRoute])",
+          "type": "string"
+        },
+        "redirectAction": {
+          "description": "-> $redirectAction",
+          "type": "string"
+        },
+        "errorBag": {
+          "description": "-> $errorBag (#[ErrorBag])",
+          "type": "string"
+        },
+        "stopOnFirstFailure": {
+          "description": "-> $stopOnFirstFailure (#[StopOnFirstFailure])",
+          "type": "boolean"
+        },
+        "failOnUnknownFields": {
+          "description": "-> shouldFailOnUnknownFields() (#[FailOnUnknownFields])",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

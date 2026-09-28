@@ -8,6 +8,9 @@ use Illuminate\Contracts\Config\Repository;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\EventSpyProvider;
+
+use function Orchestra\Testbench\default_skeleton_path;
 
 abstract class TestCase extends Orchestra
 {
@@ -22,7 +25,18 @@ abstract class TestCase extends Orchestra
             // manifest. Testbench does not, so it is listed explicitly.
             McpServiceProvider::class,
             LaravelDeclarationProvider::class,
+            // Its register() runs before the `app:` block is applied in the
+            // registered() pass, so its LocaleUpdated listener observes the
+            // dispatch setLocale() makes there.
+            EventSpyProvider::class,
         ];
+    }
+
+    protected function setUp(): void
+    {
+        $this->copyApplicationFiles();
+
+        parent::setUp();
     }
 
     /**
@@ -48,5 +62,31 @@ abstract class TestCase extends Orchestra
         $this->refreshApplication();
 
         return $this;
+    }
+
+    /**
+     * Copies the `.php` files the manifest's `app:` block references into Testbench's
+     * skeleton: relative references resolve under basePath(), which is that skeleton,
+     * not this repository.
+     */
+    private function copyApplicationFiles(): void
+    {
+        $skeleton = default_skeleton_path();
+
+        foreach ([
+            'app/binders/slugger.php' => 'Binders/slugger.php',
+            'app/extensions/store-cache.php' => 'Extensions/store-cache.php',
+            'app/instances/limiter.php' => 'Instances/limiter.php',
+            'app/hooks/registered.php' => 'Hooks/registered.php',
+            'app/hooks/booted.php' => 'Hooks/booted.php',
+        ] as $relative => $fixture) {
+            $target = $skeleton.'/'.$relative;
+
+            if (! is_dir($directory = dirname($target))) {
+                mkdir($directory, recursive: true);
+            }
+
+            copy(__DIR__.'/Fixtures/App/Application/'.$fixture, $target);
+        }
     }
 }

@@ -1,4 +1,47 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
 app:
+  bind:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Slugger: app/binders/slugger.php
+  bindIf:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+    translator: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+  singleton:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\ReportBuilder: ~
+  singletonIf:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\SlowWarmup: ~
+  scoped:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
+  scopedIf:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\BudgetGuard: ~
+  instance:
+    app.signature: "1.0"
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Clock
+    app.rate_limiter: app/instances/limiter.php
+  alias:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: context
+  extend:
+    cache.store: app/extensions/store-cache.php
+  useAppPath: src
+  useDatabasePath: database
+  useLangPath: resources/lang
+  usePublicPath: public
+  useStoragePath: storage
+  setLocale: fr
+  setFallbackLocale: en
+  registered:
+    - app/hooks/registered.php
+  booting:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\WarmConnections
+  booted:
+    - app/hooks/booted.php
+  terminating:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\FlushMetrics
+
 providers:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
 routes:
