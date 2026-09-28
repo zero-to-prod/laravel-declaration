@@ -4,6 +4,11 @@ router:
   pattern:
     id: '[0-9]+'
     account: '[a-z]+'
+  model:
+    user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
+  bind:
+    post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PostBinder
+    team: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Teams@bySlug
 
 routes:
   - path: "posts/{id}"
@@ -20,3 +25,28 @@ routes:
     methods: GET
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
     domain: "{account}.example.com"
+
+  - path: "users/{user}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+
+  - path: "missing/{user}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+    missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+
+  - path: "raw/{user}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+
+  - path: "bound/{post}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+
+  - path: "teams/{team}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]

@@ -99,6 +99,14 @@ class LaravelDeclarationProvider extends ServiceProvider
         foreach ($Manifest->router->pattern ?? [] as $key => $pattern) {
             $Router->pattern($key, $pattern);
         }
+
+        foreach ($Manifest->router->model ?? [] as $key => $class) {
+            $Router->model($key, $class);
+        }
+
+        foreach ($Manifest->router->bind ?? [] as $key => $binder) {
+            $Router->bind($key, $binder);
+        }
     }
 
     private function registerProviders(Manifest $Manifest): void

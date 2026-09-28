@@ -18,9 +18,23 @@ final readonly class Router
     #[Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
     public array $pattern;
 
+    public const string model = 'model';
+
+    /** @var array<string, string> */
+    #[Describe([Describe::default => []])]
+    public array $model;
+
+    public const string bind = 'bind';
+
+    /** @var array<string, string> */
+    #[Describe([Describe::default => []])]
+    public array $bind;
+
     /** @var list<string> */
     private const array keys = [
         self::pattern,
+        self::model,
+        self::bind,
     ];
 
     /** @param  array<array-key, mixed>  $context */

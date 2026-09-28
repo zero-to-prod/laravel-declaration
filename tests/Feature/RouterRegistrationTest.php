@@ -33,10 +33,42 @@ it('constrains domain parameters', function () use ($manifest): void {
     $this->get('https://acme1.example.com/tenants')->assertNotFound();
 });
 
-it('sets no pattern without a router block', function (): void {
+it('binds a model to a parameter the action does not type-hint', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/users/7')->assertExactJson(['user' => ['id' => 7]]);
+    $this->get('/users/none')->assertNotFound();
+});
+
+it('lets a route missing handle a failed model binding', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/missing/none')->assertNotFound()->assertExactJson(['missing' => true]);
+});
+
+it('leaves the parameter raw without SubstituteBindings', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/raw/7')->assertExactJson(['user' => '7']);
+});
+
+it('forwards a class binder to its bind method', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/bound/5')->assertExactJson(['post' => 'post-5']);
+});
+
+it('forwards a Class@method binder the value and the route', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/teams/acme')->assertExactJson(['team' => 'acme@teams/{team}']);
+});
+
+it('sets no pattern or binder without a router block', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/requests.yml']);
 
-    expect(app(Router::class)->getPatterns())->toBeEmpty();
+    expect(app(Router::class)->getPatterns())->toBeEmpty()
+        ->and(app(Router::class)->getBindingCallback('user'))->toBeNull();
 });
 
 it('rejects unknown router keys', function (): void {

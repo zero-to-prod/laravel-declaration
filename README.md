@@ -249,8 +249,9 @@ The `router` block maps 1:1 onto
 methods: every key is a `Router` method name, and its value is that method's
 argument(s). A map is one call per entry, its key the first argument.
 `LaravelDeclarationProvider` applies the block first in `boot()`, before
-`providers` and `routes`. See `tests/Feature/RouterRegistrationTest.php` and
-[docs/declarative-router.md](docs/declarative-router.md).
+`providers` and `routes`. See `tests/Feature/RouterRegistrationTest.php`,
+[docs/declarative-router.md](docs/declarative-router.md) and
+[docs/declarative-router-bindings.md](docs/declarative-router-bindings.md).
 
 `pattern` is `Router::pattern($key, $pattern)`, a global `where`. Laravel
 merges every pattern into each route as the route is created, so it constrains
@@ -262,6 +263,18 @@ every regex: `[` starts a YAML list, and `"\d"` is a YAML escape error.
 editing the block. An unknown key throws a `LogicException`. `patterns` is
 not a key, because the map form of `pattern` is that loop.
 
+`model` is `Router::model($key, $class)` and `bind` is `Router::bind($key, $binder)`:
+explicit route binding. Laravel runs every binder in the `SubstituteBindings`
+middleware, which the `web` and `api` groups include. So `{key}` is bound on
+every route that runs it, whenever the route was created and whether or not
+its action type-hints the parameter. Without it, the parameter stays a string.
+`model` resolves `$class::resolveRouteBinding($value)`. A `null` result is a 404,
+which a route's `missing` handles. It ignores `{key:field}` and `scopeBindings`.
+`bind` takes `Class` (method `bind`) or `Class@method`. Laravel `make()`s it and
+calls it with `($value, $route)`. An invokable-only class or `Class::method`
+fails. A later `Route::model()` or `Route::bind()` for the same key replaces
+the manifest's for every route, for example in `AppServiceProvider::boot()`.
+
 Complete structure:
 
 ```yaml
@@ -269,6 +282,11 @@ router:
   pattern:                    # -> pattern($key, $pattern), one call per entry
     id: '[0-9]+'              # every {id} of every route created afterwards
     account: '[a-z]+'         # domain parameters too: {account}.example.com
+  model:                      # -> model($key, $class), one call per entry
+    user: App\Models\User     # {user} -> User::resolveRouteBinding($value); 404 when null
+  bind:                       # -> bind($key, $binder), one call per entry
+    post: App\Routing\PostBinder     # make(PostBinder)->bind($value, $route)
+    team: App\Routing\Teams@bySlug   # make(Teams)->bySlug($value, $route)
 ```
 
 ## Providers

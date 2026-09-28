@@ -188,6 +188,19 @@
           "description": "-> pattern($key, $pattern), one call per entry: a global `where`, merged into every route created afterwards (URI and domain parameters). A route's own `where` wins. Single-quote the regex: `[` starts a YAML list.",
           "type": "object",
           "additionalProperties": { "type": "string" }
+        },
+        "model": {
+          "description": "-> model($key, $class), one call per entry: {key} resolves through $class::resolveRouteBinding($value) in SubstituteBindings (`web`/`api` groups), on every route. 404 when null; a route's `missing` handles it. Ignores {key:field} and scopeBindings.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/classString" }
+        },
+        "bind": {
+          "description": "-> bind($key, $binder), one call per entry: `Class` (method `bind`) or `Class@method`, make()d and called ($value, $route) in SubstituteBindings. Not an invokable, not `Class::method`.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$"
+          }
         }
       }
     },
