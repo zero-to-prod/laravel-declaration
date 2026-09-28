@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Tests;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Filesystem\Filesystem;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
@@ -65,9 +66,10 @@ abstract class TestCase extends Orchestra
     }
 
     /**
-     * Copies the `.php` files the manifest's `app:` block references into Testbench's
-     * skeleton: relative references resolve under basePath(), which is that skeleton,
-     * not this repository.
+     * Copies the `.php` files the manifest's `app:` block references, and the view
+     * directories the `view:` block declares, into Testbench's skeleton: relative
+     * references resolve under basePath(), which is that skeleton, not this
+     * repository.
      */
     private function copyApplicationFiles(): void
     {
@@ -88,5 +90,7 @@ abstract class TestCase extends Orchestra
 
             copy(__DIR__.'/Fixtures/App/Application/'.$fixture, $target);
         }
+
+        (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/View/views', $skeleton.'/resources/declared-views');
     }
 }

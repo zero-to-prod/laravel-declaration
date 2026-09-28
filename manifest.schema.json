@@ -8,6 +8,7 @@
     "config": { "$ref": "#/definitions/config" },
     "app": { "$ref": "#/definitions/app" },
     "router": { "$ref": "#/definitions/router" },
+    "view": { "$ref": "#/definitions/view" },
     "providers": {
       "description": "ServiceProviders registered in boot(), before `routes`.",
       "type": "array",
@@ -202,6 +203,68 @@
             "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$"
           }
         }
+      }
+    },
+    "view": {
+      "description": "Illuminate\\View\\Factory methods: every key is a method name, its value the argument(s). Applied when Laravel first resolves `view` (callAfterResolving, queued in boot()). An unknown key throws LogicException.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "addLocation": {
+          "description": "-> addLocation($location), one call per item: searched after config('view.paths'). A relative path resolves under basePath().",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "prependLocation": {
+          "description": "-> prependLocation($location), one call per item: searched before every other location. A relative path resolves under basePath().",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "addNamespace": {
+          "description": "-> addNamespace($namespace, $hints), one call per entry: `namespace::view` searches these paths after the hints already registered.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+        },
+        "prependNamespace": {
+          "description": "-> prependNamespace($namespace, $hints), one call per entry: searched before the hints already registered, so it overrides a package's views.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+        },
+        "replaceNamespace": {
+          "description": "-> replaceNamespace($namespace, $hints), one call per entry: discards the hints already registered. Laravel replaces `errors` and `mail` itself at render.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+        },
+        "addExtension": {
+          "description": "-> addExtension($extension, $engine), one call per entry: `.$extension` files render with $engine (blade, php, file) and are found before every other extension.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "share": {
+          "description": "-> share($key) with the whole map: every entry reaches every view as YAML decoded it. View data, creators and composers override it. Never share `__env` or `app`.",
+          "type": "object"
+        },
+        "composer": {
+          "description": "-> composer($views, $callback), one call per entry, keyed as Factory::composers() is: `Class` (method `compose`) or `Class@method` => a view name, a `*` pattern, or a list. make()d and called ($view) when the view renders.",
+          "$ref": "#/definitions/viewEvents"
+        },
+        "creator": {
+          "description": "-> creator($views, $callback), one call per entry, shaped as `composer`: default method `create`, called when the view is made, before any composer.",
+          "$ref": "#/definitions/viewEvents"
+        }
+      }
+    },
+    "stringOrList": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      ]
+    },
+    "viewEvents": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$": { "$ref": "#/definitions/stringOrList" }
       }
     },
     "provider": {

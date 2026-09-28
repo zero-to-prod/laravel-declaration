@@ -30,6 +30,12 @@ readonly class Manifest
     #[Describe([Describe::nullable => true])]
     public ?Router $router;
 
+    public const string view = 'view';
+
+    /** The `View\Factory` surface; null when the manifest has no (or an empty) `view:` block */
+    #[Describe([Describe::nullable => true])]
+    public ?View $view;
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],

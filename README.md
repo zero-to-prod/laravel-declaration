@@ -86,16 +86,16 @@ cannot satisfy the `--min=100` gate.
 `LaravelDeclarationProvider` resolves the YAML file at
 `laravel-declaration.manifest` (default `manifest/app.yml`) in `register()`,
 applies its `config` there, applies its `app` block once every eager provider
-has registered, applies its `router` block and registers its providers and routes in `boot()`. A missing
+has registered, applies its `router` block, queues its `view` block for the view factory, and registers its providers and routes in `boot()`. A missing
 file registers nothing. Tests:
 `tests/Feature/ManifestFactoryTest.php`, `tests/Feature/RouteRegistrationTest.php`,
-`tests/Feature/RouterRegistrationTest.php`,
+`tests/Feature/RouterRegistrationTest.php`, `tests/Feature/ViewRegistrationTest.php`,
 `tests/Feature/DeclaredRequestTest.php`, `tests/Feature/ConfigRegistrationTest.php`,
 `tests/Feature/ApplicationRegistrationTest.php`.
 
-The top-level keys are `config`, `app`, `router`, `providers`, `routes` and
+The top-level keys are `config`, `app`, `router`, `view`, `providers`, `routes` and
 `requests`. Complete structure per feature under [Config](#config),
-[Application](#application), [Router](#router), [Providers](#providers),
+[Application](#application), [Router](#router), [View](#view), [Providers](#providers),
 [Routes](#routes) and [Requests](#requests).
 
 ## Config
@@ -287,6 +287,54 @@ router:
   bind:                       # -> bind($key, $binder), one call per entry
     post: App\Routing\PostBinder     # make(PostBinder)->bind($value, $route)
     team: App\Routing\Teams@bySlug   # make(Teams)->bySlug($value, $route)
+```
+
+## View
+
+The `view` block maps 1:1 onto
+[`Illuminate\View\Factory`](https://laravel.com/docs/views#view-composers)
+methods: every key is a `Factory` method name, and its value is that method's
+argument(s). A list is one call per item, a map one call per entry.
+`LaravelDeclarationProvider` queues the block in `boot()` with
+`callAfterResolving('view')`, as Laravel's `loadViewsFrom()` does. It applies
+when Laravel first builds the view factory, and a request that renders nothing
+never builds it. See `tests/Feature/ViewRegistrationTest.php` and
+[docs/declarative-view.md](docs/declarative-view.md).
+
+`addLocation` and `prependLocation` add a view directory after or before
+`config('view.paths')`. `addNamespace`, `prependNamespace` and `replaceNamespace`
+register `namespace::view` directories. A relative path resolves under
+`basePath()`. `addExtension` renders `.extension` files with an existing engine
+(`blade`, `php`, `file`). `share` is `Factory::share()`: every entry reaches every
+view as YAML decoded it, and view data, creators and composers override it.
+`composer` and `creator` take `Factory::composers()`'s map. The key is the
+callback: `Class` (method `compose` / `create`) or `Class@method`. The value is a
+view name, a `*` pattern or a list. Laravel `make()`s the class and calls it with
+the `View`. Creators run when the view is made, composers when it renders.
+Exact names run before patterns. An unknown key throws a `LogicException`.
+
+Complete structure:
+
+```yaml
+view:
+  addLocation: [resources/declared-views]      # -> addLocation($location), one call per item
+  prependLocation: [resources/theme]           # searched before config('view.paths')
+  addNamespace:                                # -> addNamespace($namespace, $hints)
+    admin: resources/admin-views               # view('admin::dashboard')
+  prependNamespace:
+    courier: [resources/overrides/courier]     # overrides a package's views
+  replaceNamespace:
+    legacy: resources/legacy-views
+  addExtension:                                # -> addExtension($extension, $engine)
+    html: blade
+  share:                                       # -> share($key): every view gets $brand
+    brand: Tenant Console
+  composer:                                    # -> composer($views, $callback), keyed as Factory::composers()
+    App\View\Composers\UserMenu: users.*       # make(UserMenu)->compose($view)
+    App\View\Composers\CurrentTenant: '*'      # every view; quote `*`
+    App\View\Composers\Nav@primary: [layouts.app, layouts.admin]
+  creator:                                     # -> creator($views, $callback), default method `create`
+    App\View\Creators\Breadcrumbs: users.show
 ```
 
 ## Providers

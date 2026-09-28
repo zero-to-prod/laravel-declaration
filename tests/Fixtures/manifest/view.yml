@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+view:
+  addLocation:
+    - resources/declared-views
+  prependLocation:
+    - resources/declared-views/theme
+  addNamespace:
+    admin: resources/declared-views/admin
+  prependNamespace:
+    admin: [resources/declared-views/admin-theme]
+  replaceNamespace:
+    legacy: resources/declared-views/admin
+  addExtension:
+    html: blade
+  share:
+    brand: Tenant Console
+    title: shared
+  composer:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu: users.*
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant: '*'
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary: [users.show, greeting]
+  creator:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs: users.show
+
+routes:
+  - path: "users/{user}"
+    methods: GET
+    action: Illuminate\Routing\ViewController
+    setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}

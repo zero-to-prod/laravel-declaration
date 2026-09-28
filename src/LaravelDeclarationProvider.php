@@ -12,6 +12,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\View\Factory;
 use Laravel\Mcp\Facades\Mcp;
 use LogicException;
 use Override;
@@ -67,6 +68,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         $Router = $this->app->make(Router::class);
 
         $this->registerRouter($Manifest, $Router);
+        $this->callAfterResolving('view', fn (Factory $Factory) => $this->registerView($Manifest, $Factory));
         $this->registerProviders($Manifest);
         $this->registerRoutes($Manifest, $Router);
     }
@@ -74,7 +76,7 @@ class LaravelDeclarationProvider extends ServiceProvider
     private function resolveManifest(string $filename): Manifest
     {
         if (! is_file($filename)) {
-            return Manifest::from([]);
+            return Manifest::from();
         }
 
         /** @var array<string, mixed> $manifest */
@@ -106,6 +108,43 @@ class LaravelDeclarationProvider extends ServiceProvider
 
         foreach ($Manifest->router->bind ?? [] as $key => $binder) {
             $Router->bind($key, $binder);
+        }
+    }
+
+    private function registerView(Manifest $Manifest, Factory $Factory): void
+    {
+        foreach ($Manifest->view->addLocation ?? [] as $location) {
+            $Factory->addLocation($this->absolute($location));
+        }
+
+        foreach ($Manifest->view->prependLocation ?? [] as $location) {
+            $Factory->prependLocation($this->absolute($location));
+        }
+
+        foreach ($Manifest->view->addNamespace ?? [] as $namespace => $hints) {
+            $Factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+        }
+
+        foreach ($Manifest->view->prependNamespace ?? [] as $namespace => $hints) {
+            $Factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+        }
+
+        foreach ($Manifest->view->replaceNamespace ?? [] as $namespace => $hints) {
+            $Factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+        }
+
+        foreach ($Manifest->view->addExtension ?? [] as $extension => $engine) {
+            $Factory->addExtension($extension, $engine);
+        }
+
+        $Factory->share($Manifest->view->share ?? []);
+
+        foreach ($Manifest->view->composer ?? [] as $callback => $views) {
+            $Factory->composer($views, $callback);
+        }
+
+        foreach ($Manifest->view->creator ?? [] as $callback => $views) {
+            $Factory->creator($views, $callback);
         }
     }
 
@@ -166,13 +205,11 @@ class LaravelDeclarationProvider extends ServiceProvider
         }
     }
 
-    /** null (a self-binding) passes through; anything else is a reference. */
     private function concrete(?string $reference): Closure|string|null
     {
         return $reference === null ? null : $this->reference($reference);
     }
 
-    /** A `.php` reference is required once, memoized, and must return a Closure; any other string passes through. */
     private function reference(string $reference): Closure|string
     {
         if (! str_ends_with($reference, '.php')) {
@@ -211,7 +248,6 @@ class LaravelDeclarationProvider extends ServiceProvider
         return static fn (Application $app): mixed => $app->call($value, ['app' => $app]);
     }
 
-    /** `Application::normalizeCachePath()`'s rule: a `/` or `\` prefix is absolute, anything else is under basePath(). */
     private function absolute(string $path): string
     {
         return Str::startsWith($path, ['/', '\\']) ? $path : $this->app->basePath($path);
