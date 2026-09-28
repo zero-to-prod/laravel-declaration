@@ -427,7 +427,7 @@ class DeclaredRequest extends FormRequest
 
 The class holds no state and needs no `resolving` callback. Every member runs inside `validateResolved()`, after `createFrom()` has copied the route resolver (§1.1), so `$this->route()` returns the matched route. Outside one (`app(DeclaredRequest::class)` in a job or command), `route()` returns `null`, and the first member throws `Error`, not the `LogicException`. Route registration is unchanged: `metadata` is already a route key.
 
-The type-hint is Laravel's validation trigger, exactly as for a hand-written `FormRequest`. A route whose action hints no `DeclaredRequest` does not validate. A route whose action hints another `FormRequest` runs that class's rules. A `DeclaredRequest` on a route with no `metadata.request`, or one that names an undeclared request, throws the `LogicException` on first use.
+The type-hint is Laravel's validation trigger, exactly as for a hand-written `FormRequest`. A route whose action hints no `DeclaredRequest` does not validate. A route whose action hints another `FormRequest` runs that class's rules. A `DeclaredRequest` on a route with no `metadata.request`, or one that names an undeclared request, throws the `LogicException` on first use. `DeclaredView` is the exception: it resolves `DeclaredRequest` itself when its route declares `metadata.request` ([declarative-view-data.md](declarative-view-data.md) §2.5).
 
 ### 2.6 Notes / non-goals
 

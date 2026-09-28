@@ -355,7 +355,7 @@
           "additionalProperties": { "type": "string" }
         },
         "setDefaults": {
-          "description": "-> Route::setDefaults()",
+          "description": "-> Route::setDefaults(). On a ViewController or DeclaredView action: Router::view()'s arguments `view`, `data`, `status`, `headers`. DeclaredView resolves a namespaced `data` value through Container::call().",
           "type": "object"
         },
         "missing": {
@@ -396,7 +396,7 @@
           "type": "object",
           "properties": {
             "request": {
-              "description": "The `name` of a declared request; the action must type-hint DeclaredRequest.",
+              "description": "The `name` of a declared request; the action must type-hint DeclaredRequest, or be DeclaredView.",
               "type": "string"
             }
           }
