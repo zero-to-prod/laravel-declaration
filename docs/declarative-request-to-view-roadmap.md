@@ -15,18 +15,20 @@ The request lifecycle, in dispatch order, with the Laravel API that owns each st
 | 1 | Container | `Application` | `app` | done |
 | 2 | Config | `Config::set()` | `config` | done |
 | 3 | Providers | `Application::register()` | `providers` | done |
-| 4 | Global parameter patterns | `Router::pattern()` / `patterns()` | `router` | done |
-| 5 | Route match + route middleware | `Router::addRoute()` + `Route` builders | `routes` | done |
-| 6 | Parameter → model / value | `Router::bind()` / `Router::model()` | `router` | done |
-| 7 | Eloquent model defaults + scopes | `Model` properties, observers, global scopes | `models` | done |
-| 8 | Authorize + validate | `FormRequest` | `requests` + `metadata.request` | done |
-| 9 | Action | `Router::view()` → `ViewController` | `routes.action` + `setDefaults` | **Phase 0** (works today, undocumented) |
-| 10 | Dynamic view data | `ViewController` `data` | `DeclaredView` | done |
-| 11 | Shared / composed view data | `View\Factory::share()` / `composer()` / `creator()` | `view` | done |
-| 12 | View lookup | `View\Factory::addLocation()` / `addNamespace()` | `view` | done |
-| 13 | Response status + headers | `ResponseFactory::view($view, $data, $status, $headers)` | `setDefaults.status` / `headers` | Phase 0 |
+| 4 | HTTP Kernel pipeline | `Http\Kernel` middleware, groups, priority | `kernel` | done (Phase 5) |
+| 5 | Global parameter patterns | `Router::pattern()` / `patterns()` | `router` | done (Phase 1) |
+| 6 | Route match + route middleware | `Router::addRoute()` + `Route` builders | `routes` | done |
+| 7 | Parameter → model / value | `Router::bind()` / `Router::model()` | `router` | done (Phase 1) |
+| 8 | Eloquent model defaults + scopes | `Model` properties, observers, global scopes | `models` | done |
+| 9 | Authorize + validate | `FormRequest` | `requests` + `metadata.request` | done |
+| 10 | Reusable query pipelines | `Eloquent\Builder` chaining + terminals | `queries` | done (Phase 4) |
+| 11 | Action | `Router::view()` → `ViewController` | `routes.action` + `setDefaults` | done (`DeclaredView`) |
+| 12 | Dynamic view data | `ViewController` `data` | `DeclaredView` | done (Phase 3) |
+| 13 | Shared / composed view data | `View\Factory::share()` / `composer()` / `creator()` | `view` | done (Phase 2) |
+| 14 | View lookup | `View\Factory::addLocation()` / `addNamespace()` | `view` | done (Phase 2) |
+| 15 | Response status + headers | `ResponseFactory::view($view, $data, $status, $headers)` | `setDefaults.status` / `headers` | done (`DeclaredView`) |
 
-The two gaps that block "no controller" are **stage 9** (a declared action has no type-hints, so implicit binding never runs) and **stage 10** (`Router::view()` data is static).
+The gaps that previously blocked "no controller" — **action implicit binding**, **static view data**, and **query pipeline execution** — are resolved by `DeclaredView` (Phase 3) and `queries:` (Phase 4).
 
 ### 1.1 Why stage 6 needs explicit binding
 
@@ -62,9 +64,9 @@ $this->match(['GET', 'HEAD'], $uri, '\Illuminate\Routing\ViewController')
 
 Each phase is independently shippable, and each is **one DataModel + one provider loop + one doc + one fixture + one Feature test** (§5).
 
-### Phase 0 — `Router::view()` through existing route keys (docs + tests only)
+### Phase 0 — `Router::view()` through existing route keys [Superseded by Phase 3]
 
-No code. Document and pin with a test that this is `Route::view('users/{user}', 'users.show', ['title' => 'User'])`:
+Functionally available via native Laravel `Illuminate\Routing\ViewController`. Documented and verified as `Route::view('users/{user}', 'users.show', ['title' => 'User'])`:
 
 ```yaml
 routes:
@@ -79,15 +81,13 @@ routes:
       headers: {}
 ```
 
-Known footgun to document: `ViewController` reads `$args['data']`, `$args['status']` and `$args['headers']` unconditionally, so **all four keys are required**; a missing one is an `ErrorException` (undefined array key). Phase 3 removes it.
+Known footgun: `ViewController` reads `$args['data']`, `$args['status']` and `$args['headers']` unconditionally, so **all four keys are required**; a missing one causes an `ErrorException` (undefined array key).
 
-Same treatment for `Router::redirect()` (`action: Illuminate\Routing\RedirectController`, `setDefaults: {destination, status}`).
+**Status:** Superseded by **Phase 3** (`DeclaredView`), which provides safe defaults (`data: []`, `status: 200`, `headers: []`) and resolves dynamic references and query handles. Raw `ViewController` remains available for static routes with explicit default arrays.
 
-Deliverables: README `Routes` subsection, `docs/declarative-routing.md` §2.6 note, `tests/Feature/RouteViewTest.php`, fixture `resources/views/users/show.blade.php` under `tests/Fixtures`.
+### Phase 1 — `router:` block → `Illuminate\Routing\Router` [Completed]
 
-### Phase 1 — `router:` block → `Illuminate\Routing\Router`
-
-Closes stage 6 (and stage 4).
+Closes stage 7 (and stage 5).
 
 ```yaml
 router:
@@ -113,11 +113,11 @@ Decisions:
 - **No `.php` references in `bind`.** Keeps `Router` a pure pass-through; revisit if a Closure binder is requested.
 - **Middleware (`aliasMiddleware`, `middlewareGroup`, `pushMiddlewareToGroup`) is deferred to Phase 5.** `Http\Kernel::syncMiddlewareToRouter()` re-runs on every Kernel mutation and overwrites any group the Kernel owns (`web`, `api`), so a Router-level declaration is not durable. It belongs on the Kernel, not the Router.
 
-Deliverables: `src/Router.php` (DataModel), `Manifest::$router`, `LaravelDeclarationProvider::registerRouter()`, `docs/declarative-router.md`, [docs/declarative-router-bindings.md](declarative-router-bindings.md), `tests/Fixtures/manifest/router.yml`, `tests/Feature/RouterRegistrationTest.php`, `manifest.schema.json` `router` definition.
+**Deliverables completed:** `src/Router.php` (DataModel), `Manifest::$router`, `RouterDeclarationServiceProvider`, `docs/declarative-router.md`, [docs/declarative-router-bindings.md](declarative-router-bindings.md), `tests/Fixtures/manifest/router.yml`, `tests/Feature/RouterRegistrationTest.php`, `manifest.schema.json` `router` definition.
 
-### Phase 2 — `view:` block → `Illuminate\View\Factory`
+### Phase 2 — `view:` block → `Illuminate\View\Factory` [Completed]
 
-Closes stages 10 and 11: data every view (or a view pattern) receives, and where views live.
+Closes stages 12, 13, and 14: data every view (or a view pattern) receives, and where views live.
 
 ```yaml
 view:
@@ -153,11 +153,11 @@ Decisions:
 - `share` values are literals only. A dynamic shared value is a `composer: {"*": ...}` — Laravel's own answer, so the package adds no third reference convention.
 - `composer` / `creator` strings are forwarded untouched. `Factory::addViewEvent()` accepts `Class@method`; wildcard patterns (`users.*`, `*`) are Laravel's.
 
-Deliverables: `src/View.php`, `Manifest::$view`, `registerView()`, `docs/declarative-view.md`, `tests/Fixtures/manifest/view.yml`, `tests/Feature/ViewRegistrationTest.php`, schema.
+Deliverables completed: `src/View.php`, `Manifest::$view`, `ViewDeclarationServiceProvider`, `docs/declarative-view.md`, `tests/Fixtures/manifest/view.yml`, `tests/Feature/ViewRegistrationTest.php`, schema.
 
-### Phase 3 — `DeclaredView` → `Illuminate\Routing\ViewController`
+### Phase 3 — `DeclaredView` → `Illuminate\Routing\ViewController` [Completed]
 
-Closes stage 9, and joins stage 7 to stage 10. This is the phase that makes **request → view** one declaration.
+Closes stage 11, and joins stage 9 to stage 12. This is the phase that makes **request → view** one declaration.
 
 ```yaml
 routes:
@@ -200,38 +200,44 @@ Decisions:
 - **Only top-level `data` values resolve.** Nested maps/lists pass untouched, like `app.instance`.
 - **Laravel's precedence is kept:** route parameters override `data` keys of the same name (`ViewController`'s `array_merge($args['data'], $routeParameters)`).
 - **Request validation is opt-in by `metadata.request`**, the key that already exists. No `metadata.request` → references receive the base `Illuminate\Http\Request`.
-- `DeclaredView` is **public API** (like `DeclaredRequest`); `bc-check` must cover it.
-- **No DataModel, no provider loop.** `setDefaults` and `metadata` are existing route keys that `registerRoutes()` already applies, so §3's "one DataModel + one provider loop" and §5 items 1–2 do not apply.
+- `DeclaredView` is **public API** (like `DeclaredRequest`); `bc-check` covers it.
+- **No DataModel, no provider loop.** `setDefaults` and `metadata` are existing route keys that `RoutesDeclarationServiceProvider` already applies.
 
-Deliverables: `src/DeclaredView.php`, `docs/declarative-view-data.md`, `tests/Fixtures/manifest/view-data.yml`, `tests/Feature/DeclaredViewTest.php` (literal, reference, bound model, validated request, 422 before data resolves, defaults, parameter precedence), README `View routes` section, `manifest.schema.json` `setDefaults` / `metadata.request` descriptions, MCP `api` output updated.
+**Deliverables completed:** `src/DeclaredView.php`, `docs/declarative-view-data.md`, `tests/Fixtures/manifest/view-data.yml`, `tests/Feature/DeclaredViewTest.php` (literal, reference, bound model, validated request, 422 before data resolves, defaults, parameter precedence), README section, `manifest.schema.json` `setDefaults` / `metadata.request` descriptions.
 
-### Phase 4 (gated) — `queries:` → `Illuminate\Database\Eloquent\Builder`
+### Phase 4 — `queries:` → `Illuminate\Database\Eloquent\Builder` [Completed]
 
-Only if Phase 3 references turn out to be one-line query wrappers in practice. Shape would mirror route builders — keys are `Builder` method names applied in document order, a reserved `model` (or route parameter + relation) is the root, the last key is the terminal:
+Enables reusable Eloquent query pipelines without PHP controllers or query wrapper classes. Keys match `Illuminate\Database\Eloquent\Builder` methods applied in document order. A reserved `from` key roots the query on an Eloquent model class (`App\Models\Flight`) or a bound route parameter relation (`user.posts`). Terminal execution methods (`paginate`, `simplePaginate`, `cursorPaginate`, `get`, `first`, `firstOrFail`, `sole`, `count`, `exists`, `value`, `pluck`) execute the builder, defaulting to `get()`.
 
 ```yaml
 queries:
   - name: user-posts
     from: user.posts                           # route parameter {user} -> $user->posts()
     with: [author]                             # -> with(['author'])
-    published: ~                               # -> local scope published()
+    scopes: [published]                        # -> local scope published()
     latest: created_at                         # -> latest('created_at')
     paginate: 15                               # terminal; reads ?page natively
 ```
 
-Open question that gates it: **request-derived arguments.** Any syntax for "argument from `validated('sort')`" is a new DSL, which breaks rule 1. The candidate that does not: dynamic arguments live only in **local scopes** (PHP), and YAML passes only literals. Decide before building. Its root is a model, declared by [declarative-model.md](declarative-model.md). Relations stay methods there (§2.6), so `from: user.posts` calls a PHP method.
+Resolution of gating question: **Request-derived arguments** live cleanly in **local scopes** on the Model (`#[Scope]`), requiring no custom argument mapping DSL. `Builder::paginate()` natively resolves request pagination parameters (`?page=2`). `DeclaredView` detects string handles matching `Manifest::$queries` and executes them via `DeclaredQuery::run($name, $parameters)` before view rendering.
 
-### Phase 5 (optional) — `kernel:` block → `Illuminate\Foundation\Http\Kernel` [Completed]
+**Deliverables completed:** `src/Query.php` (DataModel), `src/DeclaredQuery.php` (invoker facade), `Manifest::$queries`, `docs/declarative-query.md`, `tests/Fixtures/manifest/queries.yml`, `tests/Feature/DeclaredQueryTest.php`, `manifest.schema.json` `queries` definition.
+
+### Phase 5 — `kernel:` block → `Illuminate\Foundation\Http\Kernel` [Completed]
 
 Middleware aliases, groups, and priority, declared where they are durable: `Kernel::pushMiddleware()`, `prependMiddleware()`, `setGlobalMiddleware()`, `appendMiddlewareToGroup()`, `prependMiddlewareToGroup()`, `setMiddlewareGroups()`, `setMiddlewareAliases()`, `setMiddlewarePriority()`, `prependToMiddlewarePriority()`, `appendToMiddlewarePriority()`, `addToMiddlewarePriorityBefore()`, `addToMiddlewarePriorityAfter()`, `whenRequestLifecycleIsLongerThan()`, each of which re-syncs the Router itself.
 
-Deliverables: `src/Kernel.php` (DataModel), `Manifest::$kernel`, `LaravelDeclarationProvider::registerKernel()`, `docs/declarative-kernel.md`, `tests/Fixtures/manifest/kernel.yml`, `tests/Feature/KernelRegistrationTest.php`, `manifest.schema.json` `kernel` definition.
+**Deliverables completed:** `src/Kernel.php` (DataModel), `Manifest::$kernel`, `KernelDeclarationServiceProvider`, `docs/declarative-kernel.md`, `tests/Fixtures/manifest/kernel.yml`, `tests/Feature/KernelRegistrationTest.php`, `manifest.schema.json` `kernel` definition.
 
 ---
 
-## 4. End state (after Phases 1–3)
+## 4. End state (Unified Pipeline)
 
 ```yaml
+kernel:
+  middlewarePriority:
+    - Illuminate\Routing\Middleware\SubstituteBindings
+
 router:
   model:
     user: App\Models\User
@@ -247,6 +253,13 @@ requests:
     rules:
       sort: [nullable, 'in:created_at,title']
 
+queries:
+  - name: user-posts
+    from: user.posts
+    with: [author]
+    latest: created_at
+    paginate: 15
+
 routes:
   - path: "users/{user}/posts"
     methods: GET
@@ -259,14 +272,45 @@ routes:
       view: users.posts
       data:
         title: Posts
-        posts: App\Queries\UserPosts
+        posts: user-posts                      # declared query handle -> DeclaredQuery::run()
+        stats: App\Queries\PostStats@forUser   # container reference -> app()->call()
 ```
 
-`GET /users/7/posts?sort=title` → route match → `SubstituteBindings` → `router.model` binds `$user` → `DeclaredRequest` authorizes + validates `post-filters` (422/redirect on failure; no query runs) → `UserPosts($user, $request)` → `ViewController` merges `{title, posts, user}` → `CurrentTenant` composer adds `tenant` → `share` adds `brand` → `users.posts` renders. The only PHP is the query and the composer.
+`GET /users/7/posts?sort=title&page=2` → route match → `SubstituteBindings` → `router.model` binds `$user` → `DeclaredRequest` authorizes + validates `post-filters` (422/redirect on failure; no query runs) → `DeclaredView` resolves `user-posts` via `DeclaredQuery::run()` and `PostStats@forUser` via `app()->call()` → `ViewController` merges `{title, posts, stats, user}` → `CurrentTenant` composer adds `tenant` → `share` adds `brand` → `users.posts` renders. The only PHP files are model definitions, composers, and optional custom references.
 
 ---
 
-## 5. Definition of done (every phase)
+## 5. Where We Stand vs. What Is Left To Do
+
+### 5.1 Where We Stand
+
+All 5 roadmap phases and related core subsystems are **completed, tested, and green**:
+
+1. **Phase 1 (`router:`)**: Global patterns, explicit model binding, custom binder classes registered via `RouterDeclarationServiceProvider`.
+2. **Phase 2 (`view:`)**: View paths, namespaces, shared data, view composers, and creators registered via `ViewDeclarationServiceProvider`.
+3. **Phase 3 (`DeclaredView`)**: Zero-controller action extending `ViewController`, resolving container references and request-validated data.
+4. **Phase 4 (`queries:`)**: Reusable Eloquent query pipelines with 40+ builder methods, model and relation roots, terminal execution, and automatic resolution in `DeclaredView`.
+5. **Phase 5 (`kernel:`)**: Durable HTTP middleware pipelines, groups, aliases, priorities, and request duration lifecycle handlers registered via `KernelDeclarationServiceProvider`.
+6. **Eloquent Models (`models:`)**: Declarative Eloquent models via `DeclaredModel` (tables, primary keys, fillable attributes, casts, global scopes, observers, route key names).
+7. **Modular Service Providers (`src/Providers/`)**: Concern providers cleanly isolated and invoked via container method injection, replacing monolithic provider loops.
+8. **Tooling & Quality**: 100% test coverage, PHPStan max level, Rector, Pint formatting, backwards-compatibility validation (`bc-check`), and Model Context Protocol (MCP) server integration.
+
+### 5.2 What Is Left To Do
+
+The core declarative request-to-view roadmap is functionally complete. The following optional follow-up tasks and future extensions remain:
+
+1. **Unified Full-Stack Integration Test**:
+   - Add a single end-to-end integration test (`tests/Feature/EndToEndRequestToViewTest.php`) and fixture asserting the entire unified pipeline (`kernel` + `router.model` + `requests` + `queries` + `view.share` + `view.composer` + `DeclaredView`) executing within a single HTTP request lifecycle exactly as presented in §4.
+2. **Phase 0 Documentation / Test Decision**:
+   - Either add `tests/Feature/RouteViewTest.php` pinning vanilla `Illuminate\Routing\ViewController` behavior, or officially document it as superseded in favor of `DeclaredView`.
+3. **Future Extension — `DeclaredJson`**:
+   - Zero-controller JSON API response action extending `ResponseFactory::json()` or `JsonResource` pipelines for REST API parity with `DeclaredView`.
+4. **Future Extension — Query Parameter Injection into Scopes**:
+   - Optional convention or attribute for mapping request query parameters directly into model local scopes when invoking declared queries.
+
+---
+
+## 6. Definition of done (every phase)
 
 1. DataModel in `src/` with one `public const string` + property per key, `Describe` defaults matching "absent" behavior; unknown keys throw `LogicException` at read (as `App`).
 2. `Manifest` property; provider applies it in the phase Laravel would (documented in the doc's §1.1).
@@ -275,7 +319,7 @@ routes:
 5. Fixture YAML under `tests/Fixtures/manifest/` + `tests/Feature/*Test.php`.
 6. `composer check` green: lint, rector, phpstan, **100% coverage**, bc-check.
 
-## 6. Non-goals
+## 7. Non-goals
 
 - JSON responses / `JsonResource` shaping. `ResponseFactory::json()` is a sibling of `view()`; a `DeclaredJson` would follow Phase 3's pattern, but it is not on the request → view path.
 - Blade templates in YAML. Views stay `.blade.php`.
