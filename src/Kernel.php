@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
+use ZeroToProd\LaravelDeclaration\Attributes\Append;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
+use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Kernel
@@ -15,19 +18,19 @@ final readonly class Kernel
     public const string pushMiddleware = 'pushMiddleware';
 
     /** @var list<class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Append, Describe([Describe::default => []])]
     public array $pushMiddleware;
 
     public const string prependMiddleware = 'prependMiddleware';
 
     /** @var list<class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Prepend, Describe([Describe::default => []])]
     public array $prependMiddleware;
 
     public const string setGlobalMiddleware = 'setGlobalMiddleware';
 
     /** @var list<class-string>|null */
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?array $setGlobalMiddleware;
 
     public const string appendMiddlewareToGroup = 'appendMiddlewareToGroup';
@@ -45,31 +48,31 @@ final readonly class Kernel
     public const string setMiddlewareGroups = 'setMiddlewareGroups';
 
     /** @var array<string, list<class-string>>|null */
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?array $setMiddlewareGroups;
 
     public const string setMiddlewareAliases = 'setMiddlewareAliases';
 
     /** @var array<string, class-string>|null */
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?array $setMiddlewareAliases;
 
     public const string setMiddlewarePriority = 'setMiddlewarePriority';
 
     /** @var list<class-string>|null */
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?array $setMiddlewarePriority;
 
     public const string prependToMiddlewarePriority = 'prependToMiddlewarePriority';
 
     /** @var list<class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Prepend, Describe([Describe::default => []])]
     public array $prependToMiddlewarePriority;
 
     public const string appendToMiddlewarePriority = 'appendToMiddlewarePriority';
 
     /** @var list<class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Append, Describe([Describe::default => []])]
     public array $appendToMiddlewarePriority;
 
     public const string addToMiddlewarePriorityBefore = 'addToMiddlewarePriorityBefore';

@@ -390,19 +390,19 @@ private function registerKernel(Kernel $Kernel, KernelContract $kernel): void
         return;
     }
 
-    foreach ([Kernel::setGlobalMiddleware, Kernel::setMiddlewareGroups, Kernel::setMiddlewareAliases, Kernel::setMiddlewarePriority] as $method) {
+    foreach (Kernel::selected(Setter::class) as $method) {
         if ($Kernel->{$method} !== null) {
             $kernel->{$method}($Kernel->{$method});
         }
     }
 
-    foreach ([Kernel::pushMiddleware, Kernel::appendToMiddlewarePriority] as $method) {
+    foreach (Kernel::selected(Append::class) as $method) {
         foreach ($Kernel->{$method} as $middleware) {
             $kernel->{$method}($middleware);
         }
     }
 
-    foreach ([Kernel::prependMiddleware, Kernel::prependToMiddlewarePriority] as $method) {
+    foreach (Kernel::selected(Prepend::class) as $method) {
         foreach (array_reverse($Kernel->{$method}) as $middleware) {
             $kernel->{$method}($middleware);
         }

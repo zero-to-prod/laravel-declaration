@@ -294,7 +294,7 @@ $this->app->registered(fn (Application $app) => $this->registerApplication($Mani
 ```php
 private function registerApplication(App $App, Application $app): void
 {
-    foreach ([App::bind, App::bindIf, App::singleton, App::singletonIf, App::scoped, App::scopedIf] as $method) {
+    foreach (App::selected(Binding::class) as $method) {
         foreach ($App->{$method} as $abstract => $concrete) {
             is_string($abstract)
                 ? $app->{$method}($abstract, $this->concrete($concrete))
@@ -314,7 +314,7 @@ private function registerApplication(App $App, Application $app): void
         $app->extend($abstract, $this->wrapExtender($reference));
     }
 
-    foreach ([App::useAppPath, App::useDatabasePath, App::useLangPath, App::usePublicPath, App::useStoragePath] as $method) {
+    foreach (App::selected(Path::class) as $method) {
         if (($path = $App->{$method}) !== null) {
             $app->{$method}($this->absolute($path));
         }

@@ -30,10 +30,14 @@ trait DataModel
     /**
      * @param  class-string  $attribute
      * @return list<string>
+     *
+     * @internal
      */
-    private static function selected(string $attribute): array
+    public static function selected(string $attribute): array
     {
-        return array_values(array_map(
+        static $cache = [];
+
+        return $cache[static::class][$attribute] ??= array_values(array_map(
             static fn (ReflectionProperty $Property): string => $Property->getName(),
             array_filter(
                 new ReflectionClass(static::class)->getProperties(),

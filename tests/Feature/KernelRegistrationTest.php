@@ -7,6 +7,9 @@ use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Symfony\Component\HttpFoundation\Response;
+use ZeroToProd\LaravelDeclaration\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Kernel;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware;
@@ -235,4 +238,19 @@ it('applies nothing without a kernel block', function (): void {
 it('laravel-declaration:validate accepts the kernel block', function () use ($manifest): void {
     $this->artisan('laravel-declaration:validate', ['--manifest' => $manifest])
         ->assertSuccessful();
+});
+
+it('selects setter, append, and prepend properties via attributes', function (): void {
+    expect(Kernel::selected(Setter::class))->toBe([
+        Kernel::setGlobalMiddleware,
+        Kernel::setMiddlewareGroups,
+        Kernel::setMiddlewareAliases,
+        Kernel::setMiddlewarePriority,
+    ])->and(Kernel::selected(Append::class))->toBe([
+        Kernel::pushMiddleware,
+        Kernel::appendToMiddlewarePriority,
+    ])->and(Kernel::selected(Prepend::class))->toBe([
+        Kernel::prependMiddleware,
+        Kernel::prependToMiddlewarePriority,
+    ]);
 });

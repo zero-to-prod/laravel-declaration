@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Translation\Translator;
+use ZeroToProd\LaravelDeclaration\App;
+use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf;
@@ -195,4 +198,21 @@ it('ignores unknown app keys', function (): void {
 
     expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull()
         ->and(app()->bound('Foo'))->toBeFalse();
+});
+
+it('selects binding and path properties via attributes', function (): void {
+    expect(App::selected(Binding::class))->toBe([
+        App::bind,
+        App::bindIf,
+        App::singleton,
+        App::singletonIf,
+        App::scoped,
+        App::scopedIf,
+    ])->and(App::selected(Path::class))->toBe([
+        App::useAppPath,
+        App::useDatabasePath,
+        App::useLangPath,
+        App::usePublicPath,
+        App::useStoragePath,
+    ]);
 });

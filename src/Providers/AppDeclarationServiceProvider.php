@@ -10,6 +10,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use LogicException;
 use ZeroToProd\LaravelDeclaration\App;
+use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Manifest;
 
 /** @internal */
@@ -31,7 +33,7 @@ class AppDeclarationServiceProvider extends ServiceProvider
 
     private function registerApplication(App $App, Application $app): void
     {
-        foreach ([App::bind, App::bindIf, App::singleton, App::singletonIf, App::scoped, App::scopedIf] as $method) {
+        foreach (App::selected(Binding::class) as $method) {
             foreach ($App->{$method} as $abstract => $concrete) {
                 if (is_string($abstract)) {
                     $app->{$method}($abstract, $this->concrete($concrete));
@@ -61,7 +63,7 @@ class AppDeclarationServiceProvider extends ServiceProvider
             $app->extend($abstract, $this->wrapExtender($reference));
         }
 
-        foreach ([App::useAppPath, App::useDatabasePath, App::useLangPath, App::usePublicPath, App::useStoragePath] as $method) {
+        foreach (App::selected(Path::class) as $method) {
             if (($path = $App->{$method}) !== null) {
                 $app->{$method}($this->absolute($path));
             }
