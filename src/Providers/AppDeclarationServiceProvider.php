@@ -12,6 +12,7 @@ use LogicException;
 use ZeroToProd\LaravelDeclaration\App;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
 use ZeroToProd\LaravelDeclaration\Attributes\Path;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Manifest;
 
 /** @internal */
@@ -69,23 +70,18 @@ class AppDeclarationServiceProvider extends ServiceProvider
             }
         }
 
-        if ($App->setLocale !== null) {
-            $app->setLocale($App->setLocale);
+        foreach (App::selected(Setter::class) as $method) {
+            if ($App->{$method} !== null) {
+                $app->{$method}($App->{$method});
+            }
         }
 
-        if ($App->setFallbackLocale !== null) {
-            $app->setFallbackLocale($App->setFallbackLocale);
+        foreach ([App::registered, App::booting, App::booted] as $method) {
+            foreach ($App->{$method} as $reference) {
+                $app->{$method}($this->wrapCallback($reference));
+            }
         }
 
-        foreach ($App->registered as $reference) {
-            $app->registered($this->wrapCallback($reference));
-        }
-        foreach ($App->booting as $reference) {
-            $app->booting($this->wrapCallback($reference));
-        }
-        foreach ($App->booted as $reference) {
-            $app->booted($this->wrapCallback($reference));
-        }
         foreach ($App->terminating as $reference) {
             $app->terminating($this->reference($reference));
         }

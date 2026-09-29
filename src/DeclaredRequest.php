@@ -123,14 +123,10 @@ class DeclaredRequest extends FormRequest
     {
         $Request = $this->declaration();
 
-        if ($Request->redirect !== null) {
-            $this->redirect = $Request->redirect;
-        }
-        if ($Request->redirectRoute !== null) {
-            $this->redirectRoute = $Request->redirectRoute;
-        }
-        if ($Request->redirectAction !== null) {
-            $this->redirectAction = $Request->redirectAction;
+        foreach ([Request::redirect, Request::redirectRoute, Request::redirectAction] as $property) {
+            if ($Request->{$property} !== null) {
+                $this->{$property} = $Request->{$property};
+            }
         }
 
         $this->errorBag = $Request->errorBag;

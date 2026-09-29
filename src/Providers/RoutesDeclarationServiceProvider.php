@@ -24,17 +24,11 @@ class RoutesDeclarationServiceProvider extends ServiceProvider
             );
 
             foreach ($Route->builders() as $method => $value) {
-                match ($method) {
-                    Route::fallback,
-                    Route::scopeBindings,
-                    Route::withoutScopedBindings,
-                    Route::withoutBlocking => $value ? $route->{$method}() : null,
-                    Route::can => $route->can($Route->can['ability'], $Route->can['models'] ?? []),
-                    Route::block => $route->block(
-                        $Route->block['lockSeconds'] ?? null,
-                        $Route->block['waitSeconds'] ?? null,
-                    ),
-                    Route::missing => $route->missing($this->wrapMissingHandler($Route->missingHandler())),
+                match (true) {
+                    is_bool($value) => $value ? $route->{$method}() : null,
+                    $method === Route::missing => $route->missing($this->wrapMissingHandler($Route->missingHandler())),
+                    $method === Route::can => $route->can(...$Route->can),
+                    $method === Route::block => $route->block(...($Route->block ?? [])),
                     default => $route->{$method}($value),
                 };
             }

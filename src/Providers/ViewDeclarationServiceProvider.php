@@ -22,24 +22,16 @@ class ViewDeclarationServiceProvider extends ServiceProvider
         $view = $manifest->view;
 
         $this->callAfterResolving('view', function (Factory $factory) use ($view): void {
-            foreach ($view->addLocation as $location) {
-                $factory->addLocation($this->absolute($location));
+            foreach ([View::addLocation, View::prependLocation] as $method) {
+                foreach ($view->{$method} as $location) {
+                    $factory->{$method}($this->absolute($location));
+                }
             }
 
-            foreach ($view->prependLocation as $location) {
-                $factory->prependLocation($this->absolute($location));
-            }
-
-            foreach ($view->addNamespace as $namespace => $hints) {
-                $factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
-            }
-
-            foreach ($view->prependNamespace as $namespace => $hints) {
-                $factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
-            }
-
-            foreach ($view->replaceNamespace as $namespace => $hints) {
-                $factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+            foreach ([View::addNamespace, View::prependNamespace, View::replaceNamespace] as $method) {
+                foreach ($view->{$method} as $namespace => $hints) {
+                    $factory->{$method}($namespace, array_map($this->absolute(...), (array) $hints));
+                }
             }
 
             foreach ($view->addExtension as $extension => $engine) {
@@ -48,12 +40,10 @@ class ViewDeclarationServiceProvider extends ServiceProvider
 
             $factory->share($view->share);
 
-            foreach ($view->composer as $callback => $views) {
-                $factory->composer($views, $callback);
-            }
-
-            foreach ($view->creator as $callback => $views) {
-                $factory->creator($views, $callback);
+            foreach ([View::composer, View::creator] as $method) {
+                foreach ($view->{$method} as $callback => $views) {
+                    $factory->{$method}($views, $callback);
+                }
             }
         });
     }

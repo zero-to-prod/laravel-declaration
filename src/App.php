@@ -8,6 +8,7 @@ use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Attributes\Path;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class App
@@ -95,12 +96,12 @@ final readonly class App
 
     public const string setLocale = 'setLocale';
 
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?string $setLocale;
 
     public const string setFallbackLocale = 'setFallbackLocale';
 
-    #[Key, Describe([Describe::nullable => true])]
+    #[Key, Setter, Describe([Describe::nullable => true])]
     public ?string $setFallbackLocale;
 
     public const string registered = 'registered';

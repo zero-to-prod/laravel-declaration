@@ -57,27 +57,19 @@ class KernelDeclarationServiceProvider extends ServiceProvider
             }
         }
 
-        foreach ($Kernel->appendMiddlewareToGroup as $group => $middlewares) {
-            foreach ((array) $middlewares as $middleware) {
-                $kernel->appendMiddlewareToGroup($group, $middleware);
+        foreach ([Kernel::appendMiddlewareToGroup, Kernel::addToMiddlewarePriorityBefore] as $method) {
+            foreach ($Kernel->{$method} as $target => $middlewares) {
+                foreach ((array) $middlewares as $middleware) {
+                    $kernel->{$method}($target, $middleware);
+                }
             }
         }
 
-        foreach ($Kernel->prependMiddlewareToGroup as $group => $middlewares) {
-            foreach (array_reverse((array) $middlewares) as $middleware) {
-                $kernel->prependMiddlewareToGroup($group, $middleware);
-            }
-        }
-
-        foreach ($Kernel->addToMiddlewarePriorityBefore as $before => $middlewares) {
-            foreach ((array) $middlewares as $middleware) {
-                $kernel->addToMiddlewarePriorityBefore($before, $middleware);
-            }
-        }
-
-        foreach ($Kernel->addToMiddlewarePriorityAfter as $after => $middlewares) {
-            foreach (array_reverse((array) $middlewares) as $middleware) {
-                $kernel->addToMiddlewarePriorityAfter($after, $middleware);
+        foreach ([Kernel::prependMiddlewareToGroup, Kernel::addToMiddlewarePriorityAfter] as $method) {
+            foreach ($Kernel->{$method} as $target => $middlewares) {
+                foreach (array_reverse((array) $middlewares) as $middleware) {
+                    $kernel->{$method}($target, $middleware);
+                }
             }
         }
 
