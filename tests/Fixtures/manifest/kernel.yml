@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=./manifest.schema.json
+
+kernel:
+  prependMiddleware:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware
+
+  pushMiddleware:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware
+
+  appendMiddlewareToGroup:
+    web:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity
+    api:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnforceJsonResponse
+
+  prependMiddlewareToGroup:
+    web:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass
+
+  setMiddlewareAliases:
+    subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
+    token_auth: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureTokenIsValid
+
+  prependToMiddlewarePriority:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+
+  appendToMiddlewarePriority:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+
+  addToMiddlewarePriorityBefore:
+    Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+
+  addToMiddlewarePriorityAfter:
+    Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+
+  whenRequestLifecycleIsLongerThan:
+    250: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\SlowRequestReporter
+
+routes:
+  - methods: get
+    path: /kernel-test
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+    middleware:
+      - web
+      - subscribed
+
+  - methods: get
+    path: /priority-test
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+    middleware:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+      - Illuminate\Routing\Middleware\SubstituteBindings
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+
+  - methods: get
+    path: /token-test
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+    middleware:
+      - token_auth
+
+  - methods: get
+    path: /slow-request
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow

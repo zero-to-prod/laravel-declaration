@@ -26,7 +26,10 @@
         "Illuminate\\Database\\Eloquent\\Builder",
         "Illuminate\\Database\\Eloquent\\Model",
         "Illuminate\\Database\\Eloquent\\Relations\\Relation",
-        "Illuminate\\Foundation\\Http\\FormRequest",
+        "Carbon\\CarbonInterval",
+    "Illuminate\\Contracts\\Http\\Kernel",
+    "Illuminate\\Foundation\\Http\\Kernel",
+    "Illuminate\\Foundation\\Http\\FormRequest",
         "Illuminate\\Routing\\Router",
         "Illuminate\\Support\\Collection",
         "Symfony\\Component\\Yaml\\Yaml"

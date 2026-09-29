@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
+use Carbon\CarbonInterval;
 use Closure;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
@@ -69,6 +72,12 @@ class LaravelDeclarationProvider extends ServiceProvider
 
         $this->registerRouter($Manifest, $Router);
         $this->callAfterResolving('view', fn (Factory $Factory) => $this->registerView($Manifest, $Factory));
+        if ($Manifest->kernel !== null) {
+            $this->callAfterResolving(
+                KernelContract::class,
+                fn (KernelContract $kernel) => $this->registerKernel($Manifest->kernel, $kernel)
+            );
+        }
         $this->registerProviders($Manifest);
         $this->registerRoutes($Manifest, $Router);
     }
@@ -109,6 +118,76 @@ class LaravelDeclarationProvider extends ServiceProvider
         foreach ($Manifest->router->bind ?? [] as $key => $binder) {
             $Router->bind($key, $binder);
         }
+    }
+
+    private function registerKernel(Kernel $Kernel, KernelContract $kernel): void
+    {
+        if (! $kernel instanceof HttpKernel) {
+            return;
+        }
+
+        foreach ([Kernel::setGlobalMiddleware, Kernel::setMiddlewareGroups, Kernel::setMiddlewareAliases, Kernel::setMiddlewarePriority] as $method) {
+            if ($Kernel->{$method} !== null) {
+                $kernel->{$method}($Kernel->{$method});
+            }
+        }
+
+        foreach ([Kernel::pushMiddleware, Kernel::appendToMiddlewarePriority] as $method) {
+            foreach ($Kernel->{$method} as $middleware) {
+                $kernel->{$method}($middleware);
+            }
+        }
+
+        foreach ([Kernel::prependMiddleware, Kernel::prependToMiddlewarePriority] as $method) {
+            foreach (array_reverse($Kernel->{$method}) as $middleware) {
+                $kernel->{$method}($middleware);
+            }
+        }
+
+        foreach ($Kernel->appendMiddlewareToGroup as $group => $middlewares) {
+            foreach ((array) $middlewares as $middleware) {
+                $kernel->appendMiddlewareToGroup($group, $middleware);
+            }
+        }
+
+        foreach ($Kernel->prependMiddlewareToGroup as $group => $middlewares) {
+            foreach (array_reverse((array) $middlewares) as $middleware) {
+                $kernel->prependMiddlewareToGroup($group, $middleware);
+            }
+        }
+
+        foreach ($Kernel->addToMiddlewarePriorityBefore as $before => $middlewares) {
+            foreach ((array) $middlewares as $middleware) {
+                $kernel->addToMiddlewarePriorityBefore($before, $middleware);
+            }
+        }
+
+        foreach ($Kernel->addToMiddlewarePriorityAfter as $after => $middlewares) {
+            foreach (array_reverse((array) $middlewares) as $middleware) {
+                $kernel->addToMiddlewarePriorityAfter($after, $middleware);
+            }
+        }
+
+        foreach ($Kernel->whenRequestLifecycleIsLongerThan as $threshold => $handler) {
+            $interval = is_numeric($threshold) ? +$threshold : CarbonInterval::make($threshold);
+
+            if ($interval === null) {
+                throw new LogicException("The `kernel.whenRequestLifecycleIsLongerThan` threshold [{$threshold}] must be numeric or a parsable interval string.");
+            }
+
+            $kernel->whenRequestLifecycleIsLongerThan($interval, $this->wrapDurationHandler($handler));
+        }
+    }
+
+    private function wrapDurationHandler(string $handler): Closure
+    {
+        $callback = $this->reference($handler);
+
+        return fn ($startedAt, $request, $response): mixed => $this->app->call($callback, [
+            'startedAt' => $startedAt,
+            'request' => $request,
+            'response' => $response,
+        ]);
     }
 
     private function registerView(Manifest $Manifest, Factory $Factory): void

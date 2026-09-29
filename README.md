@@ -179,6 +179,47 @@ view:
     App\View\Creators\Breadcrumbs: users.show
 ```
 
+## Kernel
+
+Define your application's HTTP Kernel middleware pipeline, groups, aliases, priority sorting order, and request duration lifecycle handlers in the `kernel` object.
+
+Complete structure:
+
+```yaml
+kernel:
+  pushMiddleware:                             # -> pushMiddleware($middleware)
+    - App\Http\Middleware\GlobalLast
+  prependMiddleware:                          # -> prependMiddleware($middleware)
+    - App\Http\Middleware\GlobalFirst
+  setGlobalMiddleware:                        # -> setGlobalMiddleware($middleware)
+    - App\Http\Middleware\CustomGlobalStack
+  appendMiddlewareToGroup:                    # -> appendMiddlewareToGroup($group, $middleware)
+    web: App\Http\Middleware\TrackWebActivity
+    api:
+      - App\Http\Middleware\EnforceJsonResponse
+  prependMiddlewareToGroup:                   # -> prependMiddlewareToGroup($group, $middleware)
+    web: App\Http\Middleware\WebMaintenanceBypass
+  setMiddlewareGroups:                        # -> setMiddlewareGroups($groups)
+    custom:
+      - App\Http\Middleware\CustomMiddleware
+  setMiddlewareAliases:                       # -> setMiddlewareAliases($aliases)
+    subscribed: App\Http\Middleware\EnsureUserIsSubscribed
+    token_auth: App\Http\Middleware\EnsureTokenIsValid
+  setMiddlewarePriority:                      # -> setMiddlewarePriority($priority)
+    - App\Http\Middleware\HighPriority
+    - App\Http\Middleware\LowPriority
+  prependToMiddlewarePriority:                # -> prependToMiddlewarePriority($middleware)
+    - App\Http\Middleware\UltraHighPriority
+  appendToMiddlewarePriority:                 # -> appendToMiddlewarePriority($middleware)
+    - App\Http\Middleware\UltraLowPriority
+  addToMiddlewarePriorityBefore:              # -> addToMiddlewarePriorityBefore($before, $middleware)
+    Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PreSubstituteBindings
+  addToMiddlewarePriorityAfter:               # -> addToMiddlewarePriorityAfter($after, $middleware)
+    Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PostSubstituteBindings
+  whenRequestLifecycleIsLongerThan:           # -> whenRequestLifecycleIsLongerThan($threshold, $handler)
+    250: App\Listeners\ReportSlowRequest
+```
+
 ## Providers
 
 Define your applications providers.

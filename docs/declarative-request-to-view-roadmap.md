@@ -221,9 +221,11 @@ queries:
 
 Open question that gates it: **request-derived arguments.** Any syntax for "argument from `validated('sort')`" is a new DSL, which breaks rule 1. The candidate that does not: dynamic arguments live only in **local scopes** (PHP), and YAML passes only literals. Decide before building. Its root is a model, declared by [declarative-model.md](declarative-model.md). Relations stay methods there (§2.6), so `from: user.posts` calls a PHP method.
 
-### Phase 5 (optional) — `kernel:` block → `Illuminate\Foundation\Http\Kernel`
+### Phase 5 (optional) — `kernel:` block → `Illuminate\Foundation\Http\Kernel` [Completed]
 
-Middleware aliases, groups and priority, declared where they are durable: `Kernel::appendMiddlewareToGroup()`, `prependMiddlewareToGroup()`, `prependToMiddlewarePriority()`, `appendToMiddlewarePriority()`, each of which re-syncs the Router itself. Not on the request → view critical path: `routes.middleware` already takes FQCNs.
+Middleware aliases, groups, and priority, declared where they are durable: `Kernel::pushMiddleware()`, `prependMiddleware()`, `setGlobalMiddleware()`, `appendMiddlewareToGroup()`, `prependMiddlewareToGroup()`, `setMiddlewareGroups()`, `setMiddlewareAliases()`, `setMiddlewarePriority()`, `prependToMiddlewarePriority()`, `appendToMiddlewarePriority()`, `addToMiddlewarePriorityBefore()`, `addToMiddlewarePriorityAfter()`, `whenRequestLifecycleIsLongerThan()`, each of which re-syncs the Router itself.
+
+Deliverables: `src/Kernel.php` (DataModel), `Manifest::$kernel`, `LaravelDeclarationProvider::registerKernel()`, `docs/declarative-kernel.md`, `tests/Fixtures/manifest/kernel.yml`, `tests/Feature/KernelRegistrationTest.php`, `manifest.schema.json` `kernel` definition.
 
 ---
 

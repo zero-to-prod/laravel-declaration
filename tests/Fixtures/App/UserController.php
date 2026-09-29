@@ -22,4 +22,11 @@ class UserController
     {
         return response()->json(['action' => 'destroy']);
     }
+
+    public function slow(): JsonResponse
+    {
+        usleep(260000);
+
+        return response()->json(['action' => 'slow']);
+    }
 }

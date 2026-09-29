@@ -4,7 +4,7 @@ Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel
 
 Grounding documentation: `docs/repos/laravel/docs/lifecycle.md`, `docs/repos/laravel/docs/middleware.md`, `docs/repos/laravel/docs/routing.md`, and `docs/declarative-request-to-view-roadmap.md` §3 Phase 5.
 
-Goal: a `kernel:` block in `manifest/app.yml` whose **keys map 1:1 onto `Kernel` method names** and whose **values map 1:1 onto those methods' signatures**. The HTTP Kernel is the **system of record** for HTTP request orchestration in Laravel: it holds the global middleware pipeline, route middleware groups, middleware aliases, priority sorting order, and request duration lifecycle handlers. The provider applies the declaration to the container's bound `Illuminate\Contracts\Http\Kernel` instance via `callAfterResolving(KernelContract::class, ...)`. This lifecycle position guarantees that declared middleware configurations apply after `ApplicationBuilder::withMiddleware()` initializes Laravel's default stacks, ensuring that all mutations automatically invoke `Kernel::syncMiddlewareToRouter()` to keep `Illuminate\Routing\Router` in sync (§1.1, §1.4). For applications requiring an explicit class file in `app/Http/Kernel.php`, the package also provides the optional abstract seam class `DeclaredKernel extends Kernel`.
+Goal: a `kernel:` block in `manifest/app.yml` whose **keys map 1:1 onto `Kernel` method names** and whose **values map 1:1 onto those methods' signatures**. The HTTP Kernel is the **system of record** for HTTP request orchestration in Laravel: it holds the global middleware pipeline, route middleware groups, middleware aliases, priority sorting order, and request duration lifecycle handlers. The provider applies the declaration to the container's bound `Illuminate\Contracts\Http\Kernel` instance via `callAfterResolving(KernelContract::class, ...)`. This lifecycle position guarantees that declared middleware configurations apply after `ApplicationBuilder::withMiddleware()` initializes Laravel's default stacks, ensuring that route middleware mutations automatically invoke `Kernel::syncMiddlewareToRouter()` to keep `Illuminate\Routing\Router` in sync (§1.1, §1.4).
 
 ---
 
@@ -41,7 +41,7 @@ $kernel = $app->make(HttpKernelContract::class)   <- Kernel resolves HERE
                                                       $kernel->setMiddlewareAliases(...)
                                                       $kernel->setMiddlewarePriority(...) / prependTo... / appendTo... / addTo...Before / After
                                                       $kernel->whenRequestLifecycleIsLongerThan(...)
-                                                      -> each mutator calls syncMiddlewareToRouter() (Kernel.php:519)
+                                                      -> group, alias, priority, and setGlobalMiddleware mutators call syncMiddlewareToRouter() (Kernel.php:519)
 
 // 4. Request handling
 $kernel->handle($request)                         Kernel.php:137
@@ -218,7 +218,7 @@ public function terminate($request, $response)
 
 Consequences, each verified against `laravel/framework` v13.33.0:
 
-1. **`setMiddlewareAliases` overrides or extends existing aliases.** Passing an alias map updates `$this->middlewareAliases` and immediately invokes `Router::aliasMiddleware()` on each key. Route definitions referencing `middleware: ['subscribed']` immediately resolve to the configured class string (Router.php:832).
+1. **`setMiddlewareAliases` replaces `$kernel->middlewareAliases` wholesale.** Passing an alias map replaces `$this->middlewareAliases` on the Kernel and calls `Router::aliasMiddleware()` on each key. Route definitions referencing `middleware: ['subscribed']` resolve to the configured class string (Router.php:832). On the Router, previously aliased classes persist because `Router::aliasMiddleware()` adds to `$this->middleware` rather than clearing it.
 2. **`appendMiddlewareToGroup` / `prependMiddlewareToGroup` enforce defined groups.** Appending to a group not already defined throws `InvalidArgumentException: The [{group}] middleware group has not been defined.` (Kernel.php:382, 406). To declare an entirely new middleware group, `setMiddlewareGroups` must be used first or the group must be seeded by Laravel's defaults (`web`, `api`).
 3. **`addToMiddlewarePriorityBefore` / `addToMiddlewarePriorityAfter` position middleware relative to anchors.** `Kernel::addToMiddlewarePriorityRelative()` locates the target anchor middleware, splices the new middleware into the specified index, and resyncs `Router::$middlewarePriority`. `SortedMiddleware` guarantees that when both middleware are assigned to a route, the higher priority middleware executes first regardless of assignment order on the route (SortedMiddleware.php:51).
 4. **`whenRequestLifecycleIsLongerThan` receives request context.** Duration handlers receive `(Carbon $startedAt, Request $request, Response $response)`. The handler is resolved through `Container::call()`, supporting dependency injection and invokable classes.
@@ -434,7 +434,7 @@ private function registerKernel(Kernel $Kernel, KernelContract $kernel): void
 
     foreach ($Kernel->whenRequestLifecycleIsLongerThan as $threshold => $handler) {
         $kernel->whenRequestLifecycleIsLongerThan(
-            is_numeric($threshold) ? (is_int($threshold) ? (int) $threshold : (float) $threshold) : CarbonInterval::make($threshold),
+            is_numeric($threshold) ? +$threshold : CarbonInterval::make($threshold),
             $this->wrapDurationHandler($handler)
         );
     }
@@ -580,36 +580,7 @@ final readonly class Kernel
 
 ---
 
-### 2. `src/DeclaredKernel.php` (Optional seam class)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace ZeroToProd\LaravelDeclaration;
-
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Foundation\Http\Kernel as HttpKernel;
-use Illuminate\Routing\Router;
-
-/**
- * An HTTP Kernel whose middleware stack and configuration are defined by the manifest.
- *
- * @link docs/declarative-kernel.md
- */
-abstract class DeclaredKernel extends HttpKernel
-{
-    public function __construct(Application $app, Router $router)
-    {
-        parent::__construct($app, $router);
-    }
-}
-```
-
----
-
-### 3. `src/Manifest.php`
+### 2. `src/Manifest.php`
 Add `$kernel` property and constant:
 
 ```php
@@ -621,7 +592,7 @@ public ?Kernel $kernel;
 
 ---
 
-### 4. `src/LaravelDeclarationProvider.php`
+### 3. `src/LaravelDeclarationProvider.php`
 Register the hook in `boot()`:
 
 ```php
@@ -637,13 +608,13 @@ Implement `registerKernel()` and `wrapDurationHandler()` as specified in §2.5.
 
 ---
 
-### 5. `manifest.schema.json`
+### 4. `manifest.schema.json`
 Add `"kernel"` property to root schema and the `kernel` definition under `definitions`:
 
 ```json
 "kernel": {
   "description": "HTTP Kernel configuration mapped 1:1 onto Illuminate\\Foundation\\Http\\Kernel methods.",
-  "type": "object",
+  "type": ["object", "null"],
   "additionalProperties": false,
   "properties": {
     "pushMiddleware": {

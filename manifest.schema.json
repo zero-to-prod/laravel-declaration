@@ -9,6 +9,7 @@
     "app": { "$ref": "#/definitions/app" },
     "router": { "$ref": "#/definitions/router" },
     "view": { "$ref": "#/definitions/view" },
+    "kernel": { "$ref": "#/definitions/kernel" },
     "providers": {
       "description": "ServiceProviders registered in boot(), before `routes`.",
       "type": "array",
@@ -275,6 +276,101 @@
       "additionalProperties": false,
       "patternProperties": {
         "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$": { "$ref": "#/definitions/stringOrList" }
+      }
+    },
+    "kernel": {
+      "description": "HTTP Kernel configuration mapped 1:1 onto Illuminate\\Foundation\\Http\\Kernel methods.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "pushMiddleware": {
+          "description": "-> pushMiddleware($middleware): Appends to the global middleware stack.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "prependMiddleware": {
+          "description": "-> prependMiddleware($middleware): Prepends to the global middleware stack.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "setGlobalMiddleware": {
+          "description": "-> setGlobalMiddleware($middleware): Replaces the global middleware stack.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "appendMiddlewareToGroup": {
+          "description": "-> appendMiddlewareToGroup($group, $middleware): Appends to a route middleware group.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/definitions/classString" },
+              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+            ]
+          }
+        },
+        "prependMiddlewareToGroup": {
+          "description": "-> prependMiddlewareToGroup($group, $middleware): Prepends to a route middleware group.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/definitions/classString" },
+              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+            ]
+          }
+        },
+        "setMiddlewareGroups": {
+          "description": "-> setMiddlewareGroups($groups): Replaces all route middleware groups.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/classString" }
+          }
+        },
+        "setMiddlewareAliases": {
+          "description": "-> setMiddlewareAliases($aliases): Defines or overrides middleware aliases.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/classString" }
+        },
+        "setMiddlewarePriority": {
+          "description": "-> setMiddlewarePriority($priority): Replaces the priority order of route middleware.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "prependToMiddlewarePriority": {
+          "description": "-> prependToMiddlewarePriority($middleware): Prepends to middleware priority list.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "appendToMiddlewarePriority": {
+          "description": "-> appendToMiddlewarePriority($middleware): Appends to middleware priority list.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "addToMiddlewarePriorityBefore": {
+          "description": "-> addToMiddlewarePriorityBefore($before, $middleware): Inserts middleware before target anchor.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/definitions/classString" },
+              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+            ]
+          }
+        },
+        "addToMiddlewarePriorityAfter": {
+          "description": "-> addToMiddlewarePriorityAfter($after, $middleware): Inserts middleware after target anchor.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/definitions/classString" },
+              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+            ]
+          }
+        },
+        "whenRequestLifecycleIsLongerThan": {
+          "description": "-> whenRequestLifecycleIsLongerThan($threshold, $handler): Registers duration threshold handler.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/closure" }
+        }
       }
     },
     "provider": {

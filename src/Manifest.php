@@ -33,6 +33,11 @@ readonly class Manifest
     #[Describe([Describe::nullable => true])]
     public ?View $view;
 
+    public const string kernel = 'kernel';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Kernel $kernel;
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],
