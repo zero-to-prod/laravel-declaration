@@ -1,12 +1,14 @@
 <?php
 
 declare(strict_types=1);
+
 use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ConfigDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\SchemaDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 
 return [
@@ -31,6 +33,21 @@ return [
         KernelDeclarationServiceProvider::class,
         ProvidersDeclarationServiceProvider::class,
         RoutesDeclarationServiceProvider::class,
+        SchemaDeclarationServiceProvider::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Schema
+    |--------------------------------------------------------------------------
+    |
+    | Missing tables declared in the manifest are created automatically during
+    | boot by default. Set auto_migrate to false to disable this and create
+    | tables solely via `php artisan declaration:migrate`.
+    |
+    */
+    'schema' => [
+        'auto_migrate' => true,
     ],
 
     /*

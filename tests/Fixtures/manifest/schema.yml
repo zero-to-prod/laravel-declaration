@@ -1,0 +1,45 @@
+schema:
+  connection: ~
+  tables:
+    users:
+      id: ~
+      string:
+        - name
+        - column: email
+          unique: true
+        - password
+      timestamp:
+        column: email_verified_at
+        nullable: true
+      rememberToken: ~
+      timestamps: ~
+
+    todos:
+      id: ~
+      foreignId:
+        column: user_id
+        constrained: users
+        cascadeOnDelete: true
+      string:
+        column: title
+        length: 255
+      text:
+        column: description
+        nullable: true
+      boolean:
+        column: completed
+        default: false
+      timestamps: ~
+      index:
+        - [user_id, completed]
+
+    tags:
+      engine: InnoDB
+      charset: utf8mb4
+      collation: utf8mb4_unicode_ci
+      id: ~
+      string:
+        column: name
+        length: 50
+        unique: true
+      timestamps: ~

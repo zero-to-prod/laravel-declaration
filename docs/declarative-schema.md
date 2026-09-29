@@ -4,7 +4,7 @@ Source of truth: `vendor/laravel/framework/src/Illuminate/Database/Schema/Builde
 
 Grounding documentation: `docs/declarative-request-to-view-roadmap.md` §1 Stage 5, §3 Phase 6.
 
-Goal: a `schema:` block in `manifest/app.yml` whose **entries declare database schema definitions without hand-written migration files**. The `tables:` map keys table names to column, constraint, index, and table option definitions. **Every column key is an `Illuminate\Database\Schema\Blueprint` method name, and its value is that method's argument(s) and chained `ColumnDefinition` modifiers.** The package ships `SchemaDeclarationServiceProvider`, the `Schema` DataModel, and leverages **dynamic dispatch** to invoke `Blueprint` column factory methods and `ColumnDefinition` fluent modifiers without monolithic conditional branching or hardcoded switch statements. Table creation executes idempotently during application boot or via `php artisan declaration:migrate`, guarded by `Schema::hasTable($table)` (§1.1).
+Goal: a `schema:` block in `manifest/app.yml` whose **entries declare database schema definitions without hand-written migration files**. The `tables:` map keys table names to column, constraint, index, and table option definitions. The database schema catalog and grammar serve as the **system of record** for schema state, with `manifest/app.yml` acting as the declarative **data source**. **Every column key is an `Illuminate\Database\Schema\Blueprint` method name, and its value is that method's argument(s) and chained `ColumnDefinition` modifiers.** The package ships `SchemaDeclarationServiceProvider`, the `Schema` DataModel, and leverages **dynamic dispatch** to invoke `Blueprint` column factory methods, `ColumnDefinition` fluent modifiers, and `ForeignKeyDefinition` actions without monolithic conditional branching or hardcoded switch statements. Table creation executes idempotently during application boot or via `php artisan declaration:migrate`, guarded by `Schema::hasTable($table)` (§1.1).
 
 ---
 
@@ -102,6 +102,7 @@ Consequences, each verified against v13.33.0 with Testbench:
 |---|---|---|---|
 | `id` | `id($column = 'id')` | Auto-incrementing UNSIGNED BIGINT primary key | `Blueprint.php:769` |
 | `increments` | `increments($column)` | Auto-incrementing UNSIGNED INTEGER primary key | `Blueprint.php:780` |
+| `integerIncrements` | `integerIncrements($column)` | Auto-incrementing UNSIGNED INTEGER primary key | `Blueprint.php:791` |
 | `tinyIncrements` | `tinyIncrements($column)` | Auto-incrementing UNSIGNED TINYINT primary key | `Blueprint.php:802` |
 | `smallIncrements` | `smallIncrements($column)` | Auto-incrementing UNSIGNED SMALLINT primary key | `Blueprint.php:813` |
 | `mediumIncrements` | `mediumIncrements($column)` | Auto-incrementing UNSIGNED MEDIUMINT primary key | `Blueprint.php:824` |
@@ -124,37 +125,48 @@ Consequences, each verified against v13.33.0 with Testbench:
 | `unsignedBigInteger` | `unsignedBigInteger($column, $autoIncrement = false)` | UNSIGNED BIGINT column | `Blueprint.php:1037` |
 | `foreignId` | `foreignId($column)` | UNSIGNED BIGINT for foreign key | `Blueprint.php:1048` |
 | `foreignIdFor` | `foreignIdFor($model, $column = null)` | Foreign ID configured from Model FQCN | `Blueprint.php:1065` |
+| `foreignUuidFor` | `foreignUuidFor($model, $column = null)` | Foreign UUID configured from Model FQCN | `Blueprint.php:1097` |
+| `foreignUlidFor` | `foreignUlidFor($model, $column = null)` | Foreign ULID configured from Model FQCN | `Blueprint.php:1115` |
 | `float` | `float($column, $precision = 53)` | FLOAT column | `Blueprint.php:1133` |
-| `double` | `double($column, $total = null, $places = null, $unsigned = false)` | DOUBLE column | `Blueprint.php:1144` |
-| `decimal` | `decimal($column, $total = 8, $places = 2, $unsigned = false)` | DECIMAL column with precision | `Blueprint.php:1157` |
+| `double` | `double($column)` | DOUBLE column | `Blueprint.php:1144` |
+| `decimal` | `decimal($column, $total = 8, $places = 2)` | DECIMAL column with precision | `Blueprint.php:1157` |
 | `boolean` | `boolean($column)` | BOOLEAN column | `Blueprint.php:1168` |
 | `enum` | `enum($column, array $allowed)` | ENUM column with allowed values | `Blueprint.php:1180` |
 | `set` | `set($column, array $allowed)` | SET column with allowed values | `Blueprint.php:1194` |
 | `json` | `json($column)` | JSON column | `Blueprint.php:1205` |
 | `jsonb` | `jsonb($column)` | JSONB column (PostgreSQL) | `Blueprint.php:1216` |
 | `date` | `date($column)` | DATE column | `Blueprint.php:1227` |
-| `dateTime` | `dateTime($column, $precision = 0)` | DATETIME column | `Blueprint.php:1239` |
-| `dateTimeTz` | `dateTimeTz($column, $precision = 0)` | DATETIME with timezone column | `Blueprint.php:1253` |
-| `time` | `time($column, $precision = 0)` | TIME column | `Blueprint.php:1267` |
-| `timeTz` | `timeTz($column, $precision = 0)` | TIME with timezone column | `Blueprint.php:1281` |
-| `timestamp` | `timestamp($column, $precision = 0)` | TIMESTAMP column | `Blueprint.php:1295` |
-| `timestampTz` | `timestampTz($column, $precision = 0)` | TIMESTAMP with timezone column | `Blueprint.php:1309` |
+| `dateTime` | `dateTime($column, $precision = null)` | DATETIME column | `Blueprint.php:1239` |
+| `dateTimeTz` | `dateTimeTz($column, $precision = null)` | DATETIME with timezone column | `Blueprint.php:1253` |
+| `time` | `time($column, $precision = null)` | TIME column | `Blueprint.php:1267` |
+| `timeTz` | `timeTz($column, $precision = null)` | TIME with timezone column | `Blueprint.php:1281` |
+| `timestamp` | `timestamp($column, $precision = null)` | TIMESTAMP column | `Blueprint.php:1295` |
+| `timestampTz` | `timestampTz($column, $precision = null)` | TIMESTAMP with timezone column | `Blueprint.php:1309` |
 | `timestamps` | `timestamps($precision = null)` | Returns Collection of created_at & updated_at columns | `Blueprint.php:1322` |
 | `nullableTimestamps`| `nullableTimestamps($precision = null)` | Returns Collection of nullable created_at & updated_at | `Blueprint.php:1338` |
 | `timestampsTz` | `timestampsTz($precision = null)` | Created_at & updated_at with timezone | `Blueprint.php:1349` |
-| `softDeletes` | `softDeletes($column = 'deleted_at', $precision = 0)` | Nullable deleted_at column | `Blueprint.php:1391` |
-| `softDeletesTz` | `softDeletesTz($column = 'deleted_at', $precision = 0)` | Nullable deleted_at with timezone | `Blueprint.php:1403` |
+| `nullableTimestampsTz`| `nullableTimestampsTz($precision = null)` | Nullable created_at & updated_at with timezone | `Blueprint.php:1365` |
+| `datetimes` | `datetimes($precision = null)` | Returns Collection of created_at & updated_at datetimes | `Blueprint.php:1376` |
+| `softDeletes` | `softDeletes($column = 'deleted_at', $precision = null)` | Nullable deleted_at column | `Blueprint.php:1391` |
+| `softDeletesTz` | `softDeletesTz($column = 'deleted_at', $precision = null)` | Nullable deleted_at with timezone | `Blueprint.php:1403` |
+| `softDeletesDatetime`| `softDeletesDatetime($column = 'deleted_at', $precision = null)` | Nullable deleted_at datetime | `Blueprint.php:1415` |
 | `year` | `year($column)` | YEAR column | `Blueprint.php:1426` |
-| `binary` | `binary($column)` | BLOB / BYTEA binary column | `Blueprint.php:1439` |
+| `binary` | `binary($column, $length = null, $fixed = false)` | BLOB / BYTEA binary column | `Blueprint.php:1439` |
 | `uuid` | `uuid($column = 'uuid')` | UUID column | `Blueprint.php:1450` |
 | `foreignUuid` | `foreignUuid($column)` | UUID column for foreign key | `Blueprint.php:1461` |
 | `ulid` | `ulid($column = 'ulid', $length = 26)` | ULID column | `Blueprint.php:1476` |
 | `foreignUlid` | `foreignUlid($column, $length = 26)` | ULID column for foreign key | `Blueprint.php:1488` |
 | `ipAddress` | `ipAddress($column = 'ip_address')` | IP address column | `Blueprint.php:1503` |
 | `macAddress` | `macAddress($column = 'mac_address')` | MAC address column | `Blueprint.php:1514` |
+| `geometry` | `geometry($column, $subtype = null, $srid = 0)` | Spatial geometry column | `Blueprint.php:1527` |
+| `geography` | `geography($column, $subtype = null, $srid = 4326)` | Spatial geography column | `Blueprint.php:1540` |
 | `vector` | `vector($column, $dimensions = null)` | Vector embedding column | `Blueprint.php:1564` |
 | `morphs` | `morphs($name, $indexName = null, $after = null)` | Composite morph `{name}_type` & `{name}_id` (`void`) | `Blueprint.php:1590` |
 | `nullableMorphs` | `nullableMorphs($name, $indexName = null, $after = null)` | Nullable morph columns (`void`) | `Blueprint.php:1609` |
+| `uuidMorphs` | `uuidMorphs($name, $indexName = null, $after = null)` | UUID morph columns (`void`) | `Blueprint.php:1668` |
+| `nullableUuidMorphs`| `nullableUuidMorphs($name, $indexName = null, $after = null)` | Nullable UUID morph columns (`void`) | `Blueprint.php:1687` |
+| `ulidMorphs` | `ulidMorphs($name, $indexName = null, $after = null)` | ULID morph columns (`void`) | `Blueprint.php:1708` |
+| `nullableUlidMorphs`| `nullableUlidMorphs($name, $indexName = null, $after = null)` | Nullable ULID morph columns (`void`) | `Blueprint.php:1727` |
 | `rememberToken` | `rememberToken()` | Nullable VARCHAR(100) remember_token | `Blueprint.php:1745` |
 
 #### 1.3.3 `ColumnDefinition` Fluent Modifiers (Dynamic Dispatch Targets)
@@ -163,44 +175,51 @@ Consequences, each verified against v13.33.0 with Testbench:
 
 | YAML key | Modifier Signature | Effect | Source |
 |---|---|---|---|
-| `nullable` | `nullable(bool $value = true)` | Allow NULL values | `ColumnDefinition.php` (Fluent) |
-| `default` | `default(mixed $value)` | Specify column default value | `ColumnDefinition.php` (Fluent) |
-| `unique` | `unique(string\|null $indexName = null)` | Mark column as unique (queued for `Blueprint::addFluentIndexes()`) | `ColumnDefinition.php` (Fluent: line 32) |
-| `index` | `index(string\|null $indexName = null)` | Mark column as indexed (queued for `Blueprint::addFluentIndexes()`) | `ColumnDefinition.php` (Fluent: line 20) |
-| `primary` | `primary(bool $value = true)` | Mark column as primary key | `ColumnDefinition.php` (Fluent: line 24) |
-| `unsigned` | `unsigned(bool $value = true)` | Mark integer as unsigned | `ColumnDefinition.php` (Fluent) |
-| `autoIncrement` | `autoIncrement()` | Mark column as auto-incrementing | `ColumnDefinition.php` (Fluent) |
-| `comment` | `comment(string $comment)` | Add comment metadata to column | `ColumnDefinition.php` (Fluent) |
-| `after` | `after(string $column)` | Place column after given column | `ColumnDefinition.php` (Fluent) |
-| `first` | `first()` | Place column first in table | `ColumnDefinition.php` (Fluent) |
-| `storedAs` | `storedAs(string $expression)` | Create stored generated column | `ColumnDefinition.php` (Fluent) |
-| `virtualAs` | `virtualAs(string $expression)` | Create virtual generated column | `ColumnDefinition.php` (Fluent) |
-| `useCurrent` | `useCurrent()` | Set default to `CURRENT_TIMESTAMP` | `ColumnDefinition.php` (Fluent) |
-| `useCurrentOnUpdate`| `useCurrentOnUpdate()` | Auto-update timestamp on row update | `ColumnDefinition.php` (Fluent) |
+| `nullable` | `nullable(bool $value = true)` | Allow NULL values | `ColumnDefinition.php:24` |
+| `default` | `default(mixed $value)` | Specify column default value | `ColumnDefinition.php:15` |
+| `unique` | `unique(bool\|string\|null $indexName = null)` | Mark column as unique (queued for `Blueprint::addFluentIndexes()`) | `ColumnDefinition.php:32` |
+| `index` | `index(bool\|string\|null $indexName = null)` | Mark column as indexed (queued for `Blueprint::addFluentIndexes()`) | `ColumnDefinition.php:21` |
+| `primary` | `primary(bool $value = true)` | Mark column as primary key | `ColumnDefinition.php:26` |
+| `unsigned` | `unsigned(bool $value = true)` | Mark integer as unsigned | `ColumnDefinition.php:33` |
+| `autoIncrement` | `autoIncrement()` | Mark column as auto-incrementing | `ColumnDefinition.php:10` |
+| `comment` | `comment(string $comment)` | Add comment metadata to column | `ColumnDefinition.php:14` |
+| `after` | `after(string $column)` | Place column after given column | `ColumnDefinition.php:8` |
+| `first` | `first()` | Place column first in table | `ColumnDefinition.php:16` |
+| `storedAs` | `storedAs(string $expression)` | Create stored generated column | `ColumnDefinition.php:30` |
+| `virtualAs` | `virtualAs(string $expression)` | Create virtual generated column | `ColumnDefinition.php:37` |
+| `invisible` | `invisible()` | Make column invisible to `SELECT *` | `ColumnDefinition.php:22` |
+| `useCurrent` | `useCurrent()` | Set default to `CURRENT_TIMESTAMP` | `ColumnDefinition.php:35` |
+| `useCurrentOnUpdate`| `useCurrentOnUpdate()` | Auto-update timestamp on row update | `ColumnDefinition.php:36` |
 
 #### 1.3.4 Foreign Key Constraints (Dynamic Dispatch on `ForeignIdColumnDefinition` / `ForeignKeyDefinition`)
 
 | YAML key | Method Signature | Effect | Source |
 |---|---|---|---|
 | `constrained` | `constrained($table = null, $column = null, $indexName = null)` | Add foreign key constraint | `ForeignIdColumnDefinition.php:37` |
-| `cascadeOnDelete` | `cascadeOnDelete()` | Trigger `ON DELETE CASCADE` | `ForeignKeyDefinition.php:64` |
-| `nullOnDelete` | `nullOnDelete()` | Trigger `ON DELETE SET NULL` | `ForeignKeyDefinition.php:48` |
-| `restrictOnDelete`| `restrictOnDelete()` | Trigger `ON DELETE RESTRICT` | `ForeignKeyDefinition.php:32` |
-| `cascadeOnUpdate` | `cascadeOnUpdate()` | Trigger `ON UPDATE CASCADE` | `ForeignKeyDefinition.php:16` |
+| `cascadeOnUpdate` | `cascadeOnUpdate()` | Trigger `ON UPDATE CASCADE` | `ForeignKeyDefinition.php:20` |
+| `restrictOnUpdate`| `restrictOnUpdate()` | Trigger `ON UPDATE RESTRICT` | `ForeignKeyDefinition.php:28` |
 | `nullOnUpdate` | `nullOnUpdate()` | Trigger `ON UPDATE SET NULL` | `ForeignKeyDefinition.php:36` |
+| `noActionOnUpdate`| `noActionOnUpdate()` | Trigger `ON UPDATE NO ACTION` | `ForeignKeyDefinition.php:44` |
+| `cascadeOnDelete` | `cascadeOnDelete()` | Trigger `ON DELETE CASCADE` | `ForeignKeyDefinition.php:52` |
+| `restrictOnDelete`| `restrictOnDelete()` | Trigger `ON DELETE RESTRICT` | `ForeignKeyDefinition.php:60` |
+| `nullOnDelete` | `nullOnDelete()` | Trigger `ON DELETE SET NULL` | `ForeignKeyDefinition.php:68` |
+| `noActionOnDelete`| `noActionOnDelete()` | Trigger `ON DELETE NO ACTION` | `ForeignKeyDefinition.php:76` |
+| `deferrable` | `deferrable(bool $value = true)` | Set foreign key as deferrable (PostgreSQL) | `ForeignKeyDefinition.php:8` |
 
 #### 1.3.5 Table-level Indexes, Constraints & Options on `Blueprint`
 
 | YAML key | Blueprint Method Signature | Effect | Source |
 |---|---|---|---|
-| `primary` | `primary(string\|array $columns, string\|null $name = null)` | Add composite or table primary key | `Blueprint.php:660` |
-| `unique` | `unique(string\|array $columns, string\|null $name = null)` | Add table-level unique index | `Blueprint.php:673` |
-| `index` | `index(string\|array $columns, string\|null $name = null)` | Add table-level standard index | `Blueprint.php:686` |
-| `fullText` | `fullText(string\|array $columns, string\|null $name = null)` | Add full-text search index | `Blueprint.php:699` |
-| `spatialIndex` | `spatialIndex(string\|array $columns, string\|null $name = null)`| Add spatial index | `Blueprint.php:712` |
+| `primary` | `primary(string\|array $columns, string\|null $name = null, string\|null $algorithm = null)` | Add composite or table primary key | `Blueprint.php:660` |
+| `unique` | `unique(string\|array $columns, string\|null $name = null, string\|null $algorithm = null)` | Add table-level unique index | `Blueprint.php:673` |
+| `index` | `index(string\|array $columns, string\|null $name = null, string\|null $algorithm = null)` | Add table-level standard index | `Blueprint.php:686` |
+| `fullText` | `fullText(string\|array $columns, string\|null $name = null, string\|null $algorithm = null)` | Add full-text search index | `Blueprint.php:699` |
+| `spatialIndex` | `spatialIndex(string\|array $columns, string\|null $name = null, string\|null $operatorClass = null)`| Add spatial index | `Blueprint.php:712` |
+| `vectorIndex` | `vectorIndex(string $column, string\|null $name = null)` | Add vector index | `Blueprint.php:724` |
 | `engine` | `engine(string $engine)` | Specify MySQL/MariaDB storage engine | `Blueprint.php:349` |
 | `charset` | `charset(string $charset)` | Specify table default character set | `Blueprint.php:370` |
 | `collation` | `collation(string $collation)` | Specify table default collation | `Blueprint.php:381` |
+| `temporary` | `temporary()` | Create table as temporary | `Blueprint.php:391` |
 | `comment` | `comment(string $comment)` | Add table-level comment | `Blueprint.php:1768` |
 
 ### 1.4 How a declaration reaches the database schema engine
@@ -244,7 +263,13 @@ if (! $schemaBuilder->hasTable($tableName)) {
                 if ($columnTarget instanceof ForeignIdColumnDefinition && $column->isConstrained()) {
                     $foreignKey = $column->applyConstraint($columnTarget); // ->constrained(...) returns ForeignKeyDefinition
                     foreach ($column->foreignKeyModifiers as $modifier => $modifierArgs) {
-                        $foreignKey->{$modifier}(...(array) ($modifierArgs === true ? [] : $modifierArgs)); // ->cascadeOnDelete()
+                        if ($modifierArgs === true || $modifierArgs === null) {
+                            $foreignKey->{$modifier}(); // e.g. ->cascadeOnDelete()
+                        } elseif (is_array($modifierArgs) && array_is_list($modifierArgs)) {
+                            $foreignKey->{$modifier}(...$modifierArgs);
+                        } else {
+                            $foreignKey->{$modifier}($modifierArgs);
+                        }
                     }
                 }
             }
@@ -253,7 +278,12 @@ if (! $schemaBuilder->hasTable($tableName)) {
         // 6. Blueprint Level Dynamic Dispatch: Table Indexes & Constraints
         foreach ($tableDefinition->indexes as $indexType => $indexDefinitions) {
             foreach ($indexDefinitions as $indexArgs) {
-                $table->{$indexType}(...(array) $indexArgs); // e.g. $table->index(['user_id', 'completed'])
+                // Single column or composite columns array passed directly as $columns; explicit map supports name
+                if (is_array($indexArgs) && isset($indexArgs['columns'])) {
+                    $table->{$indexType}($indexArgs['columns'], $indexArgs['name'] ?? null);
+                } else {
+                    $table->{$indexType}($indexArgs); // e.g. $table->index(['user_id', 'completed'])
+                }
             }
         }
     });
@@ -452,7 +482,7 @@ schema:
 | YAML key | Attribute | Target Class | Signature | Return Type | Default |
 |---|---|---|---|---|---|
 | `connection` | `#[Key]` | `Schema` | `string\|null` | — | `null` (default) |
-| `tables` | `#[Key]` | `Schema` | `array<string, TableDefinition>` | — | `[]` |
+| `tables` | `#[Key]` | `Schema` | `Collection<string, TableDefinition>` | — | empty Collection |
 | `id` | `#[ColumnType]` | `Blueprint` | `id(string $column = 'id')` | `ColumnDefinition` | `'id'` |
 | `string` | `#[ColumnType]` | `Blueprint` | `string(string $column, ?int $length = null)` | `ColumnDefinition` | omitted |
 | `text` | `#[ColumnType]` | `Blueprint` | `text(string $column)` | `ColumnDefinition` | omitted |
@@ -460,18 +490,21 @@ schema:
 | `integer` | `#[ColumnType]` | `Blueprint` | `integer(string $column, bool $auto = false, bool $unsigned = false)` | `ColumnDefinition` | omitted |
 | `foreignId` | `#[ColumnType]` | `Blueprint` | `foreignId(string $column)` | `ForeignIdColumnDefinition` | omitted |
 | `timestamps` | `#[ColumnType]` | `Blueprint` | `timestamps(?int $precision = null)` | `Collection<int, ColumnDefinition>` | `null` |
-| `softDeletes` | `#[ColumnType]` | `Blueprint` | `softDeletes(string $column = 'deleted_at', int $precision = 0)` | `ColumnDefinition` | omitted |
+| `softDeletes` | `#[ColumnType]` | `Blueprint` | `softDeletes(string $column = 'deleted_at', ?int $precision = null)` | `ColumnDefinition` | omitted |
 | `nullable` | `#[ColumnModifier]`| `ColumnDefinition` | `nullable(bool $value = true)` | `$this` | omitted |
 | `default` | `#[ColumnModifier]`| `ColumnDefinition` | `default(mixed $value)` | `$this` | omitted |
-| `unique` | `#[ColumnModifier]`| `ColumnDefinition` | `unique(?string $name = null)` | `$this` (Fluent) | omitted |
-| `constrained` | `#[ColumnModifier]`| `ForeignIdColumnDefinition` | `constrained(?string $table = null, ?string $column = null)` | `ForeignKeyDefinition` | omitted |
-| `cascadeOnDelete`| `#[ColumnModifier]`| `ForeignKeyDefinition` | `cascadeOnDelete()` | `$this` | omitted |
-| `cascadeOnUpdate`| `#[ColumnModifier]`| `ForeignKeyDefinition` | `cascadeOnUpdate()` | `$this` | omitted |
-| `index` | `#[TableConstraint]`| `Blueprint` | `index(string\|array $columns, ?string $name = null)` | `IndexDefinition` | omitted |
-| `primary` | `#[TableConstraint]`| `Blueprint` | `primary(string\|array $columns, ?string $name = null)` | `IndexDefinition` | omitted |
+| `unique` | `#[ColumnModifier]`| `ColumnDefinition` | `unique(bool\|string\|null $name = null)` | `$this` | omitted |
+| `constrained` | `#[ColumnModifier]`| `ForeignIdColumnDefinition` | `constrained(?string $table = null, ?string $column = null, ?string $indexName = null)` | `ForeignKeyDefinition` | omitted |
+| `cascadeOnDelete`| `#[ForeignKeyModifier]`| `ForeignKeyDefinition` | `cascadeOnDelete()` | `$this` | omitted |
+| `cascadeOnUpdate`| `#[ForeignKeyModifier]`| `ForeignKeyDefinition` | `cascadeOnUpdate()` | `$this` | omitted |
+| `nullOnDelete` | `#[ForeignKeyModifier]`| `ForeignKeyDefinition` | `nullOnDelete()` | `$this` | omitted |
+| `restrictOnDelete`| `#[ForeignKeyModifier]`| `ForeignKeyDefinition` | `restrictOnDelete()` | `$this` | omitted |
+| `index` | `#[TableConstraint]`| `Blueprint` | `index(string\|array $columns, ?string $name = null, ?string $algorithm = null)` | `IndexDefinition` | omitted |
+| `primary` | `#[TableConstraint]`| `Blueprint` | `primary(string\|array $columns, ?string $name = null, ?string $algorithm = null)` | `IndexDefinition` | omitted |
 | `engine` | `#[TableOption]` | `Blueprint` | `engine(string $engine)` | `void` | omitted |
 | `charset` | `#[TableOption]` | `Blueprint` | `charset(string $charset)` | `void` | omitted |
 | `collation` | `#[TableOption]` | `Blueprint` | `collation(string $collation)` | `void` | omitted |
+| `temporary` | `#[TableOption]` | `Blueprint` | `temporary()` | `void` | omitted |
 
 ### 2.5 Dynamic dispatch registration and execution algorithm
 
@@ -479,8 +512,9 @@ The dynamic dispatch architecture mirrors `Query` and `Kernel` by using attribut
 
 1. **`#[ColumnType]` Attribute**: Decorates Blueprint column creation methods. Dispatches `$blueprint->{$method}(...$arguments)` returning the `ColumnDefinition`.
 2. **`#[ColumnModifier]` Attribute**: Decorates fluent column modifiers. Dispatches `$columnDefinition->{$modifier}(...$modifierArgs)` on the returned column.
-3. **`#[TableConstraint]` Attribute**: Decorates table-level index methods (`index`, `unique`, `primary`, `fullText`, `spatialIndex`) on `Blueprint`. Dispatches `$blueprint->{$method}(...$args)`.
-4. **`#[TableOption]` Attribute**: Decorates table configuration methods (`engine`, `charset`, `collation`, `comment`) on `Blueprint`. Dispatches `$blueprint->{$method}($value)`.
+3. **`#[ForeignKeyModifier]` Attribute**: Decorates foreign key action methods on `ForeignKeyDefinition`. Dispatches `$foreignKey->{$modifier}(...$args)`.
+4. **`#[TableConstraint]` Attribute**: Decorates table-level index methods (`index`, `unique`, `primary`, `fullText`, `spatialIndex`, `vectorIndex`) on `Blueprint`. Dispatches `$blueprint->{$method}($columns, $name)`.
+5. **`#[TableOption]` Attribute**: Decorates table configuration methods (`engine`, `charset`, `collation`, `comment`, `temporary`) on `Blueprint`. Dispatches `$blueprint->{$method}($value)`.
 
 ```php
 namespace ZeroToProd\LaravelDeclaration\Attributes;
@@ -509,6 +543,47 @@ class ColumnModifier
             $target->{$modifier}(...$args);
         } else {
             $target->{$modifier}($args);
+        }
+    }
+}
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class ForeignKeyModifier
+{
+    public function apply(object $target, string $modifier, mixed $args): void
+    {
+        if ($args === true || $args === null) {
+            $target->{$modifier}();
+        } elseif (is_array($args) && array_is_list($args)) {
+            $target->{$modifier}(...$args);
+        } else {
+            $target->{$modifier}($args);
+        }
+    }
+}
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class TableConstraint
+{
+    public function apply(Blueprint $blueprint, string $method, mixed $args): mixed
+    {
+        if (is_array($args) && isset($args['columns'])) {
+            return $blueprint->{$method}($args['columns'], $args['name'] ?? null);
+        }
+
+        return $blueprint->{$method}($args);
+    }
+}
+
+#[Attribute(Attribute::TARGET_PROPERTY)]
+class TableOption
+{
+    public function apply(Blueprint $blueprint, string $method, mixed $value): void
+    {
+        if ($value === true || $value === null) {
+            $blueprint->{$method}();
+        } else {
+            $blueprint->{$method}($value);
         }
     }
 }
@@ -568,9 +643,12 @@ class SchemaDeclarationServiceProvider extends ServiceProvider
 ### 3.1 `src/Schema.php` DataModel
 - `Schema` class extending `DataModel`:
   - `public const string connection = 'connection';`
+  - `#[Key, Describe([Describe::nullable => true])]`
   - `public ?string $connection;`
   - `public const string tables = 'tables';`
-  - `public array $tables;` (mapped to `TableDefinition` instances).
+  - `/** @var Collection<string, TableDefinition> */`
+  - `#[Key, Describe([Describe::cast => [self::class, 'mapOf'], 'type' => TableDefinition::class])]`
+  - `public Collection $tables;`
 
 ### 3.2 `src/TableDefinition.php` & `src/ColumnDefinitionModel.php`
 - `TableDefinition` class handling table options, column groups, and table-level indexes.
@@ -578,8 +656,9 @@ class SchemaDeclarationServiceProvider extends ServiceProvider
 
 ### 3.3 Dynamic Dispatch Attributes in `src/Attributes/`
 - `ColumnType.php`: polymorphic Blueprint method dispatch.
-- `ColumnModifier.php`: polymorphic ColumnDefinition and ForeignKeyDefinition modifier dispatch.
-- `TableConstraint.php`: polymorphic index dispatch.
+- `ColumnModifier.php`: polymorphic ColumnDefinition modifier dispatch.
+- `ForeignKeyModifier.php`: polymorphic ForeignKeyDefinition action dispatch.
+- `TableConstraint.php`: polymorphic table-level index dispatch.
 - `TableOption.php`: table option dispatch.
 
 ### 3.4 `src/Manifest.php` Integration

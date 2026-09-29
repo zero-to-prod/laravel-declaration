@@ -38,6 +38,10 @@
     "extra": {
       "description": "Arbitrary configuration and extension data for custom ServiceProviders.",
       "type": "object"
+    },
+    "schema": {
+      "description": "Declarative database schema definition for tables, columns, indexes, and constraints.",
+      "$ref": "#/definitions/schema"
     }
   },
   "definitions": {
@@ -976,6 +980,38 @@
           "description": "Terminal -> value($column): retrieve single column value from first row.",
           "type": "string"
         }
+      }
+    },
+    "schema": {
+      "description": "Declarative database schema definition.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "connection": {
+          "description": "The database connection name. If omitted or null, the default connection is used.",
+          "type": ["string", "null"]
+        },
+        "tables": {
+          "description": "Map of table names to table schema definitions.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/tableDefinition"
+          }
+        }
+      }
+    },
+    "tableDefinition": {
+      "description": "Declarative table schema definition containing Blueprint column methods, indexes, and table options.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "null" },
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "array" },
+          { "type": "object" }
+        ]
       }
     }
   }

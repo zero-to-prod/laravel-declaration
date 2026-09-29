@@ -10,6 +10,7 @@ use Laravel\Mcp\Facades\Mcp;
 use Override;
 use Symfony\Component\Yaml\Yaml;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
+use ZeroToProd\LaravelDeclaration\Internal\Commands\MigrateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\ValidateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
 use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
@@ -18,6 +19,7 @@ use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\SchemaDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 
 /** @internal */
@@ -32,6 +34,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         KernelDeclarationServiceProvider::class,
         ProvidersDeclarationServiceProvider::class,
         RoutesDeclarationServiceProvider::class,
+        SchemaDeclarationServiceProvider::class,
     ];
 
     #[Override]
@@ -57,6 +60,7 @@ class LaravelDeclarationProvider extends ServiceProvider
             $this->commands([
                 InstallCommand::class,
                 ValidateCommand::class,
+                MigrateCommand::class,
             ]);
 
             $this->publishes([

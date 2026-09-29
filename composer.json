@@ -27,6 +27,7 @@
         "rector/rector": "^2.5"
     },
     "suggest": {
+        "illuminate/database": "Required for declarative database schema definition (^13.0).",
         "laravel/mcp": "Required by the MCP server that exposes this package's documentation to coding agents."
     },
     "autoload": {

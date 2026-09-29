@@ -79,6 +79,11 @@ readonly class Manifest
     ])]
     public Collection $queries;
 
+    public const string schema = 'schema';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Schema $schema;
+
     public const string extra = 'extra';
 
     /** @var array<string, mixed> */
