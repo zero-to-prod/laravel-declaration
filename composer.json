@@ -45,7 +45,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "ZeroToProd\\LaravelDeclaration\\LaravelDeclarationProvider"
+                "ZeroToProd\\LaravelDeclaration\\ManifestServiceProvider"
             ]
         }
     },

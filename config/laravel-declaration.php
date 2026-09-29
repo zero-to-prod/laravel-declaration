@@ -1,10 +1,37 @@
 <?php
 
 declare(strict_types=1);
+use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\ConfigDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 
 return [
 
     'manifest' => 'manifest/app.yml',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Concern Providers
+    |--------------------------------------------------------------------------
+    |
+    | Each declaration concern is handled by a plain ServiceProvider.
+    | To disable a concern, remove it from this list.
+    | To replace a concern, substitute your custom ServiceProvider.
+    |
+    */
+    'providers' => [
+        ConfigDeclarationServiceProvider::class,
+        AppDeclarationServiceProvider::class,
+        RouterDeclarationServiceProvider::class,
+        ViewDeclarationServiceProvider::class,
+        KernelDeclarationServiceProvider::class,
+        ProvidersDeclarationServiceProvider::class,
+        RoutesDeclarationServiceProvider::class,
+    ],
 
     /*
     |--------------------------------------------------------------------------

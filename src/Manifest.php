@@ -78,4 +78,10 @@ readonly class Manifest
         'key_by' => Query::name,
     ])]
     public Collection $queries;
+
+    public const string extra = 'extra';
+
+    /** @var array<string, mixed> */
+    #[Describe([Describe::default => []])]
+    public array $extra;
 }

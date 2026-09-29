@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Symfony\Component\HttpFoundation\Response;
 use ZeroToProd\LaravelDeclaration\Kernel;
-use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
+use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\MiddlewareLog;
@@ -204,7 +204,7 @@ it('ignores kernels that do not extend HttpKernel', function (): void {
         }
     };
 
-    $provider = new LaravelDeclarationProvider(app());
+    $provider = new KernelDeclarationServiceProvider(app());
     $reflection = new ReflectionMethod($provider, 'registerKernel');
 
     $kernelModel = Kernel::from([]);

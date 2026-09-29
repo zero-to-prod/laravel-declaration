@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+extra:
+  sitemap:
+    path: /sitemap.xml
