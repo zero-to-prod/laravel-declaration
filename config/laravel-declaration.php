@@ -15,12 +15,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Concern Providers
+    | Providers
     |--------------------------------------------------------------------------
     |
-    | Each declaration concern is handled by a plain ServiceProvider.
-    | To disable a concern, remove it from this list.
-    | To replace a concern, substitute your custom ServiceProvider.
+    | Each declaration is handled by a plain ServiceProvider.
+    | To disable, remove it from this list.
+    | To replace, substitute your custom ServiceProvider.
     |
     */
     'providers' => [
