@@ -6,8 +6,10 @@ namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
@@ -36,13 +38,13 @@ final readonly class Kernel
     public const string appendMiddlewareToGroup = 'appendMiddlewareToGroup';
 
     /** @var array<string, list<class-string>|class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, AppendTo, Describe([Describe::default => []])]
     public array $appendMiddlewareToGroup;
 
     public const string prependMiddlewareToGroup = 'prependMiddlewareToGroup';
 
     /** @var array<string, list<class-string>|class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, PrependTo, Describe([Describe::default => []])]
     public array $prependMiddlewareToGroup;
 
     public const string setMiddlewareGroups = 'setMiddlewareGroups';
@@ -78,13 +80,13 @@ final readonly class Kernel
     public const string addToMiddlewarePriorityBefore = 'addToMiddlewarePriorityBefore';
 
     /** @var array<class-string, list<class-string>|class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, AppendTo, Describe([Describe::default => []])]
     public array $addToMiddlewarePriorityBefore;
 
     public const string addToMiddlewarePriorityAfter = 'addToMiddlewarePriorityAfter';
 
     /** @var array<class-string, list<class-string>|class-string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, PrependTo, Describe([Describe::default => []])]
     public array $addToMiddlewarePriorityAfter;
 
     public const string whenRequestLifecycleIsLongerThan = 'whenRequestLifecycleIsLongerThan';

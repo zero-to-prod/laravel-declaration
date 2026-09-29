@@ -8,7 +8,9 @@ use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Symfony\Component\HttpFoundation\Response;
 use ZeroToProd\LaravelDeclaration\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Kernel;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
@@ -240,7 +242,7 @@ it('laravel-declaration:validate accepts the kernel block', function () use ($ma
         ->assertSuccessful();
 });
 
-it('selects setter, append, and prepend properties via attributes', function (): void {
+it('selects setter, append, prepend, appendTo, and prependTo properties via attributes', function (): void {
     expect(Kernel::selected(Setter::class))->toBe([
         Kernel::setGlobalMiddleware,
         Kernel::setMiddlewareGroups,
@@ -252,5 +254,11 @@ it('selects setter, append, and prepend properties via attributes', function ():
     ])->and(Kernel::selected(Prepend::class))->toBe([
         Kernel::prependMiddleware,
         Kernel::prependToMiddlewarePriority,
+    ])->and(Kernel::selected(AppendTo::class))->toBe([
+        Kernel::appendMiddlewareToGroup,
+        Kernel::addToMiddlewarePriorityBefore,
+    ])->and(Kernel::selected(PrependTo::class))->toBe([
+        Kernel::prependMiddlewareToGroup,
+        Kernel::addToMiddlewarePriorityAfter,
     ]);
 });

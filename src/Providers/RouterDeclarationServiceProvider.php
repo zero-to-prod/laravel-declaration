@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration\Providers;
 
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use ZeroToProd\LaravelDeclaration\Attributes\Binding;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
 
@@ -18,7 +19,7 @@ class RouterDeclarationServiceProvider extends ServiceProvider
             return;
         }
 
-        foreach ([RouterDeclaration::pattern, RouterDeclaration::model, RouterDeclaration::bind] as $method) {
+        foreach (RouterDeclaration::selected(Binding::class) as $method) {
             foreach ($manifest->router->{$method} as $key => $value) {
                 $router->{$method}($key, $value);
             }

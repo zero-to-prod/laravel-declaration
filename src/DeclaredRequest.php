@@ -12,6 +12,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use LogicException;
+use ZeroToProd\LaravelDeclaration\Attributes\Redirect;
 
 class DeclaredRequest extends FormRequest
 {
@@ -123,7 +124,7 @@ class DeclaredRequest extends FormRequest
     {
         $Request = $this->declaration();
 
-        foreach ([Request::redirect, Request::redirectRoute, Request::redirectAction] as $property) {
+        foreach (Request::selected(Redirect::class) as $property) {
             if ($Request->{$property} !== null) {
                 $this->{$property} = $Request->{$property};
             }

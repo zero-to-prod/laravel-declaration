@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
+use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
 
 $manifest = __DIR__.'/../Fixtures/manifest/router.yml';
 
@@ -81,4 +83,12 @@ it('ignores unknown router keys', function (): void {
 
     expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull()
         ->and(app(Router::class)->getPatterns())->toBeEmpty();
+});
+
+it('selects binding properties via attributes', function (): void {
+    expect(RouterDeclaration::selected(Binding::class))->toBe([
+        RouterDeclaration::pattern,
+        RouterDeclaration::model,
+        RouterDeclaration::bind,
+    ]);
 });

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
+use ZeroToProd\LaravelDeclaration\Attributes\Redirect;
 use ZeroToProd\LaravelDeclaration\Manifest;
+use ZeroToProd\LaravelDeclaration\Request;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController;
 
 $manifest = __DIR__.'/../Fixtures/manifest/requests.yml';
@@ -173,4 +175,12 @@ it('throws when no manifest is declared, binding an empty one', function (): voi
     $this->withoutExceptionHandling();
 
     expect(fn (): TestResponse => $this->postJson('/manual'))->toThrow(LogicException::class);
+});
+
+it('selects redirect properties via attributes', function (): void {
+    expect(Request::selected(Redirect::class))->toBe([
+        Request::redirect,
+        Request::redirectRoute,
+        Request::redirectAction,
+    ]);
 });

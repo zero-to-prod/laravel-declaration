@@ -5,7 +5,9 @@ declare(strict_types=1);
 use Illuminate\Contracts\Translation\Translator;
 use ZeroToProd\LaravelDeclaration\App;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Hook;
 use ZeroToProd\LaravelDeclaration\Attributes\Path;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf;
@@ -200,7 +202,7 @@ it('ignores unknown app keys', function (): void {
         ->and(app()->bound('Foo'))->toBeFalse();
 });
 
-it('selects binding and path properties via attributes', function (): void {
+it('selects binding, path, setter, and hook properties via attributes', function (): void {
     expect(App::selected(Binding::class))->toBe([
         App::bind,
         App::bindIf,
@@ -214,5 +216,12 @@ it('selects binding and path properties via attributes', function (): void {
         App::useLangPath,
         App::usePublicPath,
         App::useStoragePath,
+    ])->and(App::selected(Setter::class))->toBe([
+        App::setLocale,
+        App::setFallbackLocale,
+    ])->and(App::selected(Hook::class))->toBe([
+        App::registered,
+        App::booting,
+        App::booted,
     ]);
 });

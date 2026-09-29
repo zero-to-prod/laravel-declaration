@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+use ZeroToProd\LaravelDeclaration\Attributes\Composer;
+use ZeroToProd\LaravelDeclaration\Attributes\Location;
+use ZeroToProd\LaravelDeclaration\Attributes\ViewNamespace;
+use ZeroToProd\LaravelDeclaration\View;
+
 $manifest = __DIR__.'/../Fixtures/manifest/view.yml';
 
 it('applies the block when Laravel first resolves the view factory', function () use ($manifest): void {
@@ -58,4 +63,18 @@ it('ignores unknown view keys', function (): void {
         YAML);
 
     expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
+});
+
+it('selects location, viewNamespace, and composer properties via attributes', function (): void {
+    expect(View::selected(Location::class))->toBe([
+        View::addLocation,
+        View::prependLocation,
+    ])->and(View::selected(ViewNamespace::class))->toBe([
+        View::addNamespace,
+        View::prependNamespace,
+        View::replaceNamespace,
+    ])->and(View::selected(Composer::class))->toBe([
+        View::composer,
+        View::creator,
+    ]);
 });

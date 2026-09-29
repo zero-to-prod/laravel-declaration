@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use LogicException;
 use ZeroToProd\LaravelDeclaration\App;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Hook;
 use ZeroToProd\LaravelDeclaration\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Manifest;
@@ -76,7 +77,7 @@ class AppDeclarationServiceProvider extends ServiceProvider
             }
         }
 
-        foreach ([App::registered, App::booting, App::booted] as $method) {
+        foreach (App::selected(Hook::class) as $method) {
             foreach ($App->{$method} as $reference) {
                 $app->{$method}($this->wrapCallback($reference));
             }

@@ -7,6 +7,9 @@ namespace ZeroToProd\LaravelDeclaration\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\View\Factory;
+use ZeroToProd\LaravelDeclaration\Attributes\Composer;
+use ZeroToProd\LaravelDeclaration\Attributes\Location;
+use ZeroToProd\LaravelDeclaration\Attributes\ViewNamespace;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\View;
 
@@ -22,13 +25,13 @@ class ViewDeclarationServiceProvider extends ServiceProvider
         $view = $manifest->view;
 
         $this->callAfterResolving('view', function (Factory $factory) use ($view): void {
-            foreach ([View::addLocation, View::prependLocation] as $method) {
+            foreach (View::selected(Location::class) as $method) {
                 foreach ($view->{$method} as $location) {
                     $factory->{$method}($this->absolute($location));
                 }
             }
 
-            foreach ([View::addNamespace, View::prependNamespace, View::replaceNamespace] as $method) {
+            foreach (View::selected(ViewNamespace::class) as $method) {
                 foreach ($view->{$method} as $namespace => $hints) {
                     $factory->{$method}($namespace, array_map($this->absolute(...), (array) $hints));
                 }
@@ -40,7 +43,7 @@ class ViewDeclarationServiceProvider extends ServiceProvider
 
             $factory->share($view->share);
 
-            foreach ([View::composer, View::creator] as $method) {
+            foreach (View::selected(Composer::class) as $method) {
                 foreach ($view->{$method} as $callback => $views) {
                     $factory->{$method}($views, $callback);
                 }

@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Hook;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Attributes\Setter;
@@ -107,19 +108,19 @@ final readonly class App
     public const string registered = 'registered';
 
     /** @var list<string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Hook, Describe([Describe::default => []])]
     public array $registered;
 
     public const string booting = 'booting';
 
     /** @var list<string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Hook, Describe([Describe::default => []])]
     public array $booting;
 
     public const string booted = 'booted';
 
     /** @var list<string> */
-    #[Key, Describe([Describe::default => []])]
+    #[Key, Hook, Describe([Describe::default => []])]
     public array $booted;
 
     public const string terminating = 'terminating';

@@ -12,7 +12,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use LogicException;
 use ZeroToProd\LaravelDeclaration\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Kernel;
 use ZeroToProd\LaravelDeclaration\Manifest;
@@ -57,7 +59,7 @@ class KernelDeclarationServiceProvider extends ServiceProvider
             }
         }
 
-        foreach ([Kernel::appendMiddlewareToGroup, Kernel::addToMiddlewarePriorityBefore] as $method) {
+        foreach (Kernel::selected(AppendTo::class) as $method) {
             foreach ($Kernel->{$method} as $target => $middlewares) {
                 foreach ((array) $middlewares as $middleware) {
                     $kernel->{$method}($target, $middleware);
@@ -65,7 +67,7 @@ class KernelDeclarationServiceProvider extends ServiceProvider
             }
         }
 
-        foreach ([Kernel::prependMiddlewareToGroup, Kernel::addToMiddlewarePriorityAfter] as $method) {
+        foreach (Kernel::selected(PrependTo::class) as $method) {
             foreach ($Kernel->{$method} as $target => $middlewares) {
                 foreach (array_reverse((array) $middlewares) as $middleware) {
                     $kernel->{$method}($target, $middleware);
