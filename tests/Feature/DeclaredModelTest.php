@@ -140,7 +140,7 @@ it('declares nothing without a models block', function (): void {
         ->and($Flight->getCasts())->toBe(['id' => 'int', 'departed_at' => 'datetime']);
 });
 
-it('rejects unknown model keys', function (): void {
+it('ignores unknown model keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         models:
@@ -148,16 +148,14 @@ it('rejects unknown model keys', function (): void {
             fillabel: [name]
         YAML);
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'unknown key(s): fillabel');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 });
 
-it('rejects a class that is not a DeclaredModel spelled as static::class', function (string $class): void {
+it('ignores a class that is not a DeclaredModel spelled as static::class', function (string $class): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, "models:\n  - class: '$class'\n");
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'must extend ZeroToProd\LaravelDeclaration\DeclaredModel');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 })->with([
     'an Eloquent model' => User::class,
     'a leading backslash' => '\\'.Flight::class,

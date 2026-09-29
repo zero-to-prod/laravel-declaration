@@ -32,7 +32,7 @@ final readonly class Query
 
     public const string name = 'name';
 
-    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::required => true])]
+    #[Key, Describe([Describe::required => true])]
     public string $name;
 
     public const string from = 'from';
@@ -407,36 +407,6 @@ final readonly class Query
         return array_diff_key($context, [self::name => true, self::from => true]);
     }
 
-    /** @param  array<array-key, mixed>  $context */
-    public static function validate(mixed $value, array $context): void
-    {
-        $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-        if ($unknown !== []) {
-            throw new LogicException(
-                'The `queries` entry declares unknown key(s): '.implode(', ', $unknown).
-                '. Every key must be an `Illuminate\Database\Eloquent\Builder` method name.'
-            );
-        }
-
-        if (isset($context['from']) && is_string($context['from'])) {
-            $from = $context['from'];
-            if (! str_contains($from, '.') && (! class_exists($from) || ! is_subclass_of($from, Model::class))) {
-                throw new LogicException(
-                    "The `queries.from` [$from] must be an Eloquent Model class or a `param.relation` string."
-                );
-            }
-        }
-
-        $declaredTerminals = array_intersect(array_keys($context), array_keys(self::terminals()));
-        if (count($declaredTerminals) > 1) {
-            throw new LogicException(
-                'The `queries` entry declares multiple terminal execution methods: '.implode(', ', $declaredTerminals).
-                '. A query pipeline must declare at most one terminal method.'
-            );
-        }
-    }
-
     /** @param  array<string, mixed>  $parameters */
     public function run(array $parameters = []): mixed
     {
@@ -449,6 +419,10 @@ final readonly class Query
                 $terminal = $method;
                 $terminalArgs = $args;
 
+                continue;
+            }
+
+            if (! isset(self::clauses()[$method])) {
                 continue;
             }
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use LogicException;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
@@ -16,7 +15,7 @@ final readonly class App
     public const string bind = 'bind';
 
     /** @var array<int|string, string|null> */
-    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $bind;
 
     public const string bindIf = 'bindIf';
@@ -125,30 +124,4 @@ final readonly class App
     /** @var list<string> */
     #[Key, Describe([Describe::default => []])]
     public array $terminating;
-
-    /** @param  array<array-key, mixed>  $context */
-    public static function validate(mixed $value, array $context): void
-    {
-        $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-        if ($unknown !== []) {
-            throw new LogicException(
-                'The `app` block declares unknown key(s): '.implode(', ', $unknown).
-                '. Every key must be an `Illuminate\Foundation\Application` method name.'
-            );
-        }
-
-        foreach ([self::bindIf, self::singletonIf, self::scopedIf] as $key) {
-            $items = $context[$key] ?? null;
-
-            foreach (is_array($items) ? $items : [] as $index => $item) {
-                if (is_int($index) && is_string($item) && str_ends_with($item, '.php')) {
-                    throw new LogicException(
-                        "The `app.$key` list declares the `.php` item [$item]. `$key()` calls `bound(\$abstract)`, which cannot take ".
-                        "the file's Closure; declare it in the map form (`Abstract: $item`)."
-                    );
-                }
-            }
-        }
-    }
 }

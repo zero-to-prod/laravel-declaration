@@ -49,7 +49,7 @@ it('applies nothing without a view block', function (): void {
         ->and(app('view')->getFinder()->getPaths())->toBe([resource_path('views')]);
 });
 
-it('rejects unknown view keys', function (): void {
+it('ignores unknown view keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         view:
@@ -57,6 +57,5 @@ it('rejects unknown view keys', function (): void {
             App\View\Composers\UserMenu: users.*
         YAML);
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'unknown key(s): composers');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 });

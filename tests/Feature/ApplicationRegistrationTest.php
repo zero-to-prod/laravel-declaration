@@ -178,15 +178,14 @@ it('rejects a null list item', function (): void {
         ->toThrow(LogicException::class, 'The `app.bind` list declares a null item');
 });
 
-it('rejects a .php list item under the If keys', function (string $key): void {
+it('ignores a .php list item under the If keys', function (string $key): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, "app:\n  {$key}:\n    - app/binders/slugger.php\n");
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, "The `app.{$key}` list declares the `.php` item [app/binders/slugger.php]");
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 })->with(['bindIf', 'singletonIf', 'scopedIf']);
 
-it('rejects unknown app keys', function (): void {
+it('ignores unknown app keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         app:
@@ -194,6 +193,6 @@ it('rejects unknown app keys', function (): void {
             Foo: Bar
         YAML);
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'unknown key(s): singelton');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull()
+        ->and(app()->bound('Foo'))->toBeFalse();
 });

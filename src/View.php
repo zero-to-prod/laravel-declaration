@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use LogicException;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
@@ -16,7 +15,7 @@ final readonly class View
     public const string addLocation = 'addLocation';
 
     /** @var list<string> */
-    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $addLocation;
 
     public const string prependLocation = 'prependLocation';
@@ -66,17 +65,4 @@ final readonly class View
     /** @var array<string, string|list<string>> */
     #[Key, Describe([Describe::default => []])]
     public array $creator;
-
-    /** @param  array<array-key, mixed>  $context */
-    public static function validate(mixed $value, array $context): void
-    {
-        $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-        if ($unknown !== []) {
-            throw new LogicException(
-                'The `view` block declares unknown key(s): '.implode(', ', $unknown).
-                '. Every key must be an `Illuminate\View\Factory` method name.'
-            );
-        }
-    }
 }

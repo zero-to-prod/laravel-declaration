@@ -103,29 +103,35 @@ it('throws LogicException when the declared query does not exist', function (): 
     DeclaredQuery::run('non-existent-query');
 })->throws(LogicException::class, 'The declared query [non-existent-query] does not exist.');
 
-it('throws LogicException when queries entry has unknown keys', function (): void {
-    Query::from([
+it('ignores unknown keys in queries entry', function (): void {
+    $query = Query::from([
         'name' => 'broken',
         'from' => Flight::class,
         'unknownKey' => 'value',
     ]);
-})->throws(LogicException::class, 'The `queries` entry declares unknown key(s): unknownKey. Every key must be an `Illuminate\Database\Eloquent\Builder` method name.');
 
-it('throws LogicException when queries.from is not an Eloquent Model or parameter relation', function (): void {
-    Query::from([
+    expect($query->run())->toBeInstanceOf(Collection::class);
+});
+
+it('allows queries.from when instantiating Query', function (): void {
+    $query = Query::from([
         'name' => 'broken-from',
         'from' => 'NotAClassOrRelation',
     ]);
-})->throws(LogicException::class, 'The `queries.from` [NotAClassOrRelation] must be an Eloquent Model class or a `param.relation` string.');
 
-it('throws LogicException when multiple terminal methods are declared', function (): void {
-    Query::from([
+    expect($query->from)->toBe('NotAClassOrRelation');
+});
+
+it('allows multiple terminal methods, executing the last declared terminal', function (): void {
+    $query = Query::from([
         'name' => 'multi-terminal',
         'from' => Flight::class,
         'count' => true,
         'paginate' => 10,
     ]);
-})->throws(LogicException::class, 'The `queries` entry declares multiple terminal execution methods: count, paginate. A query pipeline must declare at most one terminal method.');
+
+    expect($query->run())->toBeInstanceOf(Illuminate\Contracts\Pagination\LengthAwarePaginator::class);
+});
 
 it('throws InvalidArgumentException when route parameter is not a Model', function (): void {
     $query = Query::from([

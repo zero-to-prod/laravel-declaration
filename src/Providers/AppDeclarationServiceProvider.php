@@ -33,9 +33,19 @@ class AppDeclarationServiceProvider extends ServiceProvider
     {
         foreach ([App::bind, App::bindIf, App::singleton, App::singletonIf, App::scoped, App::scopedIf] as $method) {
             foreach ($App->{$method} as $abstract => $concrete) {
-                is_string($abstract)
-                    ? $app->{$method}($abstract, $this->concrete($concrete))
-                    : $app->{$method}($this->concrete($concrete) ?? throw new LogicException("The `app.$method` list declares a null item; every list item is an abstract."));
+                if (is_string($abstract)) {
+                    $app->{$method}($abstract, $this->concrete($concrete));
+
+                    continue;
+                }
+
+                $concreteValue = $this->concrete($concrete);
+
+                if ($concreteValue instanceof Closure && in_array($method, [App::bindIf, App::singletonIf, App::scopedIf], true)) {
+                    continue;
+                }
+
+                $app->{$method}($concreteValue ?? throw new LogicException("The `app.$method` list declares a null item; every list item is an abstract."));
             }
         }
 

@@ -213,15 +213,14 @@ it('ignores kernels that do not extend HttpKernel', function (): void {
     expect(true)->toBeTrue();
 });
 
-it('rejects unknown kernel keys', function (): void {
+it('ignores unknown kernel keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         kernel:
           unknownKey: []
         YAML);
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'The `kernel` block declares unknown key(s): unknownKey. Every key must be an `Illuminate\Foundation\Http\Kernel` method name.');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 });
 
 it('applies nothing without a kernel block', function (): void {

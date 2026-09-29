@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use LogicException;
-use ReflectionClass;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\ClassDefault;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
@@ -16,7 +14,7 @@ final readonly class Model
     use DataModel;
 
     /** @var class-string<DeclaredModel> */
-    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::required => true])]
+    #[Key, Describe([Describe::required => true])]
     public string $class;
 
     public const string connection = 'connection';
@@ -153,25 +151,6 @@ final readonly class Model
 
     #[Key, Describe([Describe::nullable => true])]
     public ?string $getRouteKeyName;
-
-    /** @param  array<array-key, mixed>  $context */
-    public static function validate(mixed $value, array $context): void
-    {
-        $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-        if ($unknown !== []) {
-            throw new LogicException(
-                'The `models` entry declares unknown key(s): '.implode(', ', $unknown).
-                '. Every key must be an `Illuminate\Database\Eloquent\Model` property or method name.'
-            );
-        }
-
-        if (is_string($value) && (! is_subclass_of($value, DeclaredModel::class) || new ReflectionClass($value)->name !== $value)) {
-            throw new LogicException(
-                "The `models` class [$value] must extend ".DeclaredModel::class.', spelled as `static::class` spells it.'
-            );
-        }
-    }
 
     /** @return array<string, mixed> The declared properties; an absent key keeps the class default. */
     public function properties(): array

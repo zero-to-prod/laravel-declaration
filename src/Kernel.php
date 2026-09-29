@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use LogicException;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
@@ -16,7 +15,7 @@ final readonly class Kernel
     public const string pushMiddleware = 'pushMiddleware';
 
     /** @var list<class-string> */
-    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $pushMiddleware;
 
     public const string prependMiddleware = 'prependMiddleware';
@@ -90,17 +89,4 @@ final readonly class Kernel
     /** @var array<int|string, class-string|string> */
     #[Key, Describe([Describe::default => []])]
     public array $whenRequestLifecycleIsLongerThan;
-
-    /** @param  array<array-key, mixed>  $context */
-    public static function validate(mixed $value, array $context): void
-    {
-        $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-        if ($unknown !== []) {
-            throw new LogicException(
-                'The `kernel` block declares unknown key(s): '.implode(', ', $unknown).
-                '. Every key must be an `Illuminate\Foundation\Http\Kernel` method name.'
-            );
-        }
-    }
 }

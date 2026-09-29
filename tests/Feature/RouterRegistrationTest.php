@@ -71,7 +71,7 @@ it('sets no pattern or binder without a router block', function (): void {
         ->and(app(Router::class)->getBindingCallback('user'))->toBeNull();
 });
 
-it('rejects unknown router keys', function (): void {
+it('ignores unknown router keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         router:
@@ -79,6 +79,6 @@ it('rejects unknown router keys', function (): void {
             id: '[0-9]+'
         YAML);
 
-    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'unknown key(s): patterns');
+    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull()
+        ->and(app(Router::class)->getPatterns())->toBeEmpty();
 });
