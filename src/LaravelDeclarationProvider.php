@@ -169,13 +169,12 @@ class LaravelDeclarationProvider extends ServiceProvider
         }
 
         foreach ($Kernel->whenRequestLifecycleIsLongerThan as $threshold => $handler) {
-            $interval = is_numeric($threshold) ? +$threshold : CarbonInterval::make($threshold);
-
-            if ($interval === null) {
-                throw new LogicException("The `kernel.whenRequestLifecycleIsLongerThan` threshold [{$threshold}] must be numeric or a parsable interval string.");
-            }
-
-            $kernel->whenRequestLifecycleIsLongerThan($interval, $this->wrapDurationHandler($handler));
+            $kernel->whenRequestLifecycleIsLongerThan(
+                is_numeric($threshold)
+                    ? +$threshold
+                    : (CarbonInterval::make($threshold) ?? throw new LogicException('The `kernel.whenRequestLifecycleIsLongerThan` threshold ['.var_export($threshold, true).'] must be numeric or a parsable interval string.')),
+                $this->wrapDurationHandler($handler)
+            );
         }
     }
 
