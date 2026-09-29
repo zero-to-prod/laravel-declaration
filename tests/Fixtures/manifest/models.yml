@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+router:
+  model:
+    flight: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+
+models:
+  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    table: my_flights
+    primaryKey: flight_id
+    keyType: string
+    incrementing: false
+    dateFormat: U
+    attributes:
+      delayed: false
+      options: '[]'
+    casts:
+      delayed: boolean
+      options: array
+    fillable: [flight_id, airline_id, name, code, status]
+    hidden: [secret]
+    appends: [label]
+    with: [airline]
+    touches: [airline]
+    refreshes: [status]
+    perPage: 5
+    dispatchesEvents:
+      created: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\FlightCreated
+    observables: [boarding]
+    observe:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\FlightObserver
+    addGlobalScope:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\NotCancelled
+    getRouteKeyName: code
+
+  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
+    connection: testing
+    timestamps: false
+    guarded: []
+    visible: [id, name, flights_count]
+    withCount: [flights]
+
+routes:
+  - path: "flights/{flight}"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]

@@ -32,6 +32,12 @@ test('laravel-declaration:validate accepts DeclaredView routes', function (): vo
         ->assertSuccessful();
 });
 
+test('laravel-declaration:validate accepts the models block', function (): void {
+    $this->artisan('laravel-declaration:validate', ['--manifest' => __DIR__.'/../Fixtures/manifest/models.yml'])
+        ->expectsOutputToContain('is valid')
+        ->assertSuccessful();
+});
+
 test('laravel-declaration:validate reports each schema violation', function (): void {
     File::put(storage_path('invalid.yml'), "routes: 5\nbogus: 1\n");
 

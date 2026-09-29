@@ -20,6 +20,7 @@
         "Illuminate\\Contracts\\Validation\\Factory",
         "Illuminate\\Contracts\\Validation\\Validator",
         "Illuminate\\Contracts\\JsonSchema\\JsonSchema",
+        "Illuminate\\Database\\Eloquent\\Model",
         "Illuminate\\Foundation\\Http\\FormRequest",
         "Illuminate\\Routing\\Router",
         "Illuminate\\Support\\Collection",

@@ -52,6 +52,14 @@ readonly class Manifest
     ])]
     public Collection $requests;
 
+    /** @var Collection<string, Model> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Model::class,
+        'key_by' => 'class',
+    ])]
+    public Collection $models;
+
     /** @var Collection<int, Route> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],

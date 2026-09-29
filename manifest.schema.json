@@ -23,6 +23,11 @@
       "description": "FormRequest declarations. A route opts in with `metadata: {request: <name>}`.",
       "type": "array",
       "items": { "$ref": "#/definitions/request" }
+    },
+    "models": {
+      "description": "Eloquent models. Each entry is the class body of a DeclaredModel subclass, found by static::class.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/model" }
     }
   },
   "definitions": {
@@ -504,6 +509,63 @@
           "description": "-> shouldFailOnUnknownFields() (#[FailOnUnknownFields])",
           "type": "boolean"
         }
+      }
+    },
+    "columns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "model": {
+      "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key throws LogicException.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class"],
+      "properties": {
+        "class": {
+          "description": "Reserved: the DeclaredModel subclass, spelled as static::class spells it (no leading `\\`).",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$"
+        },
+        "connection": { "description": "-> $connection (#[Connection]): a database.connections name. Absent: the default connection.", "type": "string" },
+        "table": { "description": "-> $table (#[Table(name)]). Absent: the snake-case plural of the class basename.", "type": "string" },
+        "primaryKey": { "description": "-> $primaryKey (#[Table(key)]). Absent: id.", "type": "string" },
+        "keyType": { "description": "-> $keyType (#[Table(keyType)]): int or string. Absent: int.", "type": "string" },
+        "incrementing": { "description": "-> $incrementing (#[WithoutIncrementing]). Absent: true.", "type": "boolean" },
+        "timestamps": { "description": "-> $timestamps (#[WithoutTimestamps]). Absent: true. false also makes other models skip touching this one.", "type": "boolean" },
+        "dateFormat": { "description": "-> $dateFormat (#[DateFormat]): how date columns are stored. Absent: the connection grammar's format.", "type": "string" },
+        "attributes": { "description": "-> $attributes: raw, storable default values of a new model.", "type": "object" },
+        "casts": {
+          "description": "-> $casts: attribute => cast string (boolean, array, datetime:Y-m-d, encrypted:array, an enum, a cast class, Class:arg). A casts() method in the class is merged over it.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "fillable": { "description": "-> $fillable (#[Fillable]): mass-assignable attributes.", "$ref": "#/definitions/columns" },
+        "guarded": { "description": "-> $guarded (#[Guarded]). Absent: ['*']. [] is #[Unguarded].", "$ref": "#/definitions/columns" },
+        "hidden": { "description": "-> $hidden (#[Hidden]): left out of toArray() and toJson().", "$ref": "#/definitions/columns" },
+        "visible": { "description": "-> $visible (#[Visible]): when non-empty, the only attributes in toArray() and toJson().", "$ref": "#/definitions/columns" },
+        "appends": { "description": "-> $appends (#[Appends]): accessors added to toArray() and toJson(). The accessor is a method in the class.", "$ref": "#/definitions/columns" },
+        "with": { "description": "-> $with: relations eager loaded by every query. The relation is a method in the class.", "$ref": "#/definitions/columns" },
+        "withCount": { "description": "-> $withCount: relation counts ({relation}_count) loaded by every query.", "$ref": "#/definitions/columns" },
+        "touches": { "description": "-> $touches (#[Touches]): relations whose updated_at is touched when this model saves.", "$ref": "#/definitions/columns" },
+        "refreshes": { "description": "-> $refreshes (#[Refreshes]): columns re-read from the database after each save.", "$ref": "#/definitions/columns" },
+        "perPage": { "description": "-> $perPage: the paginate() page size. Absent: 15.", "type": "integer", "minimum": 1 },
+        "dispatchesEvents": {
+          "description": "-> $dispatchesEvents: model event => event class, dispatched as new $class($model).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/classString" }
+        },
+        "observables": { "description": "-> $observables: custom event names an observer method may handle.", "$ref": "#/definitions/columns" },
+        "observe": {
+          "description": "-> observe($classes) when the model boots, where Laravel applies #[ObservedBy]: one listener per observer method named after an observable event.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "addGlobalScope": {
+          "description": "-> addGlobalScope($scope), one call per item when the model boots, where Laravel applies #[ScopedBy]: an Illuminate\\Database\\Eloquent\\Scope class.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/classString" }
+        },
+        "getRouteKeyName": { "description": "-> getRouteKeyName() (#[RouteKey]): the column router.model and route() use. Absent: the primary key.", "type": "string" }
       }
     }
   }

@@ -289,6 +289,56 @@ public function store(DeclaredRequest $request): RedirectResponse
 }
 ```
 
+## Models
+
+Define your application's Eloquent models in the `models` list. Each class
+extends `ZeroToProd\LaravelDeclaration\DeclaredModel`, and its entry is the
+class body: every key is a `Model` property (or `observe`, `addGlobalScope`,
+`getRouteKeyName`). Relations, accessors and local scopes stay methods on the
+class.
+
+Complete structure:
+
+```yaml
+models:
+  - class: App\Models\Flight                 # reserved: final class Flight extends DeclaredModel
+    connection: mysql                        # -> $connection ≙ #[Connection]
+    table: my_flights                        # -> $table ≙ #[Table(name)]
+    primaryKey: flight_id                    # -> $primaryKey ≙ #[Table(key)]
+    keyType: string                          # -> $keyType ≙ #[Table(keyType)]
+    incrementing: false                      # -> $incrementing ≙ #[WithoutIncrementing]
+    timestamps: true                         # -> $timestamps ≙ #[WithoutTimestamps] when false
+    dateFormat: U                            # -> $dateFormat ≙ #[DateFormat]
+    attributes: {delayed: false, options: '[]'}   # -> $attributes: raw, storable defaults
+    casts: {delayed: boolean, options: array}     # -> $casts; casts() in the class is merged over it
+    fillable: [name, code]                   # -> $fillable ≙ #[Fillable]
+    guarded: ['*']                           # -> $guarded ≙ #[Guarded]; [] ≙ #[Unguarded]
+    hidden: [secret]                         # -> $hidden ≙ #[Hidden]
+    visible: []                              # -> $visible ≙ #[Visible]
+    appends: [label]                         # -> $appends ≙ #[Appends]
+    with: [airline]                          # -> $with: eager loaded by every query
+    withCount: [passengers]                  # -> $withCount
+    touches: [airline]                       # -> $touches ≙ #[Touches]
+    refreshes: [status]                      # -> $refreshes ≙ #[Refreshes]
+    perPage: 25                              # -> $perPage
+    dispatchesEvents: {created: App\Events\FlightCreated}   # -> $dispatchesEvents
+    observables: [boarding]                  # -> $observables
+    observe: [App\Observers\FlightObserver]  # -> observe() at boot ≙ #[ObservedBy]
+    addGlobalScope: [App\Models\Scopes\NotCancelled]   # -> addGlobalScope() at boot ≙ #[ScopedBy]
+    getRouteKeyName: code                    # -> getRouteKeyName() ≙ #[RouteKey]; router.model binds by it
+```
+
+The class:
+
+```php
+use ZeroToProd\LaravelDeclaration\DeclaredModel;
+
+final class Flight extends DeclaredModel
+{
+    public function airline(): BelongsTo { return $this->belongsTo(Airline::class); }
+}
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
