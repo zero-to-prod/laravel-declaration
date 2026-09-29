@@ -8,7 +8,7 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Filesystem\Filesystem;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use ZeroToProd\LaravelDeclaration\ManifestServiceProvider;
+use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\EventSpyProvider;
 
 use function Orchestra\Testbench\default_skeleton_path;
@@ -25,7 +25,7 @@ abstract class TestCase extends Orchestra
             // Real applications discover this from laravel/mcp's composer
             // manifest. Testbench does not, so it is listed explicitly.
             McpServiceProvider::class,
-            ManifestServiceProvider::class,
+            LaravelDeclarationProvider::class,
             // Its register() runs before the `app:` block is applied in the
             // registered() pass, so its LocaleUpdated listener observes the
             // dispatch setLocale() makes there.

@@ -592,7 +592,7 @@ public ?Kernel $kernel;
 
 ---
 
-### 3. `src/LaravelDeclarationProvider.php`
+### 3. `../src/LaravelDeclarationProvider.php`
 Register the hook in `boot()`:
 
 ```php

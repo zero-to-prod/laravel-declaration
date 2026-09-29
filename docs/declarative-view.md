@@ -448,7 +448,7 @@ That is the whole implementation: nine literal `Factory` calls, so phpstan check
 
 2. **`src/Manifest.php`**. Add the `view` const and nullable property of §2.5 directly after `$router`.
 
-3. **`src/LaravelDeclarationProvider.php`**. Add `use Illuminate\View\Factory;`, insert the `callAfterResolving()` line of §2.5 into `boot()` after `registerRouter()`, and add `registerView()` after `registerRouter()`.
+3. **`../src/LaravelDeclarationProvider.php`**. Add `use Illuminate\View\Factory;`, insert the `callAfterResolving()` line of §2.5 into `boot()` after `registerRouter()`, and add `registerView()` after `registerRouter()`.
 
 4. **`manifest.schema.json`**. Add `"view": { "$ref": "#/definitions/view" },` to the root `properties` after `"router"`, and these entries to `definitions` after `"router"`:
 

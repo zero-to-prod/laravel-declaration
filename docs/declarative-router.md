@@ -307,7 +307,7 @@ That loop is the whole implementation. The provider adds no transformation, wrap
 
 2. **`src/Manifest.php`**. Add the `router` const and nullable property of §2.5 directly after `$app`.
 
-3. **`src/LaravelDeclarationProvider.php`**. Replace the last three lines of `boot()` with the block in §2.5 and add `registerRouter()`. Keep `use Illuminate\Routing\Router;`.
+3. **`../src/LaravelDeclarationProvider.php`**. Replace the last three lines of `boot()` with the block in §2.5 and add `registerRouter()`. Keep `use Illuminate\Routing\Router;`.
 
 4. **`manifest.schema.json`**. Add `"router": { "$ref": "#/definitions/router" },` to the root `properties` after `"app"`, and this entry to `definitions` after `"app"`:
 

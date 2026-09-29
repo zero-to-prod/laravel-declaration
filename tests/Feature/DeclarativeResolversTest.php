@@ -6,7 +6,6 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Router;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
 use ZeroToProd\LaravelDeclaration\Manifest;
-use ZeroToProd\LaravelDeclaration\ManifestServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
@@ -149,5 +148,5 @@ it('rejects a .php duration reference that does not return a Closure', function 
 
 it('allows legacy LaravelDeclarationProvider to be used', function (): void {
     $legacyProvider = new LaravelDeclarationProvider(app());
-    expect($legacyProvider)->toBeInstanceOf(ManifestServiceProvider::class);
+    expect($legacyProvider)->toBeInstanceOf(LaravelDeclarationProvider::class);
 });

@@ -260,7 +260,7 @@ That is the whole implementation. The value is the argument, with no wrapper and
 
 1. **`src/Router.php`**. Add the two consts and properties, and extend `keys`, exactly as in §2.5. Keep them after `$pattern`, in key order.
 
-2. **`src/LaravelDeclarationProvider.php`**. Replace `registerRouter()` with §2.5. Nothing else changes.
+2. **`../src/LaravelDeclarationProvider.php`**. Replace `registerRouter()` with §2.5. Nothing else changes.
 
 3. **`manifest.schema.json`**. Replace `definitions.router` with:
 

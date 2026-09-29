@@ -140,9 +140,9 @@ readonly class Manifest
 
 ---
 
-## 3. Root Provider: `ManifestServiceProvider`
+## 3. Root Provider: `LaravelDeclarationProvider`
 
-`ManifestServiceProvider` resolves the YAML manifest file, binds `Manifest` into the container, and registers each concern provider.
+`LaravelDeclarationProvider` resolves the YAML manifest file, binds `Manifest` into the container, and registers each concern provider.
 
 ```php
 <?php
