@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration;
 
 use LogicException;
 use Zerotoprod\DataModel\Describe;
+use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class View
@@ -15,74 +16,61 @@ final readonly class View
     public const string addLocation = 'addLocation';
 
     /** @var list<string> */
-    #[Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
+    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
     public array $addLocation;
 
     public const string prependLocation = 'prependLocation';
 
     /** @var list<string> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $prependLocation;
 
     public const string addNamespace = 'addNamespace';
 
     /** @var array<string, string|list<string>> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $addNamespace;
 
     public const string prependNamespace = 'prependNamespace';
 
     /** @var array<string, string|list<string>> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $prependNamespace;
 
     public const string replaceNamespace = 'replaceNamespace';
 
     /** @var array<string, string|list<string>> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $replaceNamespace;
 
     public const string addExtension = 'addExtension';
 
     /** @var array<string, string> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $addExtension;
 
     public const string share = 'share';
 
     /** @var array<string, mixed> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $share;
 
     public const string composer = 'composer';
 
     /** @var array<string, string|list<string>> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $composer;
 
     public const string creator = 'creator';
 
     /** @var array<string, string|list<string>> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $creator;
-
-    /** @var list<string> */
-    private const array keys = [
-        self::addLocation,
-        self::prependLocation,
-        self::addNamespace,
-        self::prependNamespace,
-        self::replaceNamespace,
-        self::addExtension,
-        self::share,
-        self::composer,
-        self::creator,
-    ];
 
     /** @param  array<array-key, mixed>  $context */
     public static function validate(mixed $value, array $context): void
     {
-        $unknown = array_diff(array_keys($context), self::keys);
+        $unknown = array_diff(array_keys($context), self::selected(Key::class));
 
         if ($unknown !== []) {
             throw new LogicException(

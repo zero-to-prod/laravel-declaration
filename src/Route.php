@@ -29,7 +29,7 @@ final readonly class Route
 
     public const string action = 'action';
 
-    /** @var string|list<string> `Class@method` string, invokable FQCN, or `[Class, 'method']` */
+    /** @var string|list<string> */
     #[Describe([Describe::required => true])]
     public string|array $action;
 
@@ -88,7 +88,7 @@ final readonly class Route
 
     public const string missing = 'missing';
 
-    /** @var class-string invokable class wrapped in a Closure by the provider */
+    /** @var class-string */
     #[Describe([Describe::nullable => true])]
     #[Builder]
     public ?string $missing;

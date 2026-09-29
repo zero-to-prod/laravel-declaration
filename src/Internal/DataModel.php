@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Internal;
 
 use Illuminate\Support\Collection;
+use ReflectionClass;
+use ReflectionProperty;
 use Zerotoprod\DataModelHelper\DataModelHelper;
 
-/**
- * The published configuration file, as the install command and the install
- * tool both write it.
- *
- * @internal
- */
+/** @internal */
 trait DataModel
 {
     use DataModelHelper;
@@ -28,5 +25,20 @@ trait DataModel
     public function collect(): Collection
     {
         return collect($this->toArray());
+    }
+
+    /**
+     * @param  class-string  $attribute
+     * @return list<string>
+     */
+    private static function selected(string $attribute): array
+    {
+        return array_values(array_map(
+            static fn (ReflectionProperty $Property): string => $Property->getName(),
+            array_filter(
+                new ReflectionClass(static::class)->getProperties(),
+                static fn (ReflectionProperty $Property): bool => $Property->getAttributes($attribute) !== [],
+            ),
+        ));
     }
 }

@@ -7,12 +7,7 @@ namespace ZeroToProd\LaravelDeclaration\Internal;
 use Closure;
 use Illuminate\Support\Facades\File;
 
-/**
- * The published configuration file, as the install command and the install
- * tool both write it.
- *
- * @internal
- */
+/** @internal */
 final class Installer
 {
     public static function path(): string
@@ -20,7 +15,6 @@ final class Installer
         return config_path('laravel-declaration.php');
     }
 
-    /** The shipped configuration file, carrying the given values. */
     public static function configuration(bool $mcp, string $handle): string
     {
         return str_replace([

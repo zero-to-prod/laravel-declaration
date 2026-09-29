@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration;
 
 use LogicException;
 use Zerotoprod\DataModel\Describe;
+use ZeroToProd\LaravelDeclaration\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Router
@@ -15,32 +16,25 @@ final readonly class Router
     public const string pattern = 'pattern';
 
     /** @var array<string, string> */
-    #[Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
+    #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::default => []])]
     public array $pattern;
 
     public const string model = 'model';
 
     /** @var array<string, string> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $model;
 
     public const string bind = 'bind';
 
     /** @var array<string, string> */
-    #[Describe([Describe::default => []])]
+    #[Key, Describe([Describe::default => []])]
     public array $bind;
-
-    /** @var list<string> */
-    private const array keys = [
-        self::pattern,
-        self::model,
-        self::bind,
-    ];
 
     /** @param  array<array-key, mixed>  $context */
     public static function validate(mixed $value, array $context): void
     {
-        $unknown = array_diff(array_keys($context), self::keys);
+        $unknown = array_diff(array_keys($context), self::selected(Key::class));
 
         if ($unknown !== []) {
             throw new LogicException(

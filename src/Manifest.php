@@ -20,19 +20,16 @@ readonly class Manifest
 
     public const string app = 'app';
 
-    /** The `Application` surface; null when the manifest has no (or an empty) `app:` block */
     #[Describe([Describe::nullable => true])]
     public ?App $app;
 
     public const string router = 'router';
 
-    /** The `Router` surface; null when the manifest has no (or an empty) `router:` block */
     #[Describe([Describe::nullable => true])]
     public ?Router $router;
 
     public const string view = 'view';
 
-    /** The `View\Factory` surface; null when the manifest has no (or an empty) `view:` block */
     #[Describe([Describe::nullable => true])]
     public ?View $view;
 
