@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use ZeroToProd\LaravelDeclaration\DeclaredModel;
@@ -30,5 +32,14 @@ final class Flight extends DeclaredModel
     protected function casts(): array
     {
         return ['departed_at' => 'datetime'];
+    }
+
+    /**
+     * @param  Builder<Flight>  $query
+     */
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->where('status', 'active');
     }
 }

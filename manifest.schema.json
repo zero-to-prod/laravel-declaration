@@ -28,6 +28,11 @@
       "description": "Eloquent models. Each entry is the class body of a DeclaredModel subclass, found by static::class.",
       "type": "array",
       "items": { "$ref": "#/definitions/model" }
+    },
+    "queries": {
+      "description": "Declared Eloquent query pipelines.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/query" }
     }
   },
   "definitions": {
@@ -566,6 +571,311 @@
           "items": { "$ref": "#/definitions/classString" }
         },
         "getRouteKeyName": { "description": "-> getRouteKeyName() (#[RouteKey]): the column router.model and route() use. Absent: the primary key.", "type": "string" }
+      }
+    },
+    "query": {
+      "description": "A reusable Eloquent query pipeline. The reserved `name` is the query handle; the reserved `from` is the Model FQCN or parameter relation. Every other key is an Illuminate\\Database\\Eloquent\\Builder method name.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "from"],
+      "properties": {
+        "name": {
+          "description": "Reserved: unique query handle, referenced by DeclaredView (data: {posts: user-posts}) or DeclaredQuery::run().",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "from": {
+          "description": "Reserved: query root. Model FQCN (App\\Models\\Flight) or route parameter relation (user.posts).",
+          "type": "string"
+        },
+        "select": {
+          "description": "-> select($columns): set columns to be selected.",
+          "$ref": "#/definitions/columns"
+        },
+        "addSelect": {
+          "description": "-> addSelect($column): add column(s) to existing select.",
+          "oneOf": [
+            { "$ref": "#/definitions/columns" },
+            { "type": "string" }
+          ]
+        },
+        "distinct": {
+          "description": "-> distinct(): force query to return distinct results.",
+          "type": "boolean"
+        },
+        "where": {
+          "description": "-> where(): add basic where clause, compound array of conditions, or key-value map.",
+          "type": ["array", "object"]
+        },
+        "orWhere": {
+          "description": "-> orWhere(): add 'or where' clause.",
+          "type": ["array", "object"]
+        },
+        "whereNot": {
+          "description": "-> whereNot(): add 'where not' clause.",
+          "type": ["array", "object"]
+        },
+        "orWhereNot": {
+          "description": "-> orWhereNot(): add 'or where not' clause.",
+          "type": ["array", "object"]
+        },
+        "whereKey": {
+          "description": "-> whereKey($id): add where clause on model's primary key.",
+          "type": ["integer", "string", "array"]
+        },
+        "whereKeyNot": {
+          "description": "-> whereKeyNot($id): add where clause excluding model's primary key.",
+          "type": ["integer", "string", "array"]
+        },
+        "whereIn": {
+          "description": "-> whereIn($col, $vals): [column, [values]].",
+          "type": "array"
+        },
+        "whereNotIn": {
+          "description": "-> whereNotIn($col, $vals): [column, [values]].",
+          "type": "array"
+        },
+        "whereNull": {
+          "description": "-> whereNull($cols): column name or array of columns.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "whereNotNull": {
+          "description": "-> whereNotNull($cols): column name or array of columns.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "whereBetween": {
+          "description": "-> whereBetween($col, [$min, $max]): [column, [min, max]].",
+          "type": "array"
+        },
+        "whereNotBetween": {
+          "description": "-> whereNotBetween($col, [$min, $max]): [column, [min, max]].",
+          "type": "array"
+        },
+        "whereDate": {
+          "description": "-> whereDate($col, $op, $val): date comparison.",
+          "type": "array"
+        },
+        "whereMonth": {
+          "description": "-> whereMonth($col, $op, $val): month comparison.",
+          "type": "array"
+        },
+        "whereDay": {
+          "description": "-> whereDay($col, $op, $val): day comparison.",
+          "type": "array"
+        },
+        "whereYear": {
+          "description": "-> whereYear($col, $op, $val): year comparison.",
+          "type": "array"
+        },
+        "whereTime": {
+          "description": "-> whereTime($col, $op, $val): time comparison.",
+          "type": "array"
+        },
+        "whereColumn": {
+          "description": "-> whereColumn($first, $op, $second): cross-column comparison.",
+          "type": "array"
+        },
+        "whereRelation": {
+          "description": "-> whereRelation($rel, $col, $op, $val): relationship table filter.",
+          "type": "array"
+        },
+        "orWhereRelation": {
+          "description": "-> orWhereRelation($rel, $col, $op, $val): or where on relationship table.",
+          "type": "array"
+        },
+        "whereDoesntHaveRelation": {
+          "description": "-> whereDoesntHaveRelation($rel, $col, $op, $val): negated relationship column constraint.",
+          "type": "array"
+        },
+        "whereBelongsTo": {
+          "description": "-> whereBelongsTo($model, $relation): route parameter owner model name, or [param, relation].",
+          "type": ["string", "array"]
+        },
+        "has": {
+          "description": "-> has($rel, $op, $count): relationship existence constraint.",
+          "type": ["string", "array"]
+        },
+        "doesntHave": {
+          "description": "-> doesntHave($rel): relationship absence constraint.",
+          "type": "string"
+        },
+        "with": {
+          "description": "-> with($relations): eager load relationships.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "without": {
+          "description": "-> without($relations): exclude eager loaded relationships.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "withOnly": {
+          "description": "-> withOnly($relations): reset eager loads to only specified relations.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "withCount": {
+          "description": "-> withCount($relations): add {relation}_count aggregates.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "withMax": {
+          "description": "-> withMax($rel, $col): [relation, column].",
+          "type": "array"
+        },
+        "withMin": {
+          "description": "-> withMin($rel, $col): [relation, column].",
+          "type": "array"
+        },
+        "withSum": {
+          "description": "-> withSum($rel, $col): [relation, column].",
+          "type": "array"
+        },
+        "withAvg": {
+          "description": "-> withAvg($rel, $col): [relation, column].",
+          "type": "array"
+        },
+        "withExists": {
+          "description": "-> withExists($relations): add {relation}_exists boolean subquery.",
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/columns" }
+          ]
+        },
+        "scopes": {
+          "description": "-> scopes($scopes): call local model scopes with arguments.",
+          "type": ["string", "array", "object"]
+        },
+        "withoutGlobalScope": {
+          "description": "-> withoutGlobalScope($scope): remove specific global scope class.",
+          "type": "string"
+        },
+        "withoutGlobalScopes": {
+          "description": "-> withoutGlobalScopes($scopes): remove all or specific global scopes.",
+          "type": ["boolean", "array"]
+        },
+        "orderBy": {
+          "description": "-> orderBy($col, $dir): column and optional direction.",
+          "type": ["string", "array"]
+        },
+        "orderByDesc": {
+          "description": "-> orderByDesc($col): descending order by column.",
+          "type": "string"
+        },
+        "latest": {
+          "description": "-> latest($column): order descending by column (default created_at).",
+          "type": ["string", "boolean", "null"]
+        },
+        "oldest": {
+          "description": "-> oldest($column): order ascending by column (default created_at).",
+          "type": ["string", "boolean", "null"]
+        },
+        "inRandomOrder": {
+          "description": "-> inRandomOrder($seed): random order with optional seed.",
+          "type": ["boolean", "string"]
+        },
+        "groupBy": {
+          "description": "-> groupBy(...$groups): group by columns.",
+          "type": ["string", "array"]
+        },
+        "having": {
+          "description": "-> having($col, $op, $val): having clause.",
+          "type": "array"
+        },
+        "limit": {
+          "description": "-> limit($val): row limit.",
+          "type": "integer"
+        },
+        "offset": {
+          "description": "-> offset($val): row offset.",
+          "type": "integer"
+        },
+        "paginate": {
+          "description": "Terminal -> paginate($perPage, ...): paginate query using request ?page.",
+          "type": ["integer", "boolean", "array"]
+        },
+        "simplePaginate": {
+          "description": "Terminal -> simplePaginate($perPage, ...): efficient pagination without total count.",
+          "type": ["integer", "boolean", "array"]
+        },
+        "cursorPaginate": {
+          "description": "Terminal -> cursorPaginate($perPage, ...): cursor-based keyset pagination.",
+          "type": ["integer", "boolean", "array"]
+        },
+        "get": {
+          "description": "Terminal -> get($columns): retrieve all matching models (default terminal).",
+          "type": ["boolean", "string", "array"]
+        },
+        "first": {
+          "description": "Terminal -> first($columns): retrieve first matching record or null.",
+          "type": ["boolean", "string", "array"]
+        },
+        "firstOrFail": {
+          "description": "Terminal -> firstOrFail($columns): retrieve first record or throw ModelNotFoundException.",
+          "type": ["boolean", "string", "array"]
+        },
+        "sole": {
+          "description": "Terminal -> sole($columns): retrieve exactly one record; throws if 0 or >1.",
+          "type": ["boolean", "string", "array"]
+        },
+        "find": {
+          "description": "Terminal -> find($id, $columns): find record by primary key.",
+          "type": ["integer", "string", "array"]
+        },
+        "findOrFail": {
+          "description": "Terminal -> findOrFail($id, $columns): find record by primary key or throw ModelNotFoundException.",
+          "type": ["integer", "string", "array"]
+        },
+        "count": {
+          "description": "Terminal -> count($columns): count matching records.",
+          "type": ["boolean", "string"]
+        },
+        "min": {
+          "description": "Terminal -> min($column): retrieve minimum column value.",
+          "type": "string"
+        },
+        "max": {
+          "description": "Terminal -> max($column): retrieve maximum column value.",
+          "type": "string"
+        },
+        "sum": {
+          "description": "Terminal -> sum($column): retrieve sum of column values.",
+          "type": "string"
+        },
+        "avg": {
+          "description": "Terminal -> avg($column): retrieve average of column values.",
+          "type": "string"
+        },
+        "exists": {
+          "description": "Terminal -> exists(): determine if any matching records exist.",
+          "type": "boolean"
+        },
+        "doesntExist": {
+          "description": "Terminal -> doesntExist(): determine if no matching records exist.",
+          "type": "boolean"
+        },
+        "pluck": {
+          "description": "Terminal -> pluck($col, $key): pluck list or keyed map of column values.",
+          "type": ["string", "array"]
+        },
+        "value": {
+          "description": "Terminal -> value($column): retrieve single column value from first row.",
+          "type": "string"
+        }
       }
     }
   }

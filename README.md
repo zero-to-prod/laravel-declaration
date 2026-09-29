@@ -339,6 +339,56 @@ final class Flight extends DeclaredModel
 }
 ```
 
+## Queries
+
+Declare reusable Eloquent query pipelines in the `queries` list. The reserved
+key `name` names the query. The reserved key `from` roots the query on an
+Eloquent model class (`App\Models\Flight`) or a bound route parameter relation
+(`user.posts`). Every other key is an `Illuminate\Database\Eloquent\Builder`
+method name, and its value is that method's argument(s). A terminal execution
+method (`paginate`, `simplePaginate`, `cursorPaginate`, `get`, `first`,
+`firstOrFail`, `sole`, `count`, `exists`, `value`, `pluck`) executes the
+pipeline, defaulting to `get()`. Dynamic request arguments stay in **local
+scopes** on the Model class (`#[Scope]`).
+
+Complete structure:
+
+```yaml
+queries:
+  # Route parameter relation with scopes, eager loading and pagination
+  - name: user-posts
+    from: user.posts                             # route parameter {user} -> $user->posts()
+    where: [status, published]                   # -> where('status', '=', 'published')
+    with: [author]                               # -> with(['author'])
+    withCount: [comments]                        # -> withCount(['comments'])
+    scopes: [featured]                           # -> local scope featured() on Post
+    latest: published_at                         # -> latest('published_at')
+    paginate: 10                                 # terminal -> paginate(10)
+
+  # Direct model root with scalar aggregate terminal
+  - name: active-flight-count
+    from: App\Models\Flight                      # model root -> Flight::query()
+    where: [status, active]
+    count: true                                  # terminal -> count()
+```
+
+Declared query pipelines can be executed directly via `DeclaredQuery::run()` or
+resolved automatically in `DeclaredView` `data:` mappings:
+
+```yaml
+routes:
+  - path: "users/{user}/posts"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\DeclaredView
+    name: users.posts
+    middleware: [web]                            # SubstituteBindings binds {user}
+    setDefaults:
+      view: users.posts
+      data:
+        title: User Articles                     # literal string
+        posts: user-posts                        # declared query handle!
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

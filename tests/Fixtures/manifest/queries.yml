@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+router:
+  model:
+    airline: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
+
+view:
+  addLocation: [resources/declared-views]
+
+models:
+  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
+    table: airlines
+    fillable: [name]
+    timestamps: false
+
+  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    table: my_flights
+    primaryKey: flight_id
+    keyType: string
+    incrementing: false
+    fillable: [flight_id, airline_id, name, code, status, delayed, departed_at, secret, options, altitude]
+    casts:
+      delayed: boolean
+      options: array
+
+queries:
+  - name: all-flights
+    from: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    select: [flight_id, name, code, status]
+    orderBy: flight_id
+
+  - name: active-flights
+    from: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    where: [status, active]
+    get: true
+
+  - name: airline-flights
+    from: airline.flights
+    where: [status, active]
+    paginate: 5
+
+  - name: flight-count
+    from: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    count: true
+
+routes:
+  - path: "airlines/{airline}/flights"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\DeclaredView
+    name: airline.flights
+    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      view: flights
+      data:
+        title: Flights List
+        flights: airline-flights

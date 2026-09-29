@@ -63,4 +63,14 @@ readonly class Manifest
         'type' => Route::class,
     ])]
     public Collection $routes;
+
+    public const string queries = 'queries';
+
+    /** @var Collection<string, Query> */
+    #[Describe([
+        Describe::cast => [self::class, 'mapOf'],
+        'type' => Query::class,
+        'key_by' => Query::name,
+    ])]
+    public Collection $queries;
 }

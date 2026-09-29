@@ -22,11 +22,18 @@ class DeclaredView extends ViewController
 
         /** @var array<string, mixed> $data */
         $data = $args['data'];
+        $manifest = app(Manifest::class);
 
         $args['data'] = array_map(
-            static fn (mixed $value): mixed => is_string($value) && str_contains(Str::before($value, '@'), '\\')
-                ? app()->call($value, $parameters)
-                : $value,
+            static function (mixed $value) use ($parameters, $manifest): mixed {
+                if (is_string($value) && $manifest->queries->has($value)) {
+                    return DeclaredQuery::run($value, $parameters);
+                }
+
+                return is_string($value) && str_contains(Str::before($value, '@'), '\\')
+                    ? app()->call($value, $parameters)
+                    : $value;
+            },
             $data,
         );
 
