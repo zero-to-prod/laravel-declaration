@@ -784,27 +784,7 @@ final class DeclaredQuery
 
    namespace ZeroToProd\LaravelDeclaration;
 
-   use Illuminate\Database\Eloquent\Builder;
-   use Illuminate\Database\Eloquent\Model;
-   use Illuminate\Database\Eloquent\Relations\Relation;
-   use InvalidArgumentException;
-   use LogicException;
-   use ReflectionAttribute;
-   use ReflectionClass;
-   use Zerotoprod\DataModel\Describe;
-   use ZeroToProd\LaravelDeclaration\Attributes\Key;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\BelongsTo;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Clause;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Count;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Exists;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Fetch;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Find;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Flag;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Paginate;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Spread;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Terminal;
-   use ZeroToProd\LaravelDeclaration\Attributes\Query\Where;
-   use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use Illuminate\Database\Eloquent\Builder;use Illuminate\Database\Eloquent\Model;use Illuminate\Database\Eloquent\Relations\Relation;use InvalidArgumentException;use LogicException;use ReflectionAttribute;use ReflectionClass;use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\BelongsTo;use ZeroToProd\LaravelDeclaration\Attributes\Clause;use ZeroToProd\LaravelDeclaration\Attributes\Count;use ZeroToProd\LaravelDeclaration\Attributes\Exists;use ZeroToProd\LaravelDeclaration\Attributes\Fetch;use ZeroToProd\LaravelDeclaration\Attributes\Find;use ZeroToProd\LaravelDeclaration\Attributes\Flag;use ZeroToProd\LaravelDeclaration\Attributes\Key;use ZeroToProd\LaravelDeclaration\Attributes\Paginate;use ZeroToProd\LaravelDeclaration\Attributes\Spread;use ZeroToProd\LaravelDeclaration\Attributes\Terminal;use ZeroToProd\LaravelDeclaration\Attributes\Where;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
    final readonly class Query
    {

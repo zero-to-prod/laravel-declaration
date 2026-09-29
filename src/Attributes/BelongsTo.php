@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelDeclaration\Attributes\Query;
+namespace ZeroToProd\LaravelDeclaration\Attributes;
 
 use Attribute;
 use Illuminate\Database\Eloquent\Builder;

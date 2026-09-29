@@ -11,12 +11,12 @@ final class DeclaredQuery
     /** @param  array<string, mixed>  $parameters */
     public static function run(string $name, array $parameters = []): mixed
     {
-        $query = app(Manifest::class)->queries->get($name);
+        $Query = app(Manifest::class)->queries->get($name);
 
-        if (! $query instanceof Query) {
+        if (! $Query instanceof Query) {
             throw new LogicException("The declared query [$name] does not exist.");
         }
 
-        return $query->run($parameters);
+        return $Query->run($parameters);
     }
 }
