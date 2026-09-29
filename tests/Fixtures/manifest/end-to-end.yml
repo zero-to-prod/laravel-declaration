@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=./../../manifest.schema.json
+
+kernel:
+  setMiddlewarePriority:
+    - Illuminate\Routing\Middleware\SubstituteBindings
+
+router:
+  model:
+    user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
+
+view:
+  addLocation: [resources/declared-views]
+  share:
+    brand: Tenant Console
+  composer:
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant: '*'
+
+requests:
+  - name: post-filters
+    rules:
+      sort: [nullable, 'in:created_at,title']
+
+queries:
+  - name: user-posts
+    from: user.posts
+    with: [author]
+    latest: created_at
+    paginate: 15
+
+routes:
+  - path: "users/{user}/posts"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\DeclaredView
+    name: users.posts
+    middleware: [web]
+    where: {user: '[0-9]+'}
+    metadata: {request: post-filters}
+    setDefaults:
+      view: users.posts
+      data:
+        title: Posts
+        posts: user-posts
+        stats: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\PostStats@forUser

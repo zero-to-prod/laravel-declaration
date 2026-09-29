@@ -1,1 +1,1 @@
-{{ $brand }}|{{ $title }}|{{ $posts['user'] }}:{{ $posts['sort'] }}|{{ $stats }}|{{ $user->getKey() }}
+{{ $brand }}|{{ $title }}|{{ is_array($posts) ? $posts['user'].':'.$posts['sort'] : $posts->total().':'.$posts->currentPage() }}|{{ $stats }}|{{ $user->getKey() }}{{ isset($tenant) ? '|'.$tenant : '' }}

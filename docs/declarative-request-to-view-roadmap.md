@@ -235,7 +235,7 @@ Middleware aliases, groups, and priority, declared where they are durable: `Kern
 
 ```yaml
 kernel:
-  middlewarePriority:
+  setMiddlewarePriority:
     - Illuminate\Routing\Middleware\SubstituteBindings
 
 router:
@@ -299,8 +299,8 @@ All 5 roadmap phases and related core subsystems are **completed, tested, and gr
 
 The core declarative request-to-view roadmap is functionally complete. The following optional follow-up tasks and future extensions remain:
 
-1. **Unified Full-Stack Integration Test**:
-   - Add a single end-to-end integration test (`tests/Feature/EndToEndRequestToViewTest.php`) and fixture asserting the entire unified pipeline (`kernel` + `router.model` + `requests` + `queries` + `view.share` + `view.composer` + `DeclaredView`) executing within a single HTTP request lifecycle exactly as presented in §4.
+1. **Unified Full-Stack Integration Test** [Completed]:
+   - End-to-end integration test (`tests/Feature/EndToEndRequestToViewTest.php`) and fixture (`tests/Fixtures/manifest/end-to-end.yml`) asserting the entire unified pipeline (`kernel` + `router.model` + `requests` + `queries` + `view.share` + `view.composer` + `DeclaredView`) executing within a single HTTP request lifecycle exactly as presented in §4 (documented in `docs/declarative-end-to-end-request-to-view.md`).
 2. **Phase 0 Documentation / Test Decision**:
    - Either add `tests/Feature/RouteViewTest.php` pinning vanilla `Illuminate\Routing\ViewController` behavior, or officially document it as superseded in favor of `DeclaredView`.
 3. **Future Extension — `DeclaredJson`**:
