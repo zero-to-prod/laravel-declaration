@@ -1,5 +1,7 @@
 # Declarative Gate & Form Request Seam — Implementation Plan
 
+> **Shipped.** Implemented per §7: `src/Gate.php`, `src/Providers/GateDeclarationServiceProvider.php`, `src/Manifest.php` (`gate`), `src/DefaultProviders.php`, `src/Request.php`, `src/DeclaredRequest.php` (`gateCall`/`gateArgument`), `manifest.schema.json`, `tests/Fixtures/manifest/gate.yml`, `tests/Feature/GateRegistrationTest.php`. Two plan deviations: the §3.7 schema's `arguments` widened to also accept numbers (§2.4's non-string passthrough, exercised by `arguments: 5` in §5.2), and the §5.3 test manifest fixtures set `app.key` (the repo convention for `web`-middleware tests).
+
 Implements the last open row of [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md):
 
 > **7 | Form Request Seam (Tier 2) | `DeclaredRequest` | `[/]` | `authorize` resolves string refs via `Container::call` | `[/]` (narrower)**

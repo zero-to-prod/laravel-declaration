@@ -7,6 +7,7 @@ namespace ZeroToProd\LaravelDeclaration;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -19,6 +20,8 @@ class DeclaredRequest extends FormRequest
     private const string when = 'when';
 
     private const string unless = 'unless';
+
+    private const string arguments = 'arguments';
 
     private const string condition = 'condition';
 
@@ -55,10 +58,52 @@ class DeclaredRequest extends FormRequest
     {
         $authorize = $this->declaration()->authorize;
 
-        /** @var bool|Response $authorize */
-        $authorize = $authorize === null ? true : $this->resolve($authorize);
+        /** @var bool|Response $result */
+        $result = match (true) {
+            $authorize === null => true,
+            is_array($authorize) => $this->gateCall($authorize),
+            default => $this->resolve($authorize),
+        };
 
-        return $authorize;
+        return $result;
+    }
+
+    /** @param  array<string, array<string, mixed>>  $authorize */
+    private function gateCall(array $authorize): bool|Response
+    {
+        if (count($authorize) !== 1) {
+            throw new LogicException('The `authorize` map declares '.count($authorize).' Gate methods; declare one.');
+        }
+
+        $method = array_key_first($authorize);
+
+        $parameters = $authorize[$method];
+
+        if (array_key_exists(self::arguments, $parameters)) {
+            $arguments = $parameters[self::arguments];
+
+            $parameters[self::arguments] = is_array($arguments)
+                ? array_map($this->gateArgument(...), $arguments)
+                : $this->gateArgument($arguments);
+        }
+
+        /** @var GateContract $Gate */
+        $Gate = $this->container->make(GateContract::class)->forUser($this->user());
+
+        $result = $this->container->call([$Gate, $method], $parameters);   // @phpstan-ignore argument.type (the method name is manifest-declared; unknown names fail with Laravel's own exceptions)
+
+        /** @var bool|Response $result */
+        return $result;
+    }
+
+    private function gateArgument(mixed $argument): mixed
+    {
+        if (! is_string($argument) || str_contains($argument, '\\')) {
+            return $argument;
+        }
+
+        return $this->route($argument)
+            ?? (preg_match("/^['\"](.*)['\"]$/", $argument, $matches) ? $matches[1] : null);
     }
 
     /** @return array<string, string> */
@@ -214,10 +259,7 @@ class DeclaredRequest extends FormRequest
         );
     }
 
-    /** The native $rules/$defaultRules argument: a pipe string passes untouched, list entries resolve per rule.
-     *
-     * @return string|array<int, mixed>
-     */
+    /** @return string|array<int, mixed> */
     private function conditionalRules(mixed $rules): mixed
     {
         return is_string($rules) ? $rules : array_map($this->rule(...), (array) $rules);

@@ -26,6 +26,7 @@
     "validator": {
       "$ref": "#/definitions/validator"
     },
+    "gate": { "$ref": "#/definitions/gate" },
     "models": {
       "type": "array",
       "items": { "$ref": "#/definitions/model" }
@@ -636,6 +637,27 @@
         },
         "shouldFailOnUnknownFields": {
           "type": "boolean"
+        },
+        "authorize": {
+          "description": "FormRequest::authorize(): bool|Response. A boolean passes through; a string is a PHP reference resolved via Container::call; a map declares one native Gate call — the key is the Illuminate\\Contracts\\Auth\\Access\\Gate method name (check, any, none, allows, denies, inspect, authorize, raw) and the value is a map of that method's native parameter names (ability|abilities, arguments). `arguments` follows Authorize::getGateArguments(): a class-string passes through, a route parameter name resolves to its bound value, a quoted literal unquotes.",
+          "oneOf": [
+            { "type": "boolean" },
+            { "$ref": "#/definitions/reference" },
+            {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "ability": { "type": "string" },
+                  "abilities": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+                  "arguments": { "oneOf": [{ "type": ["string", "number"] }, { "type": "array", "items": { "type": ["string", "number"] } }] }
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -663,6 +685,23 @@
           "description": "-> replacer($rule, $replacer), one call per entry: the value replaces message placeholders; a bare class-string resolves to its `replace` method.",
           "type": "object",
           "additionalProperties": {"$ref": "#/definitions/reference"}
+        }
+      }
+    },
+    "gate": {
+      "description": "Illuminate\\Contracts\\Auth\\Access\\Gate registry methods: every key is a method name, its value the registry content — one call per entry. Applied when the Gate first resolves (callAfterResolving).",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "description": "≈ Gate::policy($class, $policy), one call per entry: the key is the model class-string, the value the policy class-string.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/reference" }
+        },
+        "define": {
+          "description": "≈ Gate::define($ability, $callback), one call per entry: the key is the ability name, the value the 'Class@method' or invokable class-string reference, passed through untouched.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/reference" }
         }
       }
     },

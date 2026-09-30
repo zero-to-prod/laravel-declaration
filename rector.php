@@ -18,4 +18,7 @@ return RectorConfig::configure()
     )
     ->withSets([
         PestSetList::CODING_STYLE,
+    ])
+    ->withSkip([
+        __DIR__.'/tests/Fixtures/App/Acceptance/References',
     ]);

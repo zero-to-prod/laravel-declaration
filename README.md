@@ -323,7 +323,7 @@ Complete structure:
 ```yaml
 requests:
   - name: user                                   # reserved: the handle routes reference
-    authorize: App\Http\Gates\CreateUser          # -> authorize(); bool | reference; absent -> true
+    authorize: App\Http\Gates\CreateUser          # -> authorize(); bool | reference | Gate-call map (see Gate); absent -> true
     rules:                                        # -> rules(); map | reference
       name: [required, string, max:255]           # Laravel rules, untouched
       nickname: nullable|string|max:32            # pipe string, untouched
@@ -390,6 +390,54 @@ public function store(DeclaredRequest $request): RedirectResponse
     $validated = $request->validated();   // runtime accessors unchanged
 }
 ```
+
+## Gate
+
+Register policies and abilities on the shared `Illuminate\Contracts\Auth\Access\Gate` with the
+`gate` object (docs/declarative-gate.md). Every key is a native `Gate` registry method, one call
+per entry, applied once when the Gate first resolves:
+
+```yaml
+gate:
+  policy:                                            # ≙ Gate::policy($class, $policy)
+    App\Models\Post: App\Policies\PostPolicy
+  define:                                            # ≙ Gate::define($ability, $callback)
+    publish: App\Gates\PublishGate@publish           # 'Class@method' | bare invokable class-string
+```
+
+A request's `authorize` map form declares one native Gate call for the request user — the key is
+the `Illuminate\Contracts\Auth\Access\Gate` method name (`check`, `any`, `none`, `allows`,
+`denies`, `inspect`, `authorize`, `raw`) and the value is a map of that method's native
+parameter names:
+
+| YAML key | Native parameter | Resolution |
+|---|---|---|
+| `ability` | `$ability` of `allows`/`denies`/`authorize`/`inspect`/`raw` | passes through |
+| `abilities` | `$abilities` of `check`/`any`/`none` | a string or a list |
+| `arguments` | `$arguments` (default `[]`) | a class-string passes through, a route parameter name resolves to its bound value, a quoted literal unquotes, a non-string passes through; a list resolves per entry |
+
+```yaml
+requests:
+  - name: post
+    authorize:                                       # ≙ Gate::inspect('update', <route-bound {post}>)
+      inspect:
+        ability: update
+        arguments: post                              # native can:update,post semantics
+    rules:
+      title: [required, string]
+
+  - name: comments
+    authorize:                                       # ≙ Gate::check('viewAny', App\Models\Comment) → bool
+      check:
+        abilities: viewAny
+        arguments: App\Models\Comment
+    rules:
+      body: [required, string]
+```
+
+Denied semantics are native: a `bool` denial runs the declared `failedAuthorization` reference,
+then throws `AuthorizationException`; a denied `Response` (`inspect`, `raw`) is `->authorize()`d
+inside `passesAuthorization()` and throws there; `Gate::authorize()` throws directly.
 
 ## Models
 

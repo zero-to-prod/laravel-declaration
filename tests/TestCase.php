@@ -26,16 +26,9 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            // Real applications discover this from laravel/mcp's composer
-            // manifest. Testbench does not, so it is listed explicitly.
             McpServiceProvider::class,
-            // Warms `view` only when config('laravel-declaration.warm-views') is set, so the
-            // declaration block's epilogue flushes genuinely stale state (§1.1.2's immediate run).
             ViewWarmProvider::class,
             LaravelDeclarationProvider::class,
-            // Its register() runs before the `app:` block is applied in the
-            // registered() pass, so its LocaleUpdated listener observes the
-            // dispatch setLocale() makes there.
             EventSpyProvider::class,
         ];
     }
@@ -47,10 +40,6 @@ abstract class TestCase extends Orchestra
         parent::setUp();
     }
 
-    /**
-     * Applied right after the config files load, before any provider
-     * registers — where a host's own config/*.php values sit.
-     */
     protected function resolveApplicationConfiguration($app): void
     {
         parent::resolveApplicationConfiguration($app);
@@ -72,10 +61,6 @@ abstract class TestCase extends Orchestra
         return $this;
     }
 
-    /**
-     * Writes a temp manifest file for `laravel-declaration.manifest`. Deleted in
-     * tearDown() — the app reads it once, during the boot `withConfig()` triggers.
-     */
     protected function manifest(string $yaml): string
     {
         $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
@@ -95,12 +80,6 @@ abstract class TestCase extends Orchestra
         parent::tearDown();
     }
 
-    /**
-     * Copies the `.php` files the manifest's `app:` block references, and the view
-     * directories the `view:` block declares, into Testbench's skeleton: relative
-     * references resolve under basePath(), which is that skeleton, not this
-     * repository.
-     */
     private function copyApplicationFiles(): void
     {
         $skeleton = default_skeleton_path();
@@ -112,15 +91,36 @@ abstract class TestCase extends Orchestra
             'app/hooks/registered.php' => 'Hooks/registered.php',
             'app/hooks/booted.php' => 'Hooks/booted.php',
         ] as $relative => $fixture) {
-            $target = $skeleton.'/'.$relative;
+            $this->copyFixtureIntoSkeleton($skeleton, $relative, __DIR__.'/Fixtures/App/Application/'.$fixture);
+        }
 
-            if (! is_dir($directory = dirname($target))) {
-                mkdir($directory, recursive: true);
-            }
-
-            copy(__DIR__.'/Fixtures/App/Application/'.$fixture, $target);
+        foreach ([
+            'app/acceptance/transistor.php' => 'References/transistor.php',
+            'app/acceptance/inferred.php' => 'References/inferred.php',
+            'app/acceptance/decorate-store.php' => 'References/decorate-store.php',
+            'app/acceptance/local-disk.php' => 'References/local-disk.php',
+            'app/acceptance/s3-disk.php' => 'References/s3-disk.php',
+            'app/acceptance/user-id.php' => 'References/user-id.php',
+            'app/acceptance/resolve-listener.php' => 'References/resolve-listener.php',
+            'app/acceptance/cache-extend.php' => 'References/cache-extend.php',
+            'app/acceptance/registered.php' => 'References/registered.php',
+        ] as $relative => $fixture) {
+            $this->copyFixtureIntoSkeleton($skeleton, $relative, __DIR__.'/Fixtures/App/Acceptance/'.$fixture);
         }
 
         (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/View/views', $skeleton.'/resources/declared-views');
+
+        (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/Acceptance/Lang', $skeleton.'/lang');
+    }
+
+    private function copyFixtureIntoSkeleton(string $skeleton, string $relative, string $fixture): void
+    {
+        $target = $skeleton.'/'.$relative;
+
+        if (! is_dir($directory = dirname($target))) {
+            mkdir($directory, recursive: true);
+        }
+
+        copy($fixture, $target);
     }
 }

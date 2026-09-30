@@ -10,6 +10,7 @@ use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\BladeDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ConfigDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\DatabaseDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\GateDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\PaginationDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
@@ -43,6 +44,7 @@ final readonly class DefaultProviders
             ResponseDeclarationServiceProvider::class,
             PaginationDeclarationServiceProvider::class,
             ValidatorDeclarationServiceProvider::class,
+            GateDeclarationServiceProvider::class,
             DatabaseDeclarationServiceProvider::class,
             KernelDeclarationServiceProvider::class,
             ProvidersDeclarationServiceProvider::class,

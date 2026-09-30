@@ -18,8 +18,9 @@ final readonly class Request
 
     public const string authorize = 'authorize';
 
+    /** @var bool|string|array<string, array<string, mixed>>|null */
     #[Describe([Describe::nullable => true])]
-    public bool|string|null $authorize;
+    public bool|string|array|null $authorize;
 
     public const string rules = 'rules';
 

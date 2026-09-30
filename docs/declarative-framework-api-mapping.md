@@ -74,7 +74,7 @@ Status designations:
 ### Domain 5: Request Lifecycle, Input Resolution & Validation
 - [x] **Form Request Declaration** (`Illuminate\Foundation\Http\FormRequest`) — `requests:` (native `shouldFailOnUnknownFields()`, rule class-strings container-resolved, `validator:` factory extensions and `Rule::when()`/`Rule::unless()` conditional rules shipped)
 - [x] **Validation Factory & Custom Rules** (`Illuminate\Validation\Factory`, `Illuminate\Contracts\Validation\ValidationRule`) — `validator:`
-- [/] **Form Request Seam** (`Illuminate\Foundation\Http\FormRequest`) — `DeclaredRequest` (lacks policy-based authorization hooks)
+- [x] **Form Request Seam** (`Illuminate\Foundation\Http\FormRequest`) — `DeclaredRequest` (`authorize` map form dispatches onto the native `Gate` contract via `Container::call`; `gate:` `policy`/`define` shipped — [declarative-gate.md](declarative-gate.md))
 
 ### Domain 6: Response Generation, Redirects & Transport
 - [ ] **Response Factory & Macros** (`Illuminate\Contracts\Routing\ResponseFactory`, `Illuminate\Routing\ResponseFactory`) — `responses:`
@@ -98,7 +98,7 @@ Status designations:
 - [ ] **Full-Text Search (Scout)** (`Laravel\Scout\Searchable`) — `scout:`
 
 ### Domain 9: Security, Identity & Access Control
-- [ ] **Authorization Gates & Policies** (`Illuminate\Contracts\Auth\Access\Gate`, `Illuminate\Auth\Access\Gate`) — `gate:`
+- [/] **Authorization Gates & Policies** (`Illuminate\Contracts\Auth\Access\Gate`, `Illuminate\Auth\Access\Gate`) — `gate:` (`define`, `policy` mapped — [declarative-gate.md](declarative-gate.md); `before`, `after`, `resource`, `allowIf`/`denyIf` remain)
 - [ ] **Authentication Manager & Guards** (`Illuminate\Auth\AuthManager`) — `auth:`
 - [!] **Session Store & Flash Data** (`Illuminate\Session\SessionManager`, `Illuminate\Session\Store`) — `session:` (substituted by `FlashAction` glue)
 - [ ] **Hashing & Encryption** (`Illuminate\Hashing\HashManager`, `Illuminate\Encryption\Encrypter`) — `hashing:`, `encryption:`
@@ -198,12 +198,13 @@ When a native Laravel subsystem is omitted from **Tier 1 (API Map)**, downstream
   - Violates the self-contained promise of zero-file model declaration.
 - **Pure Tier 1 Elimination**: Map `models.relations:` to Eloquent relation definitions in Tier 1, allowing `DeclaredModel` to synthesize relational methods dynamically.
 
-### 1.7 The Authorization Gate Void (`src/Request.php`, `src/DeclaredRequest.php`)
-- **Glue Artifact**: Hand-coded boolean flags or external PHP classes for request authorization.
-- **Underlying Missing Mapping**: `Illuminate\Contracts\Auth\Access\Gate` (`gate:`).
+### 1.7 The Authorization Gate Void (`src/Request.php`, `src/DeclaredRequest.php`) — resolved with remainder
+- **Status**: Resolved by [declarative-gate.md](declarative-gate.md): `gate:` ships `Gate::policy()`/`Gate::define()` (Tier 1) and the seam's `authorize` map form dispatches onto the native `Gate` contract via `Container::call` (Tier 2). Remainder: `before`/`after`/`resource`/`allowIf`/`denyIf`/`guessPolicyNamesUsing` stay with the Domain 9 `gate:` row.
+- **Glue Artifact**: ~~Hand-coded boolean flags or external PHP classes for request authorization.~~
+- **Underlying Missing Mapping**: ~~`Illuminate\Contracts\Auth\Access\Gate` (`gate:`).~~
 - **Architectural Defects**:
-  - `src/Route.php` provides a `can` builder, but abilities and policies cannot be declared in YAML without a `gate:` mapping.
-- **Pure Tier 1 Elimination**: Map `gate:` directly to `Gate::define()` and `Gate::policy()` in Tier 1.
+  - ~~`src/Route.php` provides a `can` builder, but abilities and policies cannot be declared in YAML without a `gate:` mapping.~~ Abilities (`gate.define`) and policies (`gate.policy`) are declarable in YAML.
+- **Pure Tier 1 Elimination**: ~~Map `gate:` directly to `Gate::define()` and `Gate::policy()` in Tier 1.~~ — implemented in `src/Gate.php` + `Providers/GateDeclarationServiceProvider.php`.
 
 ### 1.8 The Pagination presentation Void (`src/Query.php`, `src/DeclaredView.php`)
 - **Glue Artifact**: Requiring custom HTML pagination controls in inline templates.
@@ -337,7 +338,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 |---|---|---|---|---|---|---|
 | **Form Request Declaration**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 1 | **Fully Mapped** | `requests:` (`src/Request.php`) | **Mapped**: `rules`, `messages`, `attributes`, `stopOnFirstFailure`, `redirect`, `redirectRoute`, `redirectAction`, `errorBag`, `validationData`, `prepareForValidation`, `passedValidation`, `withValidator`, `after`, `validator`, `failedValidation`, `failedAuthorization`, `authorize`, `shouldFailOnUnknownFields`.<br>**Gap**: None — the former `failOnUnknownFields` invented-noun defect is resolved in favor of the native `shouldFailOnUnknownFields()`, custom rule factory dispatch ships under `validator:` ([declarative-validator.md](declarative-validator.md)), and conditional rules map onto the native `Rule::when()`/`Rule::unless()` method names. | Request definitions map fully onto `FormRequest`; custom validation rules are declarable in YAML. |
 | **Validation Factory**<br>`docs/repos/laravel/docs/validation.md` | `Illuminate\Validation\Factory`<br>`Illuminate\Contracts\Validation\ValidationRule` | Tier 1 | **Fully Mapped** | `validator:` | **Mapped**: `extend()`, `extendImplicit()`, `extendDependent()`, `replacer()` — one key per native registry-method name, applied when Laravel first resolves the shared factory ([declarative-validator.md](declarative-validator.md)).<br>**Gap**: None — references pass through untouched to Laravel's own `callClassBasedExtension`/`callClassBasedReplacer` dispatch; custom `Rule` object bindings resolve as rule class-strings inside `requests.rules`. | Custom validation rules are declarable directly in YAML; no PHP service provider required. |
-| **Form Request Seam**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 2 | **Partially Mapped** | `DeclaredRequest` (`src/DeclaredRequest.php`) | **Mapped**: Validates resolved inbound request against manifest definition; fails with standard `ValidationException`.<br>**Gap**: Policy-based authorization hooks. | Integrates declarative validation cleanly into route pipeline. |
+| **Form Request Seam**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 2 | **Fully Mapped** | `DeclaredRequest` (`src/DeclaredRequest.php`) | **Mapped**: Validates resolved inbound request against manifest definition; fails with standard `ValidationException`; `authorize` resolves string references via `Container::call` and its map form dispatches onto the native `Illuminate\Contracts\Auth\Access\Gate` contract with the `Authorize::getGateArguments()` `arguments` contract ([declarative-gate.md](declarative-gate.md)).<br>**Gap**: None — policy-based authorization hooks ship via the `gate:` block (`policy`/`define`). | Integrates declarative validation cleanly into route pipeline. |
 
 ---
 
@@ -382,7 +383,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **Authorization Gate**<br>`docs/repos/laravel/docs/authorization.md` | `Illuminate\Contracts\Auth\Access\Gate`<br>`Illuminate\Auth\Access\Gate` | Tier 1 | **Missing / Left To Do** | `gate:` | **Mapped**: None.<br>**Gap**: `define()`, `policy()`, `before()`, `after()`, `resource()`, `authorize()`. | Forces route authorization to rely on hardcoded booleans or hand-written request classes rather than native Gates/Policies. |
+| **Authorization Gate**<br>`docs/repos/laravel/docs/authorization.md` | `Illuminate\Contracts\Auth\Access\Gate`<br>`Illuminate\Auth\Access\Gate` | Tier 1 | **Partially Mapped** | `gate:` (`src/Gate.php`, `Providers/GateDeclarationServiceProvider.php`) | **Mapped**: `define()`, `policy()` — one call per entry, applied when the Gate first resolves (`callAfterResolving`); the seam's `authorize` map form consumes them through the native contract ([declarative-gate.md](declarative-gate.md)).<br>**Gap**: `before()`, `after()`, `resource()`, `allowIf()`/`denyIf()`, `guessPolicyNamesUsing()`. | **Resolved Shortcut**: Route authorization no longer relies on hardcoded booleans or hand-written request classes for policy checks; `before`/`after` callbacks remain PHP. |
 | **Authentication Guards**<br>`docs/repos/laravel/docs/authentication.md` | `Illuminate\Auth\AuthManager` | Tier 1 | **Missing / Left To Do** | `auth:` | **Mapped**: None.<br>**Gap**: `guard()`, `provider()`, `shouldUse()`, default driver selection. | Authentication guard definitions must be configured via PHP config files. |
 | **Session Manager & Store**<br>`docs/repos/laravel/docs/session.md` | `Illuminate\Session\SessionManager`<br>`Illuminate\Session\Store` | Tier 1 | **Missing / Left To Do** | `session:` | **Mapped**: None.<br>**Gap**: `flash()`, `now()`, `reflash()`, `keep()`, `put()`, `get()`. | `DeclaredAction` created bespoke `FlashAction` attribute instead of using `Session::flash()`. |
 | **Hashing & Encryption**<br>`docs/repos/laravel/docs/hashing.md`<br>`encryption.md` | `Illuminate\Hashing\HashManager`<br>`Illuminate\Encryption\Encrypter` | Tier 1 | **Missing / Left To Do** | `hashing:`, `encryption:` | **Mapped**: None.<br>**Gap**: `make()`, `encrypt()`, `decrypt()`. | Driver choices and key configurations cannot be set via YAML. |

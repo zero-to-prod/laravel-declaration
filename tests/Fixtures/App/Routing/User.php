@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing;
 
+use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Throwable;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Post;
 
-/** Resolves without a database: a numeric value is its id, anything else is not found. */
-final class User extends Model
+/** @property int $id */
+final class User extends Model implements Authenticatable
 {
+    use AuthenticatableTrait;
+
     protected $guarded = [];
 
     public function resolveRouteBinding(mixed $value, mixed $field = null): ?self

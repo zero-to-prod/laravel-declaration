@@ -153,7 +153,7 @@ Write a reference plain or single-quoted. Double quotes make `\` an escape: `"Ap
 - `Illuminate\Http\Request $req` receives the base request. `createFrom()` hands it the same JSON bag (`setJson($from->json())`), so it sees `prepareForValidation` merges on a JSON request, and not on a form request.
 - `Validator $v` is `make()`d from an unbound contract and throws `BindingResolutionException`.
 
-**Value or reference, per key.** A string is a reference. Anything else (a map, a list or a `bool`) is a value. `after` is always a list of references.
+**Value or reference, per key.** A string is a reference. Anything else (a map, a list or a `bool`) is a value. `after` is always a list of references. `authorize` is the one exception: a map declares one native `Gate` call (§2.7).
 
 **Value or reference, per rule** (an entry in a field's rule list):
 
@@ -292,7 +292,7 @@ public function store(DeclaredRequest $request): RedirectResponse
 | YAML key | `FormRequest` member | Value shape (YAML) | Reference receives | Absent → |
 |---|---|---|---|---|
 | `name` | — (reserved) | `string`, unique | — | required |
-| `authorize` | `authorize(): bool\|Response` | `bool` \| reference | `$request` | `true` (≙ no `authorize()`) |
+| `authorize` | `authorize(): bool\|Response` | `bool` \| reference \| Gate-call map (§2.7) | `$request` | `true` (≙ no `authorize()`) |
 | `rules` | `rules(): array` | `map<field, string \| list<rule>>` \| reference | `$request` | `[]` |
 | `rules.<field>[]` | one rule | Laravel rule (`string`, `[name, ...params]`) \| reference (§2.2) \| conditional entry keyed `when`/`unless` (declarative-validator.md §2.6) | `$request` | — |
 | `messages` | `messages(): array` | `map<'field.rule', string>` \| reference | `$request` | `[]` |
@@ -437,3 +437,42 @@ The type-hint is Laravel's validation trigger, exactly as for a hand-written `Fo
 - References run on every resolve, and nothing is cached (§1.1). With `failOnUnknownFields`, `rules` runs twice, because `validateNoUnknownFields()` re-reads `validationRules()` (Laravel's behavior for `rules()` too).
 - `metadata.request` is an ordinary metadata entry. `Route::metadata()` merges it with the route's other metadata. The route stores only the name string, so it is `route:cache`-safe.
 - A hand-written `FormRequest` subclass needs no manifest. Type-hint it, as in plain Laravel.
+
+### 2.7 The `authorize` Gate call
+
+A map `authorize` declares **one** `Illuminate\Contracts\Auth\Access\Gate` call: the key is the contract method name — `check`, `any`, `none`, `allows`, `denies` (return `bool`) or `inspect`, `authorize`, `raw` (return `Response`) — and the value is a map of that method's **native parameter names** (the `Rule::when()` precedent, declarative-validator.md §2.6). The dispatch is `$this->container->call([$Gate, $method], $parameters)` on the shared Gate instance `forUser($this->user())`, so `gate:`-declared policies and abilities apply. Unknown method names fail with Laravel's own `Error: Call to undefined method`; mismatched parameter names with `BindingResolutionException`.
+
+| YAML key | Native parameter | Resolution |
+|---|---|---|
+| `ability` | `$ability` of `allows`/`denies`/`authorize`/`inspect`/`raw` | passes through |
+| `abilities` | `$abilities` of `check`/`any`/`none` | a string or a list |
+| `arguments` | `$arguments` (default `[]`) | the native `Illuminate\Auth\Middleware\Authorize::getGateArguments()` contract: a class-string (contains `\`) passes through, a route parameter name resolves to its bound value (`$this->route($argument)`), a quoted literal unquotes, a non-string passes through; a list resolves per entry |
+
+The Gate resolves a **policy** only from `$arguments[0]`, so a model class-string (or a route that binds the model) drives `gate.policy` methods, while a route-parameter-name argument without a model binding pairs with a `gate.define`d string callback.
+
+Denied semantics are native: a `bool` denial (`check`, `any`, `none`, `allows`, `denies`) runs the declared `failedAuthorization` reference, then throws `AuthorizationException`; a denied `Response` (`inspect`, `raw`) is `->authorize()`d inside `passesAuthorization()` and throws there; `Gate::authorize()` throws directly. `inspect` (a Response with a message) and `check` (a bool feeding the declared failure hook) are the recommended forms.
+
+```yaml
+gate:
+  policy:                                            # ≙ Gate::policy($class, $policy)
+    App\Models\Post: App\Policies\PostPolicy
+  define:                                            # ≙ Gate::define($ability, $callback)
+    publish: App\Gates\PublishGate@publish
+
+requests:
+  - name: post
+    authorize:                                       # ≙ Gate::inspect('update', <route-bound {post}>)
+      inspect:
+        ability: update
+        arguments: post                              # the route-bound model — native can:update,post semantics
+    rules:
+      title: [required, string]
+
+  - name: comments
+    authorize:                                       # ≙ Gate::check('viewAny', App\Models\Comment) → bool
+      check:
+        abilities: viewAny
+        arguments: App\Models\Comment
+    rules:
+      body: [required, string]
+```

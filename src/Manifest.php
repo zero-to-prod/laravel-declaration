@@ -83,6 +83,11 @@ readonly class Manifest
     #[Describe([Describe::nullable => true])]
     public ?Validator $validator;
 
+    public const string gate = 'gate';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Gate $gate;
+
     public const string models = 'models';
 
     /** @var Collection<string, Model> */
