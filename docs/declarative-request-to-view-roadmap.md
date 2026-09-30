@@ -39,7 +39,7 @@ The persistent schema catalog and database tables serve as the authoritative **s
 
 ### 1.1 Explicit Route Model Binding (Stage 8)
 
-`ImplicitRouteBinding::resolveForRoute()` inspects `$route->signatureParameters(['subClass' => UrlRoutable::class])`, which depends on action method type-hints. Invokable action seams like `DeclaredView` and `DeclaredAction` define generic signatures (`__invoke(mixed ...$args)`), leaving route parameters as raw strings unless explicitly bound. `Router::substituteBindings()` resolves parameters via `$this->binders[$key]`, populated by `Router::model()` and `Router::bind()`. Explicit model bindings declared under `router.model` resolve parameter values into hydrated Eloquent model instances within the `SubstituteBindings` middleware prior to controller invocation.
+`ImplicitRouteBinding::resolveForRoute()` inspects `$route->signatureParameters(['subClass' => UrlRoutable::class])`, which depends on action method type-hints. Invokable action seams like `DeclaredView` (and the Phase 1 `DeclaredAction`) define generic signatures (`__invoke(mixed ...$args)`), leaving route parameters as raw strings unless explicitly bound. `Router::substituteBindings()` resolves parameters via `$this->binders[$key]`, populated by `Router::model()` and `Router::bind()`. Explicit model bindings declared under `router.model` resolve parameter values into hydrated Eloquent model instances within the `SubstituteBindings` middleware prior to controller invocation.
 
 ### 1.2 Declarative View Dispatch & Inline Blade Rendering (Stages 16–17)
 
@@ -91,7 +91,7 @@ The foundational framework mappings and declarative pipelines are fully implemen
 - **Database Schema Management (`schema`)**: Declarative table creation, column types, column modifiers, indexes, foreign keys, and idempotent execution via `php artisan declaration:migrate` and `SchemaDeclarationServiceProvider`.
 - **Blade Templating Engine (`blade`)**: Directives, custom if-conditions, component registration, anonymous component paths/namespaces, and stringable handlers via `BladeDeclarationServiceProvider`.
 - **View Configuration (`view`)**: View locations, namespace paths, shared view variables, and view composers/creators via `ViewDeclarationServiceProvider`.
-- **Pagination Engine (`pagination`)**: Pagination styling (Tailwind, Bootstrap 4/5) and custom view configuration via `PaginationDeclarationServiceProvider`.
+- **Pagination Engine (`pagination`)**: Pagination styling (Tailwind, Bootstrap 5) and custom view configuration via `PaginationDeclarationServiceProvider`. The native Bootstrap 3/4 presets and the `useBootstrap()` alias remain unmapped (see the Tier 1 gap inventory §2.8).
 - **Response Extensions (`responses`)**: Dynamic macro registration on `Illuminate\Contracts\Routing\ResponseFactory` via `ResponseDeclarationServiceProvider`.
 - **Routing & Model Binding (`router`, `routes`)**: Route URI registration, HTTP verb matching, where constraints, route middleware, metadata, safe defaults, global regex patterns, and explicit model/parameter binders via `RouterDeclarationServiceProvider` and `RoutesDeclarationServiceProvider`.
 - **Request Validation & Authorization (`requests`)**: Declarative form requests extending `FormRequest` via `DeclaredRequest`, validating input rules and evaluating authorization gates prior to controller dispatch.
@@ -166,6 +166,8 @@ Decisions:
 
 **Deliverables:** `src/DeclaredAction.php`, `docs/declarative-action.md`, `tests/Fixtures/manifest/action.yml`, `tests/Feature/DeclaredActionTest.php`, `manifest.schema.json`.
 
+**Status:** `docs/declarative-action.md` is written (approved spec); `src/DeclaredAction.php`, the fixture and the feature test remain to be delivered — an earlier attribute-based implementation was reverted (commit `4fc53e2`) in favor of the pure Tier 1 mappings above.
+
 ---
 
 #### Phase 2 — Zero-PHP Dynamic Model Synthesis → `DeclaredModel` [Active Scope]
@@ -183,9 +185,9 @@ models:
 
 Decisions:
 - **Dynamic class synthesis.** When `Manifest::$models` contains a class-string that does not exist on disk, a dynamic class autoloader synthesizes a runtime subclass extending `ZeroToProd\LaravelDeclaration\DeclaredModel`.
-- **Full feature parity.** Synthesized models inherit all `DeclaredModel` features: declared `table`, `fillable`, `casts`, `timestamps`, route binding via `Router::model('todo', 'App\Models\Todo')`, and query execution via `DeclaredQuery`.
+- **Parity over the declared keys.** Synthesized models inherit the declared `DeclaredModel` features: `table`, `fillable`, `casts`, `timestamps`, route binding via `Router::model('todo', 'App\Models\Todo')`, and query execution via `DeclaredQuery`. Relations, accessors/mutators, local scopes, the `casts()` method form, `booted()` and `prunable()` stay PHP in the class body per [declarative-model.md](declarative-model.md) §2.6 — a synthesized class carries the declared keys only.
 
-**Deliverables:** Dynamic autoloader hook in `LaravelDeclarationProvider`, updates to `src/DeclaredModel.php`, `docs/declarative-model.md`, `tests/Feature/DeclaredModelTest.php`.
+**Deliverables:** Dynamic autoloader hook in `LaravelDeclarationProvider` (remaining), plus already shipped: `src/DeclaredModel.php`, `docs/declarative-model.md`, `tests/Feature/DeclaredModelTest.php` (fixture `tests/Fixtures/manifest/models.yml`).
 
 ---
 
@@ -193,7 +195,7 @@ Decisions:
 
 Validates the complete single-manifest lifecycle across all subsystems in an end-to-end integration test.
 
-**Deliverables:** Single-manifest fixture `tests/Fixtures/manifest/todo-app.yml` and test suite `tests/Feature/TodoAppIntegrationTest.php` exercising schema migration (`declaration:migrate`), model synthesis, query resolution, inline Blade rendering, request validation, atomic create mutation, and delete mutation with PRG redirect.
+**Deliverables:** Single-manifest fixture `tests/Fixtures/manifest/todo-app.yml` and test suite `tests/Feature/TodoAppIntegrationTest.php` exercising schema migration (`declaration:migrate`), model synthesis, query resolution, inline Blade rendering, request validation, atomic create mutation, and delete mutation with PRG redirect. The read-side single-manifest lifecycle is already covered by `tests/Fixtures/manifest/end-to-end.yml` + `tests/Feature/EndToEndRequestToViewTest.php`; Phase 3 adds the write side.
 
 ---
 
