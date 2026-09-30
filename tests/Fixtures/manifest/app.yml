@@ -45,57 +45,58 @@ app:
 providers:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
 routes:
-  - uri: "/"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-    name: home
+  addRoute:
+    - uri: "/"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      name: home
 
-  - uri: "users/{user}"
-    methods: GET
-    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
-    name: users.show
-    where:
-      user: '[0-9]+'
-    setDefaults:
-      user: 1
-    metadata:
-      group: admin
-    missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+    - uri: "users/{user}"
+      methods: GET
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
+      name: users.show
+      where:
+        user: '[0-9]+'
+      setDefaults:
+        user: 1
+      metadata:
+        group: admin
+      missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
 
-  - uri: "users/{user}"
-    methods: PUT
-    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-    name: users.update
-    withoutMiddleware: [web]
+    - uri: "users/{user}"
+      methods: PUT
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+      name: users.update
+      withoutMiddleware: [web]
 
-  - uri: "users/{user}"
-    methods: DELETE
-    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
-    name: users.destroy
-    prefix: api
-    domain: "{account}.example.com"
-    block:
-      lockSeconds: 10
-      waitSeconds: 5
+    - uri: "users/{user}"
+      methods: DELETE
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
+      name: users.destroy
+      prefix: api
+      domain: "{account}.example.com"
+      block:
+        lockSeconds: 10
+        waitSeconds: 5
 
-  - uri: "users/{user}"
-    methods: patch
-    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-    name: users.patch
-    scopeBindings: true
+    - uri: "users/{user}"
+      methods: patch
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+      name: users.patch
+      scopeBindings: true
 
-  - uri: "users/{user}"
-    methods: POST
-    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-    name: users.store
-    can:
-      ability: view
-      models: user
-    withTrashed: true
+    - uri: "users/{user}"
+      methods: POST
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+      name: users.store
+      can:
+        ability: view
+        models: user
+      withTrashed: true
 
-  - uri: "{any}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
-    where:
-      any: '.*'
-    fallback: true
+    - uri: "{any}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
+      where:
+        any: '.*'
+      fallback: true

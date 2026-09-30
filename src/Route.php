@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
+use LogicException;
 use Zerotoprod\DataModel\Describe;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
@@ -46,5 +47,15 @@ final readonly class Route
             self::action => true,
             'path' => true,
         ]);
+    }
+
+    /** @return list<mixed> */
+    public function arguments(): array
+    {
+        if ($this->action === null) {
+            throw new LogicException("Route for URI [$this->uri] must specify an action.");
+        }
+
+        return [array_map(strtoupper(...), (array) $this->methods), $this->uri, $this->action];
     }
 }

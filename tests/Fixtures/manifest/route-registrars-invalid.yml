@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+# docs/declarative-route-registrars.md §4: an unknown Pending option fails at
+# boot with Laravel's own BadMethodCallException (Rule 7) — Macroable::__call.
+routes:
+  addRoute:
+    - uri: "/"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      name: home
+  resource:
+    - name: broken
+      controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      options:
+        nonexistent: true

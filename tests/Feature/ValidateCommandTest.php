@@ -66,7 +66,7 @@ test('laravel-declaration:validate reports each schema violation', function (): 
     File::put(storage_path('invalid.yml'), "routes: 5\nbogus: 1\n");
 
     $this->artisan('laravel-declaration:validate', ['--manifest' => storage_path('invalid.yml')])
-        ->expectsOutputToContain('routes: Integer value found, but an array is required.')
+        ->expectsOutputToContain('routes: Integer value found, but an object is required.')
         ->expectsOutputToContain('value: The property bogus is not defined')
         ->assertFailed();
 });

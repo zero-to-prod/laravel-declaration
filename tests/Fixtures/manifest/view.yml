@@ -25,7 +25,8 @@ view:
     single: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
 
 routes:
-  - uri: "users/{user}"
-    methods: GET
-    action: Illuminate\Routing\ViewController
-    setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}
+  addRoute:
+    - uri: "users/{user}"
+      methods: GET
+      action: Illuminate\Routing\ViewController
+      setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}

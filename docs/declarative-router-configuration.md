@@ -21,7 +21,9 @@ ApplicationBuilder::withMiddleware($callback)   $app->afterResolving(HttpKernel:
                                                     $kernel->setGlobalMiddleware(...) / setMiddlewareGroups(...) /
                                                     setMiddlewareAliases(...) / setMiddlewarePriority(...)
                                                     -> every setter calls syncMiddlewareToRouter())
-ApplicationBuilder::withRouting(...)            $app->booting(register(RouteServiceProvider::class))
+ApplicationBuilder::withRouting(...)            AppRouteServiceProvider::loadRoutesUsing($using);
+                                                $app->booting(register(AppRouteServiceProvider::class))
+                                                    // Illuminate\Foundation\Support\Providers\RouteServiceProvider, imported as AppRouteServiceProvider
 
 // public/index.php (or the test runner's first request)
 $kernel = $app->make(HttpKernel::class)         Kernel::__construct -> syncMiddlewareToRouter() (defaults still empty),
@@ -41,10 +43,10 @@ $kernel->handle($request)
                                                     calls syncMiddlewareToRouter() (Kernel.php:519)
             ProvidersDeclarationServiceProvider declared providers register
             RoutesDeclarationServiceProvider    manifest routes created
-        app providers boot                      AppServiceProvider::boot(), then RouteServiceProvider's booted()
+        app providers boot                      AppServiceProvider::boot(), then AppRouteServiceProvider's booted()
                                                 callback: routes/*.php (Route::resource() reads the ResourceRegistrar statics HERE)
 
-// dispatch, per request (Router.php:792)
+// dispatch, per request (Router.php:793)
 runRoute($request, $route)
     $this->events->dispatch(new RouteMatched($route, $request))   <- `matched` listeners run HERE (Router.php:797)
     runRouteWithinStack($route, $request)
@@ -85,12 +87,12 @@ Consequences, each verified against v13.33.0:
 | `middlewareGroup` | `($name, array $middleware): $this`. `@param string $name, array $middleware` | `$middlewareGroups[$name] = $middleware` — defines the group, replacing any prior value. Nested group names are expanded at dispatch; a group referencing itself throws `LogicException: [x] middleware group is referencing itself.` |
 | `aliasMiddleware` | `($name, $class): $this`. `@param string $name, string $class` | `$middleware[$name] = $class` — registers a route middleware alias usable in any route's `middleware` list (with an optional `:params` suffix at the route) |
 | `pushMiddlewareToGroup` | `($group, $middleware): $this`. `@param string $group, string $middleware` | Appends to the group, **creating the group when missing** (unlike the kernel mutator, which throws), and skipping a middleware already `in_array` the group |
-| `prependMiddlewareToGroup` | `($group, $middleware): $this` | `array_unshift` onto the group; **silent no-op when the group is missing** (no throw, no creation) |
+| `prependMiddlewareToGroup` | `($group, $middleware): $this` | `array_unshift` onto the group; skipped when the middleware is already in the group (native `in_array` guard); **silent no-op when the group is missing** (no throw, no creation) |
 | `removeMiddlewareFromGroup` | `($group, $middleware): $this` | `unset` by flipped-key lookup; **silent no-op when the group is missing or the middleware is not in it** (there is no remove on the kernel at all — this method exists only on the router) |
 | `singularResourceParameters` | `($singular = true): void`. `@param bool $singular` | `ResourceRegistrar::singularParameters($singular)` — `false` pluralizes resource parameter names globally (`{posts}`, not `{post}`); overridden per resource by a `parameters` option |
 | `resourceParameters` | `(array $parameters = []): void`. `@param array<string, string> $parameters` | `ResourceRegistrar::setParameters($parameters)` — **replaces** the global parameter map wholesale (`{resource: paramName}`) |
 | `resourceVerbs` | `(array $verbs = []): array\|null`. `@param array{create?: string, edit?: string} $verbs` | Getter/setter hybrid: `[]` returns the map; a non-empty map `array_merge`s over the statics — localizes `create`/`edit` URI segments |
-| `matched` | `($callback): void`. `@param string $callback` | `$this->events->listen(RouteMatched::class, $callback)` — one listener per call; listeners fire at dispatch, in registration order, with `(RouteMatched $event)` |
+| `matched` | `($callback): void`. `@param string\|callable $callback` | `$this->events->listen(RouteMatched::class, $callback)` — one listener per call; listeners fire at dispatch, in registration order, with `(RouteMatched $event)` |
 
 **Not declaration targets**
 
@@ -105,7 +107,7 @@ Consequences, each verified against v13.33.0:
 ### 1.4 How each declared value resolves
 
 ```php
-// Router.php:1215 — aliasMiddleware / middlewareGroup write the registries verbatim
+// Router.php:1043 / :1078 — aliasMiddleware / middlewareGroup write the registries verbatim
 public function aliasMiddleware($name, $class)   { $this->middleware[$name] = $class;   return $this; }
 public function middlewareGroup($name, array $m) { $this->middlewareGroups[$name] = $m; return $this; }
 
@@ -146,14 +148,17 @@ protected function createClassCallable($listener)
         return $this->createQueuedHandlerCallable($class, $method);   // a ShouldQueue listener is queued
     }
     $listener = $this->container->make($class);                     // constructor DI
-    return $method ? [$listener, $method] : $listener;
+    return $this->handlerShouldBeDispatchedAfterDatabaseTransactions($listener)
+            && ! in_array($method, ['creating', 'updating', 'saving', 'deleting', 'restoring', 'forceDeleting'])
+        ? $this->createCallbackForListenerRunningAfterCommits($listener, $method)   // after-commit listeners defer
+        : [$listener, $method];
 }
 ```
 
 Consequences, each verified against v13.33.0:
 
 1. **Middleware strings pass through untouched.** A declared group may mix class-strings, registered aliases, and `alias:params` forms (`throttle:60,1`) — resolution is deferred to dispatch and may reference aliases registered later in the same boot (`router.aliasMiddleware`) or by the kernel.
-2. **`matched` accepts exactly the event dispatcher's string forms.** `Class` calls `make(Class)->handle($event)`; a bare class without `handle` falls back to `__invoke($event)` — unlike `Router::bind()` strings, which require `bind()` and never fall back ([declarative-router-bindings.md](declarative-router-bindings.md) §1.4.1). `Class@method` calls `make(Class)->method($event)`. `Class::method` fails (`BindingResolutionException: Target class [A::m] does not exist`). A listener implementing `Illuminate\Contracts\Queue\ShouldQueue` is queued instead of called inline.
+2. **`matched` accepts exactly the event dispatcher's string forms.** `Class` calls `make(Class)->handle($event)`; a bare class without `handle` falls back to `__invoke($event)` — unlike `Router::bind()` strings, which require `bind()` and never fall back ([declarative-router-bindings.md](declarative-router-bindings.md) §1.4.1). `Class@method` calls `make(Class)->method($event)`. `Class::method` fails (`BindingResolutionException: Target class [A::m] does not exist`). A listener implementing `Illuminate\Contracts\Queue\ShouldQueue` is queued instead of called inline, and one implementing `Illuminate\Contracts\Events\ShouldDispatchAfterCommit` defers until open database transactions commit.
 3. **One argument, the event.** `RouteMatched` is dispatched as a single object (Router.php:797), so the listener method receives `(RouteMatched $event)` — `$event->route` (matched, unbound parameters) and `$event->request`.
 4. **`resourceParameters` replaces; `resourceVerbs` merges.** `setParameters($parameters)` assigns the static wholesale — declare the complete map in one entry. `verbs($verbs)` `array_merge`s — later calls extend earlier ones. A per-resource `parameters` option beats the global map, which beats `singularResourceParameters`.
 5. **The statics are process-global.** `ResourceRegistrar` state has no per-instance reset; a declaration is in force for every resource route created afterwards for the life of the process, including tests that share the PHP process.
@@ -215,7 +220,7 @@ Unchanged from [declarative-router.md](declarative-router.md) §2.1: **every key
 | `middlewareGroup` | `map<name, list<middleware>>` | `middlewareGroup($name, $middleware)` — defines/replaces the group | scalar value → schema rejects (native `TypeError: array given`) |
 | `aliasMiddleware` | `map<alias, class-string>` | `aliasMiddleware($alias, $class)` — registers a route middleware alias | a bare alias with no class; duplicate alias silently replaces (`$middleware[$alias] = $class`) |
 | `pushMiddlewareToGroup` | `map<group, list<middleware>\|middleware>` | one call per item; creates the group when missing; dedupes | an item already in the group is skipped (native `in_array` guard) |
-| `prependMiddlewareToGroup` | `map<group, list<middleware>\|middleware>` | one call per item, **reversed** so a declared list lands in declared order at the group's head | prepending to a missing group is a silent no-op — create it with `middlewareGroup` or `pushMiddlewareToGroup` first |
+| `prependMiddlewareToGroup` | `map<group, list<middleware>\|middleware>` | one call per item, **reversed** so a declared list lands in declared order at the group's head; an item already in the group is skipped (native `in_array` guard) | prepending to a missing group is a silent no-op — create it with `middlewareGroup` or `pushMiddlewareToGroup` first |
 | `removeMiddlewareFromGroup` | `map<group, list<middleware>\|middleware>` | one call per item; no-op when the group or the middleware is absent | — |
 | `singularResourceParameters` | `bool` (default: Laravel's `true`; absent key → no call) | `singularResourceParameters($bool)` — `false` pluralizes resource parameters | a string → schema rejects |
 | `resourceParameters` | `map<resource, paramName>` (absent → no call) | `resourceParameters($map)` — **replaces** the static map; declare the full map | non-string value → schema rejects |
@@ -258,17 +263,18 @@ router:                                          # ——— Router surface —�
     - App\Listeners\LogMatched@handle            # called with (RouteMatched $event) at dispatch
 
 routes:
-  - uri: "posts/{item}"
-    methods: GET
-    action: App\Http\Controllers\PostController
-    middleware: [tenant]                         # group expansion at dispatch
-    metadata:
-      request: show-post
+  addRoute:                                      # Router::addRoute($methods, $uri, $action) per entry
+    - uri: "posts/{item}"
+      methods: GET
+      action: App\Http\Controllers\PostController
+      middleware: [tenant]                       # group expansion at dispatch
+      metadata:
+        request: show-post
 
-  - uri: "account"
-    methods: GET
-    action: App\Http\Controllers\AccountController
-    middleware: [subscribed]                     # the declared alias
+    - uri: "account"
+      methods: GET
+      action: App\Http\Controllers\AccountController
+      middleware: [subscribed]                   # the declared alias
 ```
 
 ### 2.4 Key → method → signature map (whole `router:` block)
@@ -773,8 +779,8 @@ That is the whole implementation. Each loop is shape-generic: `Router::selected(
         $this->get('/posts/5')->assertOk();
 
         expect(MiddlewareLog::entries())->toContain(
-            'MatchedListener@posts/{id}',
-            'InvokableMatchedListener@posts/{id}',
+            MatchedListener::class.'@posts/{id}',
+            InvokableMatchedListener::class.'@posts/{id}',
         );
     });
 
@@ -868,8 +874,8 @@ That is the whole implementation. Each loop is shape-generic: `Router::selected(
             YAML);
 
         $this->artisan('laravel-declaration:validate', ['--manifest' => $file])
-            ->assertSuccessful()
-            ->expectsOutputToContain('singularResourceParameters');
+            ->expectsOutputToContain('singularResourceParameters')
+            ->assertFailed();
     });
     ```
 

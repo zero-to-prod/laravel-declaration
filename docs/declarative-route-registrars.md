@@ -1,6 +1,6 @@
 # Declarative Route Registrars — `Router::group()` / Resource Registration / Native Shortcuts & Manifest Schema
 
-Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `RouteGroup.php`, `ResourceRegistrar.php`, `PendingResourceRegistration.php`, `PendingSingletonResourceRegistration.php`, `RouteFileRegistrar.php`, `ViewController.php`, `RedirectController.php` and `Illuminate/Routing/Route.php`.
+Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `RouteGroup.php`, `RouteRegistrar.php`, `ResourceRegistrar.php`, `PendingResourceRegistration.php`, `PendingSingletonResourceRegistration.php`, `RouteFileRegistrar.php`, `ViewController.php`, `RedirectController.php` and `Illuminate/Routing/Route.php`.
 
 Goal: resolve Tier 1 gap inventory [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.2 — "Route Registration — `routes:` `[/] (narrower)`". The route-level surface is shipped ([declarative-routing.md](declarative-routing.md): native `uri` noun + dynamic `builders` dispatch). What remains are the **Router-level registration surfaces** that a `Route`-builder-level dispatch cannot express, because they *create route collections*: `Router::group()`, the resource registrar family, and the native shortcuts (`Router::view()` / `Router::redirect()` / `Router::permanentRedirect()`).
 
@@ -45,7 +45,7 @@ Consequences, each verified against v13.33.0:
 ### 1.2 `Router::group()` — the attributes contract
 
 ```php
-public function group(array $attributes, Closure|array|string $routes)  // Router.php:472 (returns $this)
+public function group(array $attributes, $routes)                        // Router.php:472 (returns $this); $routes untyped — docblock Closure|array|string
 ```
 
 `loadRoutes()` runs a **Closure** as `$routes($this)` — the closure receives the `Router` (Router.php:521-529). The array/string forms delegate to `RouteFileRegistrar`, which in v13 only `require`s file paths (RouteFileRegistrar.php:28-35) — so a declarative manifest must use the Closure form (Design Rule 4: wrap only where Laravel needs a Closure).
@@ -82,11 +82,11 @@ The group stack merges through `RouteGroup::merge()` (RouteGroup.php:17). Attrib
 |---|---|---|---|
 | `only($methods)` | `(array|string ...$methods)` — variadic when string | `only` | `getResourceMethods()` (ResourceRegistrar.php:270) — wins over defaults |
 | `except($methods)` | `(array|string ...$methods)` | `except` | filters the defaults |
-| `names($names)` | `(array $names)` — map<method, name> | `names` | `getResourceRouteName()` (:677) |
+| `names($names)` | `(array\|string $names)` — map<method, name>, or a name-prefix string | `names` | `getResourceRouteName()` (:677) — the string form sets the name prefix |
 | `name($method, $name)` | `(string $method, string $name)` | `names[$method]` | per-method override |
 | `parameters($parameters)` | `(array|string $parameters)` | `parameters` | `getResourceWildcard()` (:615) — map or `'singular'` |
 | `parameter($previous, $new)` | `(string $previous, string $new)` | `parameters[$previous]` | per-parameter override |
-| `middleware($middleware)` | `(array|string $middleware)` | `middleware` | route action (appends) |
+| `middleware($middleware)` | `(array|string $middleware)` | `middleware` | route action — **replaces** `options['middleware']`, then re-merges existing `middleware_for` entries (:149-176); declare `middleware` before `middlewareFor` when combining |
 | `middlewareFor($methods, $middleware)` | `(string|array $methods, array|string $middleware)` | `middleware_for[$method]` | per-method middleware (:105-110) |
 | `withoutMiddleware($middleware)` | `(array|string $middleware)` | `excluded_middleware` | route action |
 | `withoutMiddlewareFor($methods, $middleware)` | `(string|array $methods, array|string $middleware)` | `excluded_middleware_for[$method]` | per-method exclusion (:112-118) |
@@ -97,9 +97,11 @@ The group stack merges through `RouteGroup::merge()` (RouteGroup.php:17). Attrib
 | `scoped($fields = [])` | `(array $fields = [])` | `bindingFields` | `setResourceBindingFields()` (:123, :560) |
 | `withTrashed($methods = [])` | `(array $methods = [])` | `trashed` | `$route->withTrashed()` for show/edit/update (:127-131) |
 | `creatable()` / `destroyable()` | `(): $this` (singletons only) | `creatable` / `destroyable` | singleton defaults (:163-166) |
-| `whereNumber` / `whereAlpha` / `whereAlphaNumeric` / `whereUuid` / `whereUlid` | `(array|string $parameters)` | — (direct route setters via `CreatesRegularExpressionRouteConstraints`) | applied when the Pending registers |
+| `whereNumber` / `whereAlpha` / `whereAlphaNumeric` / `whereUuid` / `whereUlid` | `(array|string $parameters)`; `whereIn($parameters, $values)` two-arg (list-spread shape) | — (trait methods on the Pending via `CreatesRegularExpressionRouteConstraints`; each funnels through the Pending's own `where()` into `options['wheres']` at dispatch time — sugar over `where`, not direct route setters) | applied at registration: `getResourceAction` → `action['where']` |
 
 Note the two native nouns that are **not** method names at the registrar level (`wheres`, `bindingFields`, `trashed`) — they are array keys. The manifest dispatches their **Pending method** nouns (`where`, `scoped`, `withTrashed`), keeping Rule 1 (key = method name) intact.
+
+**The two Pendings do not share one fluent surface.** Verified method sets: `PendingSingletonResourceRegistration` defines `creatable()`/`destroyable()` (:94, :106) but does **not** define `shallow`, `missing`, `scoped` or `withTrashed` — both classes use `Macroable` (PendingResourceRegistration.php:10, PendingSingletonResourceRegistration.php:13), so dispatching those option nouns on a `singleton` entry fails at boot with Laravel's own `BadMethodCallException` (Rule 7). Registrar consumption matches: `ResourceRegistrar::singleton()` applies `bindingFields` and `shallow` (via `getShallowName` in `addSingletonEdit/Update/Destroy`) but never `trashed` — the `$route->withTrashed()` block (:127-131) lives only in `register()` — and its `creatable`/`destroyable` branches (:163-166) are `elseif`, so `destroyable` is ignored when `creatable` is set. A resource name prefix (`as`) has no Pending setter; declare it as the group `as` attribute — the route-level `RouteGroup::merge` `formatAs` concatenation prefixes resource route names natively.
 
 ### 1.4 Native shortcuts
 
@@ -124,7 +126,7 @@ The shipped `routes:` block is a bare list whose entries are `Route`-level decla
 > - `resource` / `apiResource` / `singleton` / `apiSingleton` → return `Pending*Registration` → **`options`** dispatched onto the Pending's fluent methods
 > - `group` → returns `Router` (mutates the group stack) → nested **`routes`** (recursive `Routes` map)
 
-Batch forms (`resources()`, `apiResources()`, `singletons()`, `apiSingletons()`) are **not** given keys, per the `Factory::composers()` precedent (gap inventory §2.3: the batch form "is already covered by the per-entry `composer` map per Rule 2"). One call per entry over the singular registrars covers them; additionally, the native batch signature forwards a raw `$options` array into the Pending constructor, which would force the registrar's non-method option nouns (`wheres`, `trashed`, `bindingFields`, `middleware_for`) into the manifest beside the Pending method nouns. Shared options across a batch are expressed by repeating singular entries or YAML anchors. This corrects the inventory §2.2 proposed keys `routes.resources`, `routes.apiResources`, `routes.singletons`, `routes.apiSingletons`.
+Batch forms (`resources()`, `softDeletableResources()`, `apiResources()`, `singletons()`, `apiSingletons()`) are **not** given keys, per the `Factory::composers()` precedent (gap inventory §2.3: the batch form "is already covered by the per-entry `composer` map per Rule 2"). One call per entry over the singular registrars covers them; additionally, the native batch signature forwards a raw `$options` array into the Pending constructor, which would force the registrar's non-method option nouns (`wheres`, `trashed`, `bindingFields`, `middleware_for`) into the manifest beside the Pending method nouns. Shared options across a batch are expressed by repeating singular entries or YAML anchors. This corrects the inventory §2.2 proposed keys `routes.resources`, `routes.apiResources`, `routes.singletons`, `routes.apiSingletons`.
 
 ### 2.2 Complete example
 
@@ -195,7 +197,7 @@ routes:
         middleware: [auth:sanctum]
         whereNumber: photo                     # -> PendingResourceRegistration::whereNumber('photo')
         scoped: true                           # -> scoped()             (bindingFields: [])
-        trashed: [show, edit, update]          # -> withTrashed([show, edit, update])
+        withTrashed: [show, edit, update]      # -> withTrashed([show, edit, update])
         shallow: true                          # -> shallow()            (shallow nested names)
         names:
           index: gallery.index
@@ -270,17 +272,18 @@ routes:
 | `where` | `map<param, regex>` | merged |
 | `metadata` | `map<string, mixed>` | assoc maps merge recursively, lists replace |
 
-**`RouteResource.options`** — every entry is one `PendingResourceRegistration` / `PendingSingletonResourceRegistration` method call (§1.3 table): `only`, `except`, `names`, `parameters`, `middleware`, `middlewareFor`, `withoutMiddleware`, `withoutMiddlewareFor`, `where`, `metadata`, `shallow`, `missing`, `scoped`, `withTrashed`, `creatable`, `destroyable`, plus the `where*` regex constraint family. Value shapes are the same four the `Route` builder seam already uses: `true` → zero-arg flag call; `false`/`null` → skipped; list → spread; map/scalar → single argument (`middlewareFor`/`withoutMiddlewareFor` are Rule 2 map forms: key = `$methods`).
+**`RouteResource.options`** — every entry is one `PendingResourceRegistration` / `PendingSingletonResourceRegistration` method call (§1.3 table): `only`, `except`, `names`, `name`, `parameters`, `parameter`, `middleware`, `middlewareFor`, `withoutMiddleware`, `withoutMiddlewareFor`, `where`, `metadata`, `shallow`, `missing`, `scoped`, `withTrashed`, `creatable`, `destroyable`, plus the `where*` regex constraint family. Value shapes are the same four the `Route` builder seam already uses: `true` → zero-arg flag call; `false`/`null` → skipped; list → spread; map/scalar → single argument. The **four two-argument setters** (`name`, `parameter`, `middlewareFor`, `withoutMiddlewareFor`) take the Rule 2 map form — one call per entry, key = first argument (`name: {show: photos.show}` → `name('show', 'photos.show')`; `where`/`names`/`parameters` maps instead pass as a single argument because their native signature takes the map itself).
 
 ### 2.4 Notes / non-goals
 
-1. **Verb dispatch keys (`get`/`post`/…) — non-goal.** In v13 `Router::get()` etc. do not exist as methods: `Router::__call()` routes them into the fluent `RouteRegistrar` attribute API (Router.php:1497-1517), a different registration path than `addRoute`. `methods:` already covers verbs natively, and lowercase verbs never match (`MethodValidator`; declarative-routing.md §2.6). Same reasoning as the withdrawn `models.relations` (gap inventory §2.6): no expressive power, only a second spelling.
-2. **Route-level `prefix` builder inside a group — pitfall.** `Router::prefix($uri)` prepends the group prefix at `createRoute()` (:696); a later `Route::prefix()` builder then prepends *its* value to the already-prefixed URI (`Route.php:830-836`): URI order becomes `builder/group/entry` and `action['prefix']` diverges from the URI. Declare prefixes as group attributes; keep the `prefix` builder for ungrouped entries.
+1. **Verb dispatch keys (`get`/`post`/…) — non-goal.** The verb methods exist natively (`Router::get/post/put/patch/delete/options` at Router.php:158-232, plus `any()` :230 and `match()` :306) and all delegate to `addRoute`; `Route::__construct` appends `HEAD` to every GET route (Route.php:185-186), so `methods: GET` under `addRoute` is the identical call. `Router::__call()` (Router.php:1497-1517) serves only the attribute-style calls (`prefix`, `name`, `where*`, macros) into `RouteRegistrar` — a different path that the shipped `builders` seam already covers. A `get:` manifest key would be a second spelling of `methods:` with no new expressive power — same reasoning as the withdrawn `models.relations` (gap inventory §2.6), and `Router::fallback()` (Router.php:243-251) is already expressible as an `addRoute` entry on `{fallbackPlaceholder}` with the `where`/`fallback` builders.
+2. **Route-level `prefix` builder inside a group — pitfall.** `Router::prefix($uri)` prepends the group prefix at `createRoute()` (:696); a later `Route::prefix()` builder then prepends *its* value to the already-prefixed URI (`Route::prefix()`, Route.php:823-832): URI order becomes `builder/group/entry` and `action['prefix']` diverges from the URI. Declare prefixes as group attributes; keep the `prefix` builder for ungrouped entries.
 3. **Group `excluded_middleware` — excluded.** It would only ride through `RouteGroup::merge`'s generic `array_merge_recursive` into route actions. Per-route `withoutMiddleware` builders express it. The eight documented attributes are the contract; the JSON schema rejects the rest (`additionalProperties: false`).
 4. **`Router::view()`'s array `$status`** (array-as-headers) is native-only; the manifest declares `status:` as `int` and `headers:` as the map — same coverage, one spelling.
 5. **`missing` Closures are wrapped, never declared.** Both the resource option and the route builder accept only an invokable class-string; the provider wraps it (Rule 4). The wrapper captures only the class-string, so `route:cache` stays safe (declarative-routing.md §2.6).
-6. **Unknown keys fail at their native place (Rule 7).** Unknown block/entry/attribute keys are rejected by `manifest.schema.json` (`additionalProperties: false`) via `laravel-declaration:validate` — the same seam declarative-routing.md §2.4 names as the fail-fast gap at DataModel level. Unknown `options` keys are part of the dynamic Pending surface (including macros) and fail at boot with Laravel's own `BadMethodCallException` (`Macroable::__call`).
+6. **Unknown keys fail at their native place (Rule 7).** The closed shapes — block keys, `routeGroup` attributes, `routeResource` entry keys — reject unknown keys at validate time via `manifest.schema.json` (`additionalProperties: false`) through `laravel-declaration:validate` — the same seam declarative-routing.md §2.4 names as the fail-fast gap at DataModel level. The open shapes are the dynamic-dispatch seams and fail at boot with Laravel's own exceptions: unknown `options` keys and unknown view/redirect entry keys (which ride the builders seam exactly like the shipped `route` definition, whose `additionalProperties: true` is why §3.8 keeps view/redirect entries open) throw `BadMethodCallException` (`Macroable::__call` on the Pending / on `Illuminate\Routing\Route`).
 7. **`route:cache` / `config:cache` safe (Rule 6).** Shortcut and resource defaults hold only strings, lists and maps; group attributes and metadata likewise.
+8. **Same-URI collisions resolve by the fixed registrar order, not manifest order.** The dispatch loop runs the keys in `registrars()` order (§3.1: `addRoute`, `group`, resources, `view`, `redirect`, `permanentRedirect`), and `RouteCollection::add` lets a later same-verb/same-URI entry overwrite an earlier one — so a `redirect` entry (all seven verbs via `any()`) always overrides an `addRoute` GET on the same URI. This makes the Laravel-docs guidance ("define `get`… routes before `any`/`match`/`redirect`", routing.md §Available Router Methods) automatic and deterministic; relative order among same-key entries still follows manifest order.
 
 ---
 
@@ -316,7 +319,7 @@ final readonly class Routes
     public const string permanentRedirect = 'permanentRedirect';
 
     /** @var list<Route> */
-    #[Describe([Describe::default => []])]
+    #[Describe([Describe::default => [], Describe::cast => [self::class, 'listOf'], 'type' => Route::class])]
     public array $addRoute;
 
     /** @var list<RouteGroup> */
@@ -725,9 +728,7 @@ class RoutesDeclarationServiceProvider extends ServiceProvider
             $this->applyBuilder($Route, $method, $arguments);
         }
     }
-            }
-        }
-    }
+```
 
     /**
      * resource()/apiResource()/singleton()/apiSingleton() return a pending
@@ -766,10 +767,11 @@ class RoutesDeclarationServiceProvider extends ServiceProvider
             return;
         }
 
-        // Rule 2 map form for two-argument methods: map key = first argument ($methods).
-        if ($method === 'middlewareFor' || $method === 'withoutMiddlewareFor') {
-            foreach ((array) $arguments as $methods => $middleware) {
-                $Pending->{$method}($methods, $middleware);
+        // Rule 2 map form for the two-argument Pending setters (name, parameter,
+        // middlewareFor, withoutMiddlewareFor): one call per entry, key = first argument.
+        if (in_array($method, ['name', 'parameter', 'middlewareFor', 'withoutMiddlewareFor'], true)) {
+            foreach ((array) $arguments as $first => $second) {
+                $Pending->{$method}($first, $second);
             }
 
             return;
@@ -807,7 +809,7 @@ The `default` arm is the shipped two-step call (`$Router->addRoute(...)` then th
     "apiSingleton": {"type": "array", "items": {"$ref": "#/definitions/routeResource"}},
     "view": {"type": "array", "items": {"$ref": "#/definitions/routeView"}},
     "redirect": {"type": "array", "items": {"$ref": "#/definitions/routeRedirect"}},
-    "permanentRedirect": {"type": "array", "items": {"$ref": "#/definitions/routeRedirect"}}
+    "permanentRedirect": {"type": "array", "items": {"$ref": "#/definitions/routePermanentRedirect"}}
   }
 }
 ```
@@ -840,7 +842,7 @@ The `default` arm is the shipped two-step call (`$Router->addRoute(...)` then th
 },
 "routeView": {
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": ["uri", "view"],
   "properties": {
     "uri": {"type": "string"},
@@ -852,17 +854,26 @@ The `default` arm is the shipped two-step call (`$Router->addRoute(...)` then th
 },
 "routeRedirect": {
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": ["uri", "destination"],
   "properties": {
     "uri": {"type": "string"},
     "destination": {"type": "string"},
     "status": {"type": "integer"}
   }
+},
+"routePermanentRedirect": {
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["uri", "destination"],
+  "properties": {
+    "uri": {"type": "string"},
+    "destination": {"type": "string"}
+  }
 }
 ```
 
-`options` stays open (`additionalProperties: true`) because it is a dynamic dispatch surface (§2.4 note 6); entry and attribute shapes stay closed for fail-fast validation.
+`options` stays open (`additionalProperties: true`) because it is a dynamic dispatch surface (§2.4 note 6) — and so do the `routeView`/`routeRedirect`/`routePermanentRedirect` entry shapes: a builder is any key outside the reserved signature set (§3.4's `extractBuilders`), the same open shape as the shipped `route` definition; unknown builders fail at boot with Laravel's own exceptions (§2.4 note 6). Only the group-attribute and resource-entry shapes stay closed for validate-time fail-fast. `permanentRedirect` gets its own definition because the native signature has no `$status` argument — a declared `status:` there would ride the builders seam and fail at boot.
 
 ---
 
@@ -889,7 +900,7 @@ it('merges group attributes natively', function () use ($manifest): void {
 it('registers resource routes with pending options', function () use ($manifest): void {
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
     $this->getJson('/photos/5')->assertOk()
-        ->and($this->getJson('/photos/abc'))->toThrow(NotFoundHttpException::class);   // whereNumber
+        ->and($this->getJson('/photos/abc'))->assertNotFound();                     // whereNumber
     expect(app(Router::class)->getRoutes()->hasNamedRoute('gallery.index'))->toBeTrue();
 });
 
@@ -907,9 +918,10 @@ it('registers redirect shortcuts', function () use ($manifest): void {
     $this->get('/legacy')->assertStatus(301);
 });
 
-it('fails an unknown pending option with Laravel\'s exception', function () use ($manifest): void {
-    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-    expect(fn () => app(Router::class)->getRoutes())->toThrow(BadMethodCallException::class);
+it('fails an unknown pending option with Laravel\'s exception', function (): void {
+    // Fixture `route-registrars-invalid.yml` declares a resource with `options: {nonexistent: true}`.
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/route-registrars-invalid.yml']);
+    expect(fn () => $this->get('/'))->toThrow(BadMethodCallException::class);      // Macroable::__call at boot
 });
 
 it('hydrates an empty routes block', function (): void {
@@ -921,7 +933,7 @@ Migration of existing surfaces (shape change, no shim — house precedent: the `
 
 1. `tests/Fixtures/manifest/app.yml`, `router.yml`, `end-to-end.yml` — wrap each `routes:` list under `addRoute:`.
 2. `tests/Feature/RouteTest.php` — `Manifest::from([])->routes->count()` becomes `->routes->addRoute` count (or `count($Manifest->routes->addRoute)`); add `Routes`/`RouteGroup`/`RouteResource` hydration tests.
-3. `src/Providers/RoutesDeclarationServiceProvider.php` — replaced by §3.7; the guard early-return (`:21`) must stay covered to hold the 100% gate (gap inventory §5.6).
+3. `src/Providers/RoutesDeclarationServiceProvider.php` — replaced by §3.7; the guard early-return must stay covered to hold the 100% gate (gap inventory §5.6).
 
 ---
 
@@ -934,7 +946,11 @@ All signatures and behaviors re-verified against vendor source on the date of th
 3. `RouteGroup::merge` semantics verified per attribute: `formatPrefix` (:124), `formatAs` (:157), `formatNamespace` (:105), `formatWhere` (:142), `formatMetadata`/`mergeMetadata` (:53-87), domain/controller replacement (:19-21); route-level merge runs with `prependExistingPrefix: false` (Router.php:722-729) and group prefix reaches the URI via `Router::prefix($uri)` (:696-703).
 4. All eight registrar signatures verified at Router.php:318/347/367/382/402/417/437/452; defaults at ResourceRegistrar.php:21/:28; `creatable`/`destroyable` singleton defaults at :163-166; `only`/`except` at `getResourceMethods()` (:270); option keys `wheres` (:651), `bindingFields` (:123, :560), `trashed` (:127-131), `missing` (:655), `metadata` (:659), `shallow` naming (:546-548), parameter wildcarding (:615).
 5. `PendingResourceRegistration` fluent surface verified at PendingResourceRegistration.php:69-317 (`where` writes `wheres`, `scoped` writes `bindingFields`, `withTrashed` writes `trashed`); `PendingSingletonResourceRegistration::creatable()`/`destroyable()` (:94, :106); both use `Macroable` (:10) so unknown options throw `BadMethodCallException`; `__destruct()` → `register()` (:331).
-6. `Router::get()`/`post()`/… are `__call`-routed into `RouteRegistrar` (Router.php:1497-1517) — basis for the verb-dispatch non-goal (§2.4 note 1).
+6. `Router`'s verb methods are native delegations to `addRoute` — `get/post/put/patch/delete/options` at Router.php:158-232, `any()` :230, `match()` :306 (uppercases); `Route::__construct` appends `HEAD` to GET (Route.php:185-186); `Router::__call` (:1497-1517) serves only attribute-style calls (`prefix`, `name`, `where*`, macros) into `RouteRegistrar` — basis for the verb-dispatch non-goal (§2.4 note 1, redundancy not absence).
 7. The `DataModel` trait applies `Describe::default` before any cast and calls cast resolvers with `($value, $context, $Attribute, $Property)` (vendor `zero-to-prod/data-model/src/DataModel.php:222-246`) — basis for §3.1/§3.2 resolver signatures.
+8. `PendingResourceRegistration` and `PendingSingletonResourceRegistration` verified as separate fluent surfaces: the singleton class defines `creatable`/`destroyable` (:94, :106) and lacks `shallow`/`missing`/`scoped`/`withTrashed`; both use `Macroable` (:10/:13), so cross-dispatch throws `BadMethodCallException`; `ResourceRegistrar::singleton()` applies `bindingFields`/`shallow` but not `trashed`; the `creatable` branch is `elseif` over `destroyable` (:163-166).
+9. The complete two-argument Pending fluent surface is exactly `name`, `parameter`, `middlewareFor`, `withoutMiddlewareFor` (method scan across both classes) — basis for the Rule 2 map form in `applyPending`; `middleware()` replaces `options['middleware']` and re-merges `middleware_for` entries (PendingResourceRegistration.php:149-176) — declare `middleware` before `middlewareFor`.
+10. The `where*` family (`whereNumber` etc.) verified as `CreatesRegularExpressionRouteConstraints` methods on the Pending that call the Pending's own `where()` → `options['wheres']` (PendingResourceRegistration.php:237-243; trait :90-95) — not direct route setters; `ResourceRegistrar` copies `wheres` into `action['where']` via `getResourceAction` (:648-650).
+11. `RouteCollection::add` last-wins per verb/URI/domain — basis for §2.4 note 8 (fixed registrar order determines same-URI collisions).
 
 Post-implementation, update [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md): §1 row 3 → `[x]`; §2.2 → resolved by this document (with the batch-form correction of §2.1); §3 row 2 → resolved; §4 item 3 → checked off. Run `composer check` to verify.

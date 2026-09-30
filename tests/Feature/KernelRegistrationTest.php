@@ -121,9 +121,10 @@ it('supports interval string and php file references in duration handlers', func
           whenRequestLifecycleIsLongerThan:
             0ms: $reporterPath
         routes:
-          - methods: get
-            uri: /interval-test
-            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+          addRoute:
+            - methods: get
+              uri: /interval-test
+              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

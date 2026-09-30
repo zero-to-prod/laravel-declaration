@@ -11,6 +11,7 @@ use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Plugins\CustomRouterServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Plugins\SitemapServiceProvider;
@@ -125,6 +126,15 @@ it('handles null manifest sections gracefully across all providers', function ()
     $providersProvider->boot($manifest);
 
     expect(true)->toBeTrue();
+});
+
+it('boots the routes and providers subsystems without a bound Manifest', function (): void {
+    // The guard early-returns of gap inventory §5.6 item 6: without a bound
+    // Manifest the `providers:` and `routes:` subsystems must do nothing.
+    new ProvidersDeclarationServiceProvider(app())->boot();
+    new RoutesDeclarationServiceProvider(app())->boot();
+
+    expect(app(Router::class)->getRoutes()->count())->toBe(0);
 });
 
 it('rejects a .php duration reference that does not return a Closure', function (): void {

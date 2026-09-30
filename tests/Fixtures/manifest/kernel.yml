@@ -37,29 +37,30 @@ kernel:
     250: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\SlowRequestReporter
 
 routes:
-  - methods: get
-    uri: /kernel-test
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-    middleware:
-      - web
-      - subscribed
+  addRoute:
+    - methods: get
+      uri: /kernel-test
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+      middleware:
+        - web
+        - subscribed
 
-  - methods: get
-    uri: /priority-test
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-    middleware:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
-      - Illuminate\Routing\Middleware\SubstituteBindings
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+    - methods: get
+      uri: /priority-test
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+      middleware:
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+        - Illuminate\Routing\Middleware\SubstituteBindings
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
 
-  - methods: get
-    uri: /token-test
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-    middleware:
-      - token_auth
+    - methods: get
+      uri: /token-test
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+      middleware:
+        - token_auth
 
-  - methods: get
-    uri: /slow-request
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow
+    - methods: get
+      uri: /slow-request
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow

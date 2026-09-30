@@ -11,42 +11,43 @@ router:
     team: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Teams@bySlug
 
 routes:
-  - uri: "posts/{id}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+  addRoute:
+    - uri: "posts/{id}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
 
-  - uri: "slugs/{id}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-    where:
-      id: '[a-z]+'
+    - uri: "slugs/{id}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      where:
+        id: '[a-z]+'
 
-  - uri: tenants
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-    domain: "{account}.example.com"
+    - uri: tenants
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      domain: "{account}.example.com"
 
-  - uri: "users/{user}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+    - uri: "users/{user}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
 
-  - uri: "missing/{user}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-    missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+    - uri: "missing/{user}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+      missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
 
-  - uri: "raw/{user}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+    - uri: "raw/{user}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
 
-  - uri: "bound/{post}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+    - uri: "bound/{post}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
 
-  - uri: "teams/{team}"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+    - uri: "teams/{team}"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]

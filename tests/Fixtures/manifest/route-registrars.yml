@@ -1,0 +1,117 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+# The docs/declarative-route-registrars.md §2.2 example, spelled with the test
+# fixtures' class-strings (HomeController -> MockController, the admin namespace
+# -> Fixtures\App\Routing\Admin, PhotoMissing -> UserMissingHandler, and the
+# DeclaredAction class-string -> MockController: Laravel validates an invokable
+# action string at registration) and `web` in place of `auth:sanctum` so the
+# dispatch tests run unauthenticated.
+routes:
+  # Router::addRoute() — the shipped flat surface, shape unchanged
+  addRoute:
+    - uri: "/"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      name: home
+
+    - uri: "todos/{todo}"
+      methods: DELETE
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      metadata:
+        request: delete-todo
+      setDefaults:
+        target: todo
+        call: delete
+        redirect: todos.index
+
+  # Router::group() — shared attributes + nested declarations (recursive)
+  group:
+    - prefix: admin
+      as: admin.
+      namespace: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Admin
+      middleware: [web]                        # `auth` would 401 the unauthenticated dispatch tests
+      where:
+        id: '[0-9]+'
+      metadata:
+        area: admin
+      routes:                                  # reserved key: a nested `routes:` map
+        addRoute:
+          - uri: dashboard
+            methods: GET
+            action: DashboardController        # namespace attribute -> ...\Routing\Admin\DashboardController
+            name: dashboard                    # as attribute        -> admin.dashboard
+        resource:
+          - name: users
+            controller: UserController         # -> ...\Routing\Admin\UserController (namespace)
+            options:
+              middlewareFor:                   # Rule 2 map form: key = $methods
+                destroy: [can:delete-users]
+        group:                                 # nested group: prefix/as/namespace concatenate
+          - prefix: settings
+            as: settings.
+            routes:
+              addRoute:
+                - uri: profile
+                  methods: GET
+                  action: ProfileController
+                  name: profile               # -> admin.settings.profile, URI admin/settings/profile
+
+    - domain: "{account}.example.com"         # group domain; route parameters bind natively
+      routes:
+        addRoute:
+          - uri: tenants
+            methods: GET
+            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+
+  # Router::resource() — one RESTful controller per entry, options = Pending fluent methods
+  resource:
+    - name: photos
+      controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PhotoController
+      options:
+        only: [index, show, store, update, destroy]
+        middleware: [web]
+        whereNumber: photo                     # -> PendingResourceRegistration::whereNumber('photo')
+        scoped: true                           # -> scoped()             (bindingFields: [])
+        withTrashed: [show, edit, update]      # -> withTrashed([show, edit, update])
+        shallow: true                          # -> shallow()            (shallow nested names)
+        names:
+          index: gallery.index
+        missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler   # class-string wrapped in a Closure (Rule 4)
+
+  # Router::apiResource() — resource minus create/edit
+  apiResource:
+    - name: posts
+      controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      options:
+        except: [destroy]
+
+  # Router::singleton() / apiSingleton() — show/edit/update defaults
+  singleton:
+    - name: profile
+      controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      options:
+        creatable: true                        # adds create/store/destroy
+  apiSingleton:
+    - name: avatar
+      controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+
+  # Router::view() — native static-view shortcut (GET|HEAD; bypasses DeclaredView)
+  view:
+    - uri: about
+      view: pages.about
+      data:
+        title: About
+      headers:
+        X-Frame-Options: DENY
+      middleware: [web]                        # optional builders on the returned Route
+
+  # Router::redirect() / permanentRedirect()
+  redirect:
+    - uri: "old-posts/{post}"
+      destination: "posts/{post}"
+      status: 302
+      where:                                   # optional builders on the returned Route
+        post: '[0-9]+'
+  permanentRedirect:
+    - uri: legacy
+      destination: /

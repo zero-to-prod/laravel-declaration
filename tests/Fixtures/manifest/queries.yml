@@ -44,13 +44,14 @@ queries:
     count: true
 
 routes:
-  - uri: "airlines/{airline}/flights"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\DeclaredView
-    name: airline.flights
-    middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-    setDefaults:
-      view: flights
-      data:
-        title: Flights List
-        flights: airline-flights
+  addRoute:
+    - uri: "airlines/{airline}/flights"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\DeclaredView
+      name: airline.flights
+      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+      setDefaults:
+        view: flights
+        data:
+          title: Flights List
+          flights: airline-flights

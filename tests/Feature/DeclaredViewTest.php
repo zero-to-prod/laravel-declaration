@@ -48,18 +48,19 @@ it('renders inline template using Blade::render with composing event', function 
     $file = tempnam(sys_get_temp_dir(), 'manifest-view-tpl-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - uri: "inline-template"
-            methods: GET
-            action: ZeroToProd\LaravelDeclaration\DeclaredView
-            name: inline.template
-            setDefaults:
-              template: "Hello {{ $name }}"
-              data:
-                name: World
-              status: 201
-              headers:
-                X-Custom: inline
-              deleteCachedView: false
+          addRoute:
+            - uri: "inline-template"
+              methods: GET
+              action: ZeroToProd\LaravelDeclaration\DeclaredView
+              name: inline.template
+              setDefaults:
+                template: "Hello {{ $name }}"
+                data:
+                  name: World
+                status: 201
+                headers:
+                  X-Custom: inline
+                deleteCachedView: false
         YAML);
 
     try {
@@ -78,9 +79,10 @@ it('throws LogicException when neither template nor view is specified', function
     $file = tempnam(sys_get_temp_dir(), 'manifest-view-none-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - uri: "no-view"
-            methods: GET
-            action: ZeroToProd\LaravelDeclaration\DeclaredView
+          addRoute:
+            - uri: "no-view"
+              methods: GET
+              action: ZeroToProd\LaravelDeclaration\DeclaredView
         YAML);
 
     try {

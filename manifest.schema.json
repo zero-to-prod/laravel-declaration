@@ -9,10 +9,7 @@
     "config": { "$ref": "#/definitions/config" },
     "kernel": { "$ref": "#/definitions/kernel" },
     "router": { "$ref": "#/definitions/router" },
-    "routes": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/route" }
-    },
+    "routes": { "$ref": "#/definitions/routes" },
     "view": { "$ref": "#/definitions/view" },
     "blade": { "$ref": "#/definitions/blade" },
     "responses": { "$ref": "#/definitions/responses" },
@@ -474,6 +471,83 @@
         }
       },
       "additionalProperties": true
+    },
+    "routes": {
+      "description": "A map of Illuminate\\Routing\\Router registration method names (Design Rule 1: key = method name); each list item is one call. addRoute/view/redirect/permanentRedirect return a Route (optional builders ride it); resource/apiResource/singleton/apiSingleton return a Pending*Registration (options dispatch onto its fluent methods); group mutates the group stack and recurses into nested routes. Batch forms are not given keys: one call per singular entry covers them (Rule 2).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "addRoute": { "type": "array", "items": { "$ref": "#/definitions/route" } },
+        "group": { "type": "array", "items": { "$ref": "#/definitions/routeGroup" } },
+        "resource": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
+        "apiResource": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
+        "singleton": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
+        "apiSingleton": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
+        "view": { "type": "array", "items": { "$ref": "#/definitions/routeView" } },
+        "redirect": { "type": "array", "items": { "$ref": "#/definitions/routeRedirect" } },
+        "permanentRedirect": { "type": "array", "items": { "$ref": "#/definitions/routePermanentRedirect" } }
+      }
+    },
+    "routeGroup": {
+      "description": "Router::group($attributes, Closure) attributes — exactly the eight RouteGroup::merge() attributes; every nested declaration rides the reserved routes key (recursive). Prefix/as/namespace concatenate, where/middleware/metadata merge, domain/controller replace.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": { "type": "string" },
+        "as": { "type": "string" },
+        "namespace": { "type": "string" },
+        "domain": { "type": "string" },
+        "controller": { "type": "string" },
+        "middleware": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+        "where": { "type": "object", "additionalProperties": { "type": "string" } },
+        "metadata": { "type": "object" },
+        "routes": { "$ref": "#/definitions/routes" }
+      }
+    },
+    "routeResource": {
+      "description": "Router::resource/apiResource/singleton/apiSingleton($name, $controller): one RESTful controller per entry. Every options key is one PendingResourceRegistration / PendingSingletonResourceRegistration fluent method call (only, except, names, name, parameters, parameter, middleware, middlewareFor, withoutMiddleware, withoutMiddlewareFor, where, metadata, shallow, missing, scoped, withTrashed, creatable, destroyable, whereNumber/whereAlpha/whereAlphaNumeric/whereUuid/whereUlid/whereIn); unknown options fail at boot with BadMethodCallException.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "controller"],
+      "properties": {
+        "name": { "type": "string" },
+        "controller": { "type": "string" },
+        "options": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "routeView": {
+      "description": "Router::view($uri, $view, $data, $status, $headers): GET|HEAD ViewController shortcut. Any other key is a Route builder on the returned route (open shape; unknown builders fail at boot with BadMethodCallException).",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["uri", "view"],
+      "properties": {
+        "uri": { "type": "string" },
+        "view": { "type": "string" },
+        "data": { "type": "object" },
+        "status": { "type": "integer" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "routeRedirect": {
+      "description": "Router::redirect($uri, $destination, $status): all-seven-verbs RedirectController shortcut; the URI may carry parameters the destination reuses. Any other key is a Route builder on the returned route.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["uri", "destination"],
+      "properties": {
+        "uri": { "type": "string" },
+        "destination": { "type": "string" },
+        "status": { "type": "integer" }
+      }
+    },
+    "routePermanentRedirect": {
+      "description": "Router::permanentRedirect($uri, $destination): a 301 redirect. No status argument exists natively — declare a status under a redirect entry instead. Any other key is a Route builder on the returned route.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["uri", "destination"],
+      "properties": {
+        "uri": { "type": "string" },
+        "destination": { "type": "string" }
+      }
     },
     "request": {
       "type": "object",

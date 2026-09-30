@@ -90,12 +90,8 @@ readonly class Manifest
 
     public const string routes = 'routes';
 
-    /** @var Collection<int, Route> */
-    #[Describe([
-        Describe::cast => [self::class, 'mapOf'],
-        'type' => Route::class,
-    ])]
-    public Collection $routes;
+    #[Describe([Describe::default => [Routes::class, 'fromRoutes']])]
+    public Routes $routes;
 
     public const string queries = 'queries';
 

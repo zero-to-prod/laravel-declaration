@@ -9,6 +9,7 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController;
 
 $manifest = __DIR__.'/../Fixtures/manifest/app.yml';
+$registrars = __DIR__.'/../Fixtures/manifest/route-registrars.yml';
 
 it('registers every declared route', function () use ($manifest): void {
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
@@ -111,11 +112,12 @@ it('rejects a non-invokable missing handler', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - uri: "/"
-            methods: GET
-            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-            name: temp-home
-            missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
+          addRoute:
+            - uri: "/"
+              methods: GET
+              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+              name: temp-home
+              missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
         YAML);
 
     try {
@@ -138,16 +140,17 @@ it('verifies HTTP verb arrays and dynamic route constraints', function (): void 
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - uri: "items/{id}/{type}"
-            methods: [GET, POST]
-            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-            name: items.show
-            whereNumber: id
-            whereAlpha: type
-            bindingFields:
-              id: slug
-            fallback: false
-            block: ~
+          addRoute:
+            - uri: "items/{id}/{type}"
+              methods: [GET, POST]
+              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+              name: items.show
+              whereNumber: id
+              whereAlpha: type
+              bindingFields:
+                id: slug
+              fallback: false
+              block: ~
         YAML);
 
     try {
@@ -171,8 +174,9 @@ it('throws LogicException when route specifies no action', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - uri: "/no-action"
-            methods: GET
+          addRoute:
+            - uri: "/no-action"
+              methods: GET
         YAML);
 
     try {
@@ -182,3 +186,142 @@ it('throws LogicException when route specifies no action', function (): void {
         unlink($file);
     }
 })->throws(LogicException::class, 'Route for URI [/no-action] must specify an action.');
+
+it('registers the flat surface under addRoute', function () use ($registrars): void {
+    $this->withConfig(['laravel-declaration.manifest' => $registrars]);
+
+    $this->get('/')->assertOk();
+});
+
+it('merges group attributes natively', function () use ($registrars): void {
+    $this->withConfig([
+        'app.key' => 'base64:uAfOGL85H6IA6qwCFx3xTNH5jNOWMUDrVaz/N0TNnhU=',
+        'laravel-declaration.manifest' => $registrars,
+    ]);
+
+    $this->get('/admin/settings/profile')->assertOk();
+
+    $Route = app(Router::class)->getRoutes()->getByName('admin.settings.profile');
+
+    expect($Route->uri())->toBe('admin/settings/profile')
+        ->and($Route->gatherMiddleware())->toContain('web')
+        ->and($Route->getMetadata('area'))->toBe('admin')
+        ->and($Route->wheres['id'])->toBe('[0-9]+')
+        ->and($Route->getActionName())->toContain('Admin\ProfileController');
+});
+
+it('registers resource routes with pending options', function () use ($registrars): void {
+    $this->withConfig([
+        'app.key' => 'base64:uAfOGL85H6IA6qwCFx3xTNH5jNOWMUDrVaz/N0TNnhU=',
+        'laravel-declaration.manifest' => $registrars,
+    ]);
+
+    $this->getJson('/photos/5')->assertOk();
+    $this->getJson('/photos/abc')->assertNotFound();                     // whereNumber
+
+    expect(app(Router::class)->getRoutes()->hasNamedRoute('gallery.index'))->toBeTrue();
+});
+
+it('registers a resource inside a group', function () use ($registrars): void {
+    $this->withConfig(['laravel-declaration.manifest' => $registrars]);
+
+    $Routes = app(Router::class)->getRoutes();
+
+    expect($Routes->hasNamedRoute('admin.users.index'))->toBeTrue()
+        ->and($Routes->hasNamedRoute('admin.users.destroy'))->toBeTrue()
+        ->and($Routes->getByName('admin.users.destroy')->gatherMiddleware())->toContain('can:delete-users')
+        ->and($Routes->getByName('admin.users.index')->getActionName())->toContain('Admin\UserController@index');
+});
+
+it('registers singleton and api resource registrars', function () use ($registrars): void {
+    $this->withConfig(['laravel-declaration.manifest' => $registrars]);
+
+    $Routes = app(Router::class)->getRoutes();
+
+    expect($Routes->hasNamedRoute('profile.store'))->toBeTrue()          // creatable: true
+        ->and($Routes->hasNamedRoute('profile.show'))->toBeTrue()
+        ->and($Routes->hasNamedRoute('avatar.show'))->toBeTrue()
+        ->and($Routes->hasNamedRoute('posts.index'))->toBeTrue()
+        ->and($Routes->hasNamedRoute('posts.destroy'))->toBeFalse();     // except: [destroy]
+});
+
+it('registers the native view shortcut', function () use ($registrars): void {
+    $this->withConfig([
+        'app.key' => 'base64:uAfOGL85H6IA6qwCFx3xTNH5jNOWMUDrVaz/N0TNnhU=',
+        'laravel-declaration.manifest' => $registrars,
+    ]);
+
+    $directory = resource_path('views/pages');
+
+    if (! is_dir($directory)) {
+        mkdir($directory, recursive: true);
+    }
+
+    file_put_contents($directory.'/about.blade.php', '{{ $title }}');
+
+    try {
+        $this->get('/about')->assertOk()->assertHeader('X-Frame-Options', 'DENY')->assertSee('About');
+        $this->head('/about')->assertOk();                               // GET|HEAD only
+    } finally {
+        unlink($directory.'/about.blade.php');
+        rmdir($directory);
+    }
+});
+
+it('registers redirect shortcuts', function () use ($registrars): void {
+    $this->withConfig(['laravel-declaration.manifest' => $registrars]);
+
+    $this->get('/old-posts/7')->assertRedirect('/posts/7');              // 302, parameter carried
+    $this->get('/legacy')->assertStatus(301);
+});
+
+it('adapts list options to the pending signature shape', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        routes:
+          addRoute:
+            - uri: "/"
+              methods: GET
+              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+              name: temp-home
+          apiResource:
+            - name: things
+              controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+              options:
+                only: [index, show]                                      # single-array parameter
+                whereIn: [thing, [a, b]]                                 # two-argument parameter
+                withTrashed: [show]                                      # single-array parameter
+                shallow: false                                           # skipped
+                metadata: ~                                              # skipped
+          resource:
+            - name: gadgets
+              controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+              options:
+                name:                                                    # Rule 2 map form
+                  index: gadgets.index
+                parameter:
+                  gadgets: device
+                withoutMiddlewareFor:
+                  destroy: [web]
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        $Routes = app(Router::class)->getRoutes();
+
+        expect($Routes->hasNamedRoute('things.index'))->toBeTrue()
+            ->and($Routes->getByName('things.show')->wheres['thing'])->toBe('a|b')
+            ->and($Routes->getByName('things.show')->allowsTrashedBindings())->toBeTrue()
+            ->and($Routes->hasNamedRoute('gadgets.index'))->toBeTrue()
+            ->and($Routes->getByName('gadgets.show')->uri())->toBe('gadgets/{device}')
+            ->and($Routes->getByName('gadgets.destroy')->excludedMiddleware())->toContain('web');
+    } finally {
+        unlink($file);
+    }
+});
+
+it('fails an unknown pending option with Laravel\'s exception', function (): void {
+    // Fixture `route-registrars-invalid.yml` declares a resource with `options: {nonexistent: true}`.
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/route-registrars-invalid.yml']);
+})->throws(BadMethodCallException::class);   // Macroable::__call at boot

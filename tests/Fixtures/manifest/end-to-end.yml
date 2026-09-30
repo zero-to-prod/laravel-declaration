@@ -28,16 +28,17 @@ queries:
     paginate: 15
 
 routes:
-  - uri: "users/{user}/posts"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\DeclaredView
-    name: users.posts
-    middleware: [web]
-    where: {user: '[0-9]+'}
-    metadata: {request: post-filters}
-    setDefaults:
-      view: users.posts
-      data:
-        title: Posts
-        posts: user-posts
-        stats: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\PostStats@forUser
+  addRoute:
+    - uri: "users/{user}/posts"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\DeclaredView
+      name: users.posts
+      middleware: [web]
+      where: {user: '[0-9]+'}
+      metadata: {request: post-filters}
+      setDefaults:
+        view: users.posts
+        data:
+          title: Posts
+          posts: user-posts
+          stats: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\PostStats@forUser

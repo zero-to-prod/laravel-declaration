@@ -14,7 +14,7 @@ Ten subsystems carried the `[/] Partially Mapped` status. Re-verification agains
 |---|---|---|---|---|---|
 | 1 | Service Container | `app:` | `[/]` | **All flagged gaps closed** | Stale → `[x]` |
 | 2 | Router Configuration & Binders | `router:` | `[/]` | Gap remains | `[/]` (valid) |
-| 3 | Route Registration | `routes:` | `[/]` | `uri` noun + dynamic `builders` shipped; groups/resources/shortcuts remain | `[/]` (narrower) |
+| 3 | Route Registration | `routes:` | `[/]` | Fully shipped: `uri` noun + dynamic `builders`, plus groups/resources/shortcuts ([declarative-route-registrars.md](declarative-route-registrars.md)) | `[x]` |
 | 4 | View Factory & Namespaces | `view:` | `[/]` | Signature inversion fixed; render-time factory methods remain | `[/]` (narrower) |
 | 5 | View Dispatch Controller (Tier 2) | `DeclaredView` | `[/]` | Inline template dispatch + composer event bridge shipped | Stale → resolved |
 | 6 | Form Request Declaration | `requests:` | `[/]` | `shouldFailOnUnknownFields` fixed; `validator:` extensions remain | `[/]` (narrower) |
@@ -81,6 +81,8 @@ Missing native `Illuminate\Routing\Router` registration surfaces (Route-builder-
 | Verb dispatch keys | `Router::get()`, `post()`, `put()`, `patch()`, `delete()`, `options()`, `any()`, `match()` | Idiomatic verb-key route declaration (cosmetic: `methods:` already covers verbs natively) | optional `routes.verb` dispatch |
 
 Context: until `Router::view()` / `Router::redirect()` are mapped, static content and simple redirects route through heavy seam controllers (`DeclaredView`, `DeclaredAction`) — the audit's "Native Route Shortcuts" `[ ]` row. Resource routes are prerequisites for `router.resourceParameters` / `router.singularResourceParameters` (§2.1).
+
+**Resolution**: [declarative-route-registrars.md](declarative-route-registrars.md) — the `routes:` block is a map of native `Router` registration method names (`addRoute`, `group`, `resource`, `apiResource`, `singleton`, `apiSingleton`, `view`, `redirect`, `permanentRedirect`), dispatched dynamically with the post-call seam following the return type (`Route` → builders, `Pending*Registration` → options, group → nested `routes`). This corrects the proposed keys of the table above per the `Factory::composers()` precedent (§2.3): the batch forms (`resources()`, `apiResources()`, `singletons()`, `apiSingletons()`) are **not** given keys — one call per singular entry covers them per Rule 2 — and the verb dispatch keys are a decided non-goal (§2.4 note 1 of that document). On implementation, this §2.2 closes and §1 row 3 reclassifies `[/]` → `[x]`.
 
 ### 2.3 View Factory — `view:` (`src/View.php`, `Providers/ViewDeclarationServiceProvider.php`)
 
@@ -197,7 +199,7 @@ Context: each preset sets `defaultView`/`defaultSimpleView` in one call. These a
 For the record, these audit rows are stale relative to current source and should be re-classified:
 
 1. **Service Container** — `[/]` → `[x]`: `tag`, `when`/`needs`/`give` (contextual bindings), `resolving`, `afterResolving`, `useBootstrapPath`, `useConfigPath`, `useEnvironmentPath` are declared on `src/App.php` and executed by `Providers/AppDeclarationServiceProvider.php`.
-2. **Route Registration** — `[/]` defect list shrinks: native `uri` noun replaced `path`; the 16 static `#[Builder]` properties were replaced by dynamic `builders` dispatch; `whereAlpha`/`whereNumber`/`whereIn`/`secure`/`httpOnly`/`bindingFields` are reachable. Remaining gaps are Router-level creation surfaces (§2.2).
+2. **Route Registration** — `[/]` → resolved: native `uri` noun replaced `path`; the 16 static `#[Builder]` properties were replaced by dynamic `builders` dispatch; `whereAlpha`/`whereNumber`/`whereIn`/`secure`/`httpOnly`/`bindingFields` are reachable; the Router-level creation surfaces (groups, resource registrars, native shortcuts) are shipped via the `routes:` registrar map ([declarative-route-registrars.md](declarative-route-registrars.md)).
 3. **View Factory** — `[/]` defect list shrinks: `composer`/`creator` manifest signature matches the native `composer($views, $callback)` order. Remaining gaps are render-time factory methods (§2.3).
 4. **View Dispatch Controller** — `[/]` → resolved: `DeclaredView` dispatches inline templates via `Blade::render()` (`deleteCachedView` honored), bridges composer lifecycle via the `composing: {routeName}` event, and returns through `ResponseFactory::make()`. Inline templates intentionally have no view identity, so named-view composers do not fire — by design, documented in [declarative-inline-template.md](declarative-inline-template.md).
 5. **Form Request Declaration** — `[/]` defect list shrinks: `shouldFailOnUnknownFields` is native-named; rule class-strings are container-resolved. Remaining gap is the `validator:` Tier 1 factory (§2.4).
@@ -214,7 +216,7 @@ Ordered to close Rule 7 violations first, then unblock Phase 2:
 
 1. **`schema:` ForeignKeyDefinition modifier branch + flat-form index list** (§2.5 defect) — silent modifier discard violates Rule 7.
 2. **`schema:` table operations** (`alter`, `rename`, `drop`, `dropIfExists`) — completes the Stage 6 lifecycle.
-3. **`router:` batch/group/alias methods** (§2.1) and **`routes:` groups/resources/shortcuts** (§2.2) — prerequisite for `router.resourceParameters` and removal of seam-controller routing for static content.
+3. ~~**`router:` batch/group/alias methods** (§2.1) and **`routes:` groups/resources/shortcuts** (§2.2)~~ — **done**: the `router:` attribute-selected dispatch ([declarative-router-configuration.md](declarative-router-configuration.md)) and the `routes:` registrar map ([declarative-route-registrars.md](declarative-route-registrars.md)) ship `router.resourceParameters`/`router.singularResourceParameters` prerequisites and end seam-controller routing for static content.
 4. ~~**`models.relations`** (§2.6)~~ — **dropped**: relations stay PHP in the model class per [declarative-model.md](declarative-model.md) §2.6; Phase 2 synthesis scope narrows to the declared keys (§2.7).
 5. **`validator:` factory extensions** (§2.4) — closes the last `requests:` gap.
 6. **`view:` render-time factory methods** (§2.3) via `DeclaredView` `setDefaults` (`first`, `file`, `renderEach`).
