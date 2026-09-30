@@ -1,0 +1,243 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+schema:
+  tables:
+    todos:
+      id: ~
+      string: title
+      boolean:
+        column: completed
+        default: false
+      timestamps: ~
+
+router:
+  model:
+    todo: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+    switch: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\ToggleTodo
+
+routes:
+  # Smart `redirect` that resolves to an existing named route
+  - path: "flash-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    name: flash-todos.store
+    middleware: [web]
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      redirect: todos-index
+      with:
+        status: Created!
+
+  # Explicit `route` (map shape)
+  - path: "routed-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      route:
+        name: todos-index
+
+  # Explicit `route` (string shape)
+  - path: "explicit-route-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      route: todos-index
+
+  # Explicit `to` with status, headers and every flash modifier
+  - path: "path-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web]
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      to: /goodbye
+      status: 303
+      headers: {X-Declared: yes}
+      withFragment: anchor
+      withInput: [title]
+      withErrors: custom-bag
+
+  # `back` (bool shape)
+  - path: "back-todos/{todo}"
+    methods: PATCH
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: update
+      back: true
+
+  # `back` (map shape with fallback)
+  - path: "back-map-todos/{todo}"
+    methods: PATCH
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: update
+      back:
+        fallback: /from-back
+
+  # `away` to an external URI
+  - path: "away-todos/{todo}"
+    methods: DELETE
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: delete
+      away: https://external.example.com/away
+
+  # `action` (string shape)
+  - path: "action-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController@__invoke
+
+  # `action` (map shape)
+  - path: "action-map-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      action:
+        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController@__invoke
+
+  # No redirect generator: falls back to `/`
+  - path: "bare-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+
+  # Default `call`: create for `model`, update for `target`
+  - path: "default-call-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+
+  - path: "default-call-todos/{todo}"
+    methods: PATCH
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+
+  # Explicit `args` override the request attributes
+  - path: "arg-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      args: {title: From args}
+      redirect: todos-index
+
+  # Toggle without `column`: defaults to `completed`
+  - path: "default-toggle/{todo}"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: toggle
+      redirect: todos-index
+
+  # Toggle through a model method named `toggle`
+  - path: "switches/{switch}/toggle"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: switch
+      call: toggle
+      redirect: todos-index
+
+  # Touch with and without an explicit `column`
+  - path: "touch-todos/{todo}"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: touch
+      column: updated_at
+
+  - path: "touch-todos/{todo}/bare"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    middleware: [web, Illuminate\Routing\Middleware\SubstituteBindings]
+    setDefaults:
+      target: todo
+      call: touch
+
+  # `call: toggle` on a class-string target is rejected
+  - path: "toggle-models"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: toggle
+
+  # `model` that does not extend Eloquent Model
+  - path: "bogus-models"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
+
+  # `target` that resolves to nothing
+  - path: "ghost-targets/{todo}"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      target: ghost
+
+  # Neither `model` nor `target`
+  - path: "void-targets"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      to: /nowhere
+
+  # `to` declared as a non-string
+  - path: "bad-redirects"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      to: 5
+
+  # Redirect targets
+  - path: "todos-index"
+    methods: GET
+    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+    name: todos-index
+
+  - path: "mock-target"
+    methods: GET
+    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController, __invoke]
+    name: mock-target
+
+  # `action` map whose `action` value is neither string nor array
+  - path: "bad-action-todos"
+    methods: POST
+    action: ZeroToProd\LaravelDeclaration\DeclaredAction
+    setDefaults:
+      model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Todo
+      call: create
+      action:
+        action: 5
