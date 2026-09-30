@@ -30,10 +30,10 @@ The complete request and schema lifecycle in dispatch order, mapping each stage 
 | 16 | Declarative View Action (Read Action) | `Illuminate\Routing\ViewController` / `DeclaredView` | `routes.action` (`DeclaredView`) | Completed |
 | 17 | Inline Blade Template Rendering | `Illuminate\Support\Facades\Blade::render()` | `setDefaults.template` | Completed |
 | 18 | Eloquent Model Definition | `Illuminate\Database\Eloquent\Model` / `DeclaredModel` | `models` | Completed |
-| 19 | State Mutation Pipeline (Write Action) | `Illuminate\Database\Eloquent\Model` writes via `DB::transaction()` | `routes.action` (`DeclaredAction`) | Forward Roadmap (Phase 7) |
-| 20 | Redirect & Session Flash (Write Response) | `Illuminate\Routing\Redirector` / `RedirectResponse` | `setDefaults.redirect` / `with` | Forward Roadmap (Phase 7) |
-| 21 | Zero-PHP Dynamic Model Synthesis | `Illuminate\Database\Eloquent\Model` dynamic class loader | `models` | Forward Roadmap (Phase 9) |
-| 22 | Headless REST/API Response Seam | `Illuminate\Contracts\Routing\ResponseFactory::json()` | `routes.action` (`DeclaredJson`) | Forward Roadmap (Phase 11) |
+| 19 | State Mutation Pipeline (Write Action) | `Illuminate\Database\Eloquent\Model` writes via `DB::transaction()` | `routes.action` (`DeclaredAction`) | Forward Roadmap (Phase 1) |
+| 20 | Redirect & Session Flash (Write Response) | `Illuminate\Routing\Redirector` / `RedirectResponse` | `setDefaults.redirect` / `with` | Forward Roadmap (Phase 1) |
+| 21 | Zero-PHP Dynamic Model Synthesis | `Illuminate\Database\Eloquent\Model` dynamic class loader | `models` | Forward Roadmap (Phase 2) |
+| 22 | Headless REST/API Response Seam | `Illuminate\Contracts\Routing\ResponseFactory::json()` | `routes.action` (`DeclaredJson`) | Forward Roadmap (Phase 4) |
 
 The persistent schema catalog and database tables serve as the authoritative **system of record** for entity state, while `manifest/app.yml` serves as the declarative **data source**.
 
@@ -103,7 +103,7 @@ The foundational framework mappings and declarative pipelines are fully implemen
 
 ### 3.2 Forward Implementation Roadmap
 
-#### Phase 7 — `DeclaredAction` → `Illuminate\Routing\Controller` & `Redirector` [Active Scope]
+#### Phase 1 — `DeclaredAction` → `Illuminate\Routing\Controller` & `Redirector` [Active Scope]
 
 Closes stages 19 and 20. Provides a zero-controller invokable action seam for state-changing HTTP requests (`POST`, `PATCH`, `PUT`, `DELETE`).
 
@@ -168,7 +168,7 @@ Decisions:
 
 ---
 
-#### Phase 9 — Zero-PHP Dynamic Model Synthesis → `DeclaredModel` [Active Scope]
+#### Phase 2 — Zero-PHP Dynamic Model Synthesis → `DeclaredModel` [Active Scope]
 
 Closes stage 21. Enables declaring Eloquent models completely inside `manifest/app.yml` without creating boilerplate PHP model files on disk.
 
@@ -189,7 +189,7 @@ Decisions:
 
 ---
 
-#### Phase 10 — Full-Stack Todo Application Integration Test [Active Scope]
+#### Phase 3 — Full-Stack Todo Application Integration Test [Active Scope]
 
 Validates the complete single-manifest lifecycle across all subsystems in an end-to-end integration test.
 
@@ -197,7 +197,7 @@ Validates the complete single-manifest lifecycle across all subsystems in an end
 
 ---
 
-#### Phase 11 — Declarative JSON API Response Seam (`DeclaredJson`) [Future Scope]
+#### Phase 4 — Declarative JSON API Response Seam (`DeclaredJson`) [Future Scope]
 
 Closes stage 22. Extends declarative actions to headless REST/API architectures via `ResponseFactory::json()`.
 
@@ -253,9 +253,9 @@ requests:
 
 queries:
   - name: all-todos
-    from: App\Models\Todo
+    model: App\Models\Todo
     latest: created_at
-    get: [*]
+    get: true
 
 routes:
   # 1. READ: Display Todos and Input Form
@@ -355,23 +355,23 @@ routes:
 
 The remaining implementation tasks proceed in sequential order:
 
-1. **Deliver Phase 7 (`DeclaredAction`)**:
+1. **Deliver Phase 1 (`DeclaredAction`)**:
    - Implement `src/DeclaredAction.php` extending `Illuminate\Routing\Controller`.
    - Handle target resolution (`model` class or bound route parameter `target`).
    - Wrap mutation invocations (`create`, `update`, `delete`, `touch`, `restore`) inside `DB::transaction()`.
    - Implement redirect dispatch via `Redirector` (`route()`, `to()`, `back()`, `away()`) and flash chaining (`with()`, `withInput()`, `withErrors()`).
    - Provide test coverage in `tests/Feature/DeclaredActionTest.php` with fixture `tests/Fixtures/manifest/action.yml`.
 
-2. **Deliver Phase 9 (Zero-PHP Dynamic Model Synthesis)**:
+2. **Deliver Phase 2 (Zero-PHP Dynamic Model Synthesis)**:
    - Implement dynamic class autoloader in `LaravelDeclarationProvider` to intercept declared model classes in `Manifest::$models` that do not exist on disk.
    - Synthesize runtime classes extending `DeclaredModel`.
    - Provide test coverage in `tests/Feature/DeclaredModelTest.php`.
 
-3. **Deliver Phase 10 (Full-Stack Todo Application Integration Test)**:
+3. **Deliver Phase 3 (Full-Stack Todo Application Integration Test)**:
    - Create unified fixture `tests/Fixtures/manifest/todo-app.yml`.
    - Implement end-to-end integration test `tests/Feature/TodoAppIntegrationTest.php` verifying schema setup, dynamic model creation, query resolution, inline Blade rendering, request validation, and PRG mutations.
 
-4. **Deliver Phase 11 (`DeclaredJson`)**:
+4. **Deliver Phase 4 (`DeclaredJson`)**:
    - Implement `src/DeclaredJson.php` extending `Controller` for REST API endpoints.
    - Provide test coverage in `tests/Feature/DeclaredJsonTest.php`.
 
