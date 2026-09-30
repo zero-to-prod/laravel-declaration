@@ -13,44 +13,42 @@ use ZeroToProd\LaravelDeclaration\View;
 /** @internal */
 class ViewDeclarationServiceProvider extends ServiceProvider
 {
-    public function boot(Manifest $manifest): void
+    public function boot(?Manifest $Manifest = null): void
     {
-        if (! $manifest->view instanceof View) {
+        if (! $Manifest?->view instanceof View) {
             return;
         }
 
-        $view = $manifest->view;
-
-        $this->callAfterResolving('view', function (Factory $factory) use ($view): void {
-            foreach ($view->addLocation as $location) {
+        $this->callAfterResolving('view', function (Factory $factory) use ($Manifest): void {
+            foreach ($Manifest->view->addLocation as $location) {
                 $factory->addLocation($this->absolute($location));
             }
 
-            foreach ($view->prependLocation as $location) {
+            foreach ($Manifest->view->prependLocation as $location) {
                 $factory->prependLocation($this->absolute($location));
             }
 
-            foreach ($view->addNamespace as $namespace => $hints) {
+            foreach ($Manifest->view->addNamespace as $namespace => $hints) {
                 $factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
-            foreach ($view->prependNamespace as $namespace => $hints) {
+            foreach ($Manifest->view->prependNamespace as $namespace => $hints) {
                 $factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
-            foreach ($view->replaceNamespace as $namespace => $hints) {
+            foreach ($Manifest->view->replaceNamespace as $namespace => $hints) {
                 $factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
-            foreach ($view->addExtension as $extension => $engine) {
+            foreach ($Manifest->view->addExtension as $extension => $engine) {
                 $factory->addExtension($extension, $engine);
             }
 
-            if ($view->share !== []) {
-                $factory->share($view->share);
+            if ($Manifest->view->share !== []) {
+                $factory->share($Manifest->view->share);
             }
 
-            foreach ($view->composer as $views => $callback) {
+            foreach ($Manifest->view->composer as $views => $callback) {
                 $viewsList = str_contains($views, ',')
                     ? array_map(trim(...), explode(',', $views))
                     : $views;
@@ -58,7 +56,7 @@ class ViewDeclarationServiceProvider extends ServiceProvider
                 $factory->composer($viewsList, $callback);
             }
 
-            foreach ($view->creator as $views => $callback) {
+            foreach ($Manifest->view->creator as $views => $callback) {
                 $viewsList = str_contains($views, ',')
                     ? array_map(trim(...), explode(',', $views))
                     : $views;

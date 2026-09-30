@@ -10,120 +10,116 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use LogicException;
 use ZeroToProd\LaravelDeclaration\App;
+use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Conditional;
+use ZeroToProd\LaravelDeclaration\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Manifest;
 
-/** @internal */
+/**
+ * @mixin Application
+ *
+ * @internal
+ */
 class AppDeclarationServiceProvider extends ServiceProvider
 {
+    /** @var Application */
+    protected $app;
+
     public function register(): void
     {
-        $Manifest = $this->app->make(Manifest::class);
+        $this->callAfterResolving(Manifest::class, function (Manifest $Manifest, Application $Application): void {
+            if (! $Manifest->app instanceof App) {
+                return;
+            }
 
-        if ($Manifest->app === null) {
-            return;
-        }
-
-        $app = $this->app;
-        assert($app instanceof Application);
-
-        $app->registered(fn (Application $appInstance) => $this->registerApplication($Manifest->app, $appInstance));
+            $Application->registered(fn (Application $Application) => $this->registerApplication($Manifest->app, $Application));
+        });
     }
 
-    private function registerApplication(App $App, Application $app): void
+    private function registerApplication(App $App, Application $Application): void
     {
-        foreach (['bind', 'bindIf', 'singleton', 'singletonIf', 'scoped', 'scopedIf'] as $method) {
+        foreach (App::selected(Binding::class) as $method) {
             foreach ($App->{$method} as $abstract => $concrete) {
-                if (is_string($abstract)) {
-                    $concreteValue = is_string($concrete) ? $this->reference($concrete) : null;
-                    $app->{$method}($abstract, $concreteValue);
-
-                    continue;
-                }
-
                 $concreteValue = is_string($concrete) ? $this->reference($concrete) : null;
+                if (is_string($abstract)) {
+                    $Application->{$method}($abstract, $concreteValue);
 
-                if ($concreteValue instanceof Closure && in_array($method, ['bindIf', 'singletonIf', 'scopedIf'], true)) {
                     continue;
                 }
 
-                $app->{$method}($concreteValue ?? throw new LogicException("The `app.{$method}` list declares a null item; every list item is an abstract."));
+                if ($concreteValue instanceof Closure && in_array($method, App::selected(Conditional::class), true)) {
+                    continue;
+                }
+
+                $Application->{$method}(
+                    $concreteValue ?? throw new LogicException("The `app.{$method}` list declares a null item; every list item is an abstract.")
+                );
             }
         }
 
         foreach ($App->instance as $abstract => $value) {
-            $app->instance($abstract, $this->instantiate($value));
+            $Application->instance($abstract, $this->instantiate($value));
         }
 
         foreach ($App->alias as $abstract => $alias) {
-            $app->alias($abstract, $alias);
+            $Application->alias($abstract, $alias);
         }
 
         foreach ($App->extend as $abstract => $reference) {
-            $app->extend($abstract, $this->wrapExtender($reference));
+            $Application->extend($abstract, $this->wrapExtender($reference));
         }
 
         foreach ($App->tag as $abstract => $tags) {
-            $app->tag($abstract, (array) $tags);
+            $Application->tag($abstract, (array) $tags);
         }
 
         foreach ($App->when as $concrete => $binding) {
-            $give = is_string($binding['give']) ? $this->reference($binding['give']) : $binding['give'];
+            $give = is_string($binding[App::give]) ? $this->reference($binding[App::give]) : $binding[App::give];
             if (is_array($give) || $give instanceof Closure || is_string($give)) {
-                $app->when($concrete)->needs($binding['needs'])->give($give);
+                $Application->when($concrete)->needs($binding[App::needs])->give($give);
             }
         }
 
-        $paths = [
-            'useAppPath',
-            'useDatabasePath',
-            'useLangPath',
-            'usePublicPath',
-            'useStoragePath',
-            'useBootstrapPath',
-            'useConfigPath',
-            'useEnvironmentPath',
-        ];
-
-        foreach ($paths as $method) {
+        foreach (App::selected(Path::class) as $method) {
             if (($path = $App->{$method}) !== null) {
-                $app->{$method}($this->absolute($path));
+                $Application->{$method}($this->absolute($path));
             }
         }
 
         if ($App->setLocale !== null) {
-            $app->setLocale($App->setLocale);
+            $Application->setLocale($App->setLocale);
         }
 
         if ($App->setFallbackLocale !== null) {
-            $app->setFallbackLocale($App->setFallbackLocale);
+            $Application->setFallbackLocale($App->setFallbackLocale);
         }
 
         foreach ($App->registered as $ref) {
-            $app->registered($this->wrapCallback($ref));
+            $Application->registered($this->wrapCallback($ref));
         }
 
         foreach ($App->booting as $ref) {
-            $app->booting($this->wrapCallback($ref));
+            $Application->booting($this->wrapCallback($ref));
         }
 
         foreach ($App->booted as $ref) {
-            $app->booted($this->wrapCallback($ref));
+            $Application->booted($this->wrapCallback($ref));
         }
 
         foreach ($App->resolving as $abstract => $callbacks) {
             foreach ((array) $callbacks as $callback) {
-                $app->resolving($abstract, $this->wrapCallback($callback));
+                $Application->resolving($abstract, $this->wrapCallback($callback));
             }
         }
 
         foreach ($App->afterResolving as $abstract => $callbacks) {
             foreach ((array) $callbacks as $callback) {
-                $app->afterResolving($abstract, $this->wrapCallback($callback));
+                $Application->afterResolving($abstract, $this->wrapCallback($callback));
             }
         }
 
         foreach ($App->terminating as $reference) {
-            $app->terminating($this->reference($reference));
+            $Application->terminating($this->reference($reference));
         }
     }
 
@@ -155,18 +151,19 @@ class AppDeclarationServiceProvider extends ServiceProvider
 
     private function wrapExtender(string $reference): Closure
     {
-        return function (mixed $service, Application $app) use ($reference): mixed {
-            $callback = $this->reference($reference);
+        return function (mixed $service, Application $Application) use ($reference): mixed {
+            $Closure = $this->reference($reference);
 
-            return $callback instanceof Closure
-                ? $callback($service, $app)
-                : $app->call($callback, ['service' => $service]);
+            return $Closure instanceof Closure
+                ? $Closure($service, $Application)
+                : $Application->call($Closure, ['service' => $service]);
         };
     }
 
     private function wrapCallback(string $reference): Closure
     {
-        return function (mixed ...$args) use ($reference): void {
+        return function (mixed ...$arguments) use ($reference): void {
+            $args = array_combine(array_map(strval(...), array_keys($arguments)), $arguments);
             $callback = $this->reference($reference);
 
             if ($callback instanceof Closure) {

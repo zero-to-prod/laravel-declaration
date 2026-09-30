@@ -22,16 +22,14 @@ use ZeroToProd\LaravelDeclaration\Manifest;
 /** @internal */
 class KernelDeclarationServiceProvider extends ServiceProvider
 {
-    public function boot(Manifest $manifest): void
+    public function boot(?Manifest $Manifest = null): void
     {
-        if (! $manifest->kernel instanceof Kernel) {
+        if (! $Manifest?->kernel instanceof Kernel) {
             return;
         }
 
-        $Kernel = $manifest->kernel;
-
-        $this->callAfterResolving(KernelContract::class, function (KernelContract $kernel) use ($Kernel): void {
-            $this->registerKernel($Kernel, $kernel);
+        $this->callAfterResolving(KernelContract::class, function (KernelContract $kernel) use ($Manifest): void {
+            $this->registerKernel($Manifest->kernel, $kernel);
         });
     }
 

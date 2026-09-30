@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Translation\Translator;
+use Illuminate\Foundation\Application;
 use ZeroToProd\LaravelDeclaration\App;
+use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf;
@@ -269,6 +271,15 @@ it('applies contextual when binding', function (): void {
     } finally {
         unlink($file);
     }
+});
+
+it('does not register application bindings when Manifest is not bound in container', function (): void {
+    $container = new Application;
+    $provider = new AppDeclarationServiceProvider($container);
+    $provider->register();
+
+    $ref = new ReflectionProperty($container, 'registeredCallbacks');
+    expect($ref->getValue($container))->toBeEmpty();
 });
 
 class AppTestHelper

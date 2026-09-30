@@ -13,15 +13,15 @@ use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
 /** @internal */
 class RouterDeclarationServiceProvider extends ServiceProvider
 {
-    public function boot(Manifest $manifest, Router $router): void
+    public function boot(?Manifest $Manifest = null, ?Router $Router = null): void
     {
-        if (! $manifest->router instanceof RouterDeclaration) {
+        if (! $Manifest?->router instanceof RouterDeclaration || ! $Router instanceof Router) {
             return;
         }
 
         foreach (RouterDeclaration::selected(Binding::class) as $method) {
-            foreach ($manifest->router->{$method} as $key => $value) {
-                $router->{$method}($key, $value);
+            foreach ($Manifest->router->{$method} as $key => $value) {
+                $Router->{$method}($key, $value);
             }
         }
     }

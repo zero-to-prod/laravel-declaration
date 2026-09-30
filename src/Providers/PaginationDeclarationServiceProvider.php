@@ -12,28 +12,26 @@ use ZeroToProd\LaravelDeclaration\Pagination;
 /** @internal */
 class PaginationDeclarationServiceProvider extends ServiceProvider
 {
-    public function boot(Manifest $manifest): void
+    public function boot(?Manifest $Manifest = null): void
     {
-        if (! $manifest->pagination instanceof Pagination) {
+        if (! $Manifest?->pagination instanceof Pagination) {
             return;
         }
 
-        $pagination = $manifest->pagination;
-
-        if ($pagination->useTailwind) {
+        if ($Manifest->pagination->useTailwind) {
             Paginator::useTailwind();
         }
 
-        if ($pagination->useBootstrapFive) {
+        if ($Manifest->pagination->useBootstrapFive) {
             Paginator::useBootstrapFive();
         }
 
-        if ($pagination->defaultView !== null) {
-            Paginator::defaultView($pagination->defaultView);
+        if ($Manifest->pagination->defaultView !== null) {
+            Paginator::defaultView($Manifest->pagination->defaultView);
         }
 
-        if ($pagination->defaultSimpleView !== null) {
-            Paginator::defaultSimpleView($pagination->defaultSimpleView);
+        if ($Manifest->pagination->defaultSimpleView !== null) {
+            Paginator::defaultSimpleView($Manifest->pagination->defaultSimpleView);
         }
     }
 }

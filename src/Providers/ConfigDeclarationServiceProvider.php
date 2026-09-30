@@ -15,14 +15,14 @@ class ConfigDeclarationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $manifest = $this->app->make(Manifest::class);
+        $this->callAfterResolving(Manifest::class, function (Manifest $manifest): void {
+            foreach ($manifest->config as $file => $values) {
+                if (! is_array($values)) {
+                    throw new LogicException("The `config.$file` entry must be a map of config keys.");
+                }
 
-        foreach ($manifest->config as $file => $values) {
-            if (! is_array($values)) {
-                throw new LogicException("The `config.$file` entry must be a map of config keys.");
+                Config::set(Arr::prependKeysWith($values, "$file."));
             }
-
-            Config::set(Arr::prependKeysWith($values, "$file."));
-        }
+        });
     }
 }

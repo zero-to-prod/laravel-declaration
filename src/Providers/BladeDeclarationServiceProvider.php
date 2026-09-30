@@ -12,44 +12,42 @@ use ZeroToProd\LaravelDeclaration\Manifest;
 /** @internal */
 class BladeDeclarationServiceProvider extends ServiceProvider
 {
-    public function boot(Manifest $manifest): void
+    public function boot(?Manifest $Manifest = null): void
     {
-        if (! $manifest->blade instanceof Blade) {
+        if (! $Manifest?->blade instanceof Blade) {
             return;
         }
 
-        $bladeConfig = $manifest->blade;
-
-        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade) use ($bladeConfig): void {
-            foreach ($bladeConfig->directive as $name => $handler) {
+        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade) use ($Manifest): void {
+            foreach ($Manifest->blade->directive as $name => $handler) {
                 $blade->directive($name, fn ($expression) => $this->app->call($handler, ['expression' => $expression]));
             }
 
-            foreach ($bladeConfig->if as $name => $callback) {
+            foreach ($Manifest->blade->if as $name => $callback) {
                 $blade->if($name, fn (...$args) => $this->app->call($callback, $args));
             }
 
-            foreach ($bladeConfig->component as $class => $alias) {
+            foreach ($Manifest->blade->component as $class => $alias) {
                 $blade->component($class, $alias);
             }
 
-            if ($bladeConfig->components !== []) {
-                $blade->components($bladeConfig->components);
+            if ($Manifest->blade->components !== []) {
+                $blade->components($Manifest->blade->components);
             }
 
-            foreach ($bladeConfig->anonymousComponentPath as $entry) {
+            foreach ($Manifest->blade->anonymousComponentPath as $entry) {
                 $blade->anonymousComponentPath($this->app->basePath($entry['path']), $entry['prefix'] ?? null);
             }
 
-            foreach ($bladeConfig->anonymousComponentNamespace as $entry) {
+            foreach ($Manifest->blade->anonymousComponentNamespace as $entry) {
                 $blade->anonymousComponentNamespace($this->app->basePath($entry['directory']), $entry['prefix'] ?? null);
             }
 
-            foreach ($bladeConfig->stringable as $class => $callback) {
+            foreach ($Manifest->blade->stringable as $class => $callback) {
                 $blade->stringable($class, fn ($target) => $this->app->call($callback, ['target' => $target]));
             }
 
-            if ($bladeConfig->withoutDoubleEncoding) {
+            if ($Manifest->blade->withoutDoubleEncoding) {
                 $blade->withoutDoubleEncoding();
             }
         });
