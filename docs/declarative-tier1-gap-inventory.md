@@ -15,7 +15,7 @@ Ten subsystems carried the `[/] Partially Mapped` status. Re-verification agains
 | 1 | Service Container | `app:` | `[/]` | **All flagged gaps closed** | Stale → `[x]` |
 | 2 | Router Configuration & Binders | `router:` | `[/]` | Resolved by declarative-router-configuration.md; `patterns()` a decided non-goal | `[x]` |
 | 3 | Route Registration | `routes:` | `[/]` | Fully shipped: `uri` noun + dynamic `builders`, plus groups/resources/shortcuts ([declarative-route-registrars.md](declarative-route-registrars.md)) | `[x]` |
-| 4 | View Factory & Namespaces | `view:` | `[/]` | Signature inversion fixed; render-time factory methods remain | `[/]` (narrower) |
+| 4 | View Factory & Namespaces | `view:` | `[/]` | Render-time surface dispatched via `DeclaredView` `factory:`; epilogue flushes mapped | `[x]` |
 | 5 | View Dispatch Controller (Tier 2) | `DeclaredView` | `[/]` | Inline template dispatch + composer event bridge shipped | Stale → resolved |
 | 6 | Form Request Declaration | `requests:` | `[/]` | `shouldFailOnUnknownFields` fixed; `validator:` extensions remain | `[/]` (narrower) |
 | 7 | Form Request Seam (Tier 2) | `DeclaredRequest` | `[/]` | `authorize` resolves string refs via `Container::call` | `[/]` (narrower) |
@@ -86,21 +86,21 @@ Context: until `Router::view()` / `Router::redirect()` are mapped, static conten
 
 ### 2.3 View Factory — `view:` (`src/View.php`, `Providers/ViewDeclarationServiceProvider.php`)
 
-Current mapping: `addLocation`, `prependLocation`, `addNamespace`, `prependNamespace`, `replaceNamespace`, `addExtension`, `share`, `composer`, `creator`. **Resolved**: the audit's signature-inversion claim is fixed — the manifest declares `composer: {views: callback}` and the provider dispatches `$Factory->composer($viewsList, $callback)` in the native argument order.
+Current mapping: `addLocation`, `prependLocation`, `addNamespace`, `prependNamespace`, `replaceNamespace`, `addExtension`, `share`, `composer`, `creator`, plus the no-argument epilogue keys `flushFinderCache`/`flushState`. **Resolved**: the audit's signature-inversion claim is fixed — the manifest declares `composer: {views: callback}` and the provider dispatches `$Factory->composer($viewsList, $callback)` in the native argument order. The render-time factory methods below are **resolved** by [declarative-view-factory.md](declarative-view-factory.md): `first`/`make` were already dispatched by `setDefaults.view` (string → `Factory::make()`, list → `Factory::first()` through `ResponseFactory::view()`), and the full render-time surface (`file`, `renderEach`, `renderWhen`, `renderUnless`, plus every future `Factory` method) dispatches through one `setDefaults.factory` entry — `$Factory->{$method}(...$arguments)`, zero per-method code (§2 there). `flushFinderCache`/`flushState` are the `view:` epilogue booleans (§2.5 there). `exists()` stays reachable-only (`$__env->exists()` / `app('view')->exists()`); a declarative `factory.exists` fails loudly at render — a `bool` is not renderable.
 
-Missing native `Illuminate\View\Factory` methods:
+Historical gap table (each row resolved above):
 
 | Native method | Signature | Purpose | Proposed key / tier |
 |---|---|---|---|
-| `Factory::exists()` | `exists(string $view): bool` | View existence guard (query-time, used by templates and `View::exists()` helper) | `queries` clause or Tier 2 render seam |
-| `Factory::first()` | `first(array $views, Arrayable|array $data = [], array $mergeData = []): View` | Render the first existing view from a fallback chain | `DeclaredView` `setDefaults.first` |
-| `Factory::make()` | `make(Arrayable|array|string $view, array $data = [], array $mergeData = []): View` | Runtime view instance creation (render seam for `DeclaredView`) | Tier 2 `DeclaredView` |
-| `Factory::file()` | `file(string $path, array $data = [], array $mergeData = []): View` | Render an absolute template path (bypasses finder) | `DeclaredView` `setDefaults.file` |
-| `Factory::renderEach()` | `renderEach(string $view, array $data, string $iterator, string $empty = 'raw|')` | Render a view per collection item (`raw|`-prefixed `$empty` renders a raw string) | `DeclaredView` `setDefaults.renderEach` |
-| `Factory::flushFinderCache()` | `flushFinderCache(): void` | Clear `FileViewFinder` cache after declaring namespaces at runtime | provider epilogue |
-| `Factory::flushState()` | `flushState(): void` | Reset sections/loops/stacks shared state (test isolation) | provider epilogue |
+| `Factory::exists()` | `exists(string $view): bool` | View existence guard (query-time, used by templates and `View::exists()` helper) | reachable at query time (`$__env->exists()`); declarative guard is `first` |
+| `Factory::first()` | `first(array $views, Arrayable|array $data = [], array $mergeData = []): View` | Render the first existing view from a fallback chain | `setDefaults.view` (list) / `setDefaults.factory.first` |
+| `Factory::make()` | `make(Arrayable|array|string $view, array $data = [], array $mergeData = []): View` | Runtime view instance creation (render seam for `DeclaredView`) | `setDefaults.view` (string) / `setDefaults.factory.make` |
+| `Factory::file()` | `file(string $path, array $data = [], array $mergeData = []): View` | Render an absolute template path (bypasses finder) | `setDefaults.factory.file` |
+| `Factory::renderEach()` | `renderEach(string $view, array $data, string $iterator, string $empty = 'raw|')` | Render a view per collection item (`raw|`-prefixed `$empty` renders a raw string) | `setDefaults.factory.renderEach` |
+| `Factory::flushFinderCache()` | `flushFinderCache(): void` | Clear `FileViewFinder` cache after declaring namespaces at runtime | `view.flushFinderCache: true` |
+| `Factory::flushState()` | `flushState(): void` | Reset sections/loops/stacks shared state (test isolation) | `view.flushState: true` |
 
-Context: `exists`/`first`/`make`/`file`/`renderEach` are render-time factory calls rather than boot-time registrations; their Tier 1 home is `DeclaredView`'s `setDefaults` seam (Tier 2), while `flushFinderCache`/`flushState` are provider epilogue operations. `Factory::composers()` (batch `callback: views` form) is already covered by the per-entry `composer` map per Rule 2.
+Context: the render-time calls are dispatched per request by `DeclaredView`'s `factory:` seam ([declarative-view-factory.md](declarative-view-factory.md) §1.1), not registered at boot; `flushFinderCache`/`flushState` run in the provider's epilogue after the block applies. `Factory::composers()` (batch `callback: views` form) is already covered by the per-entry `composer` map per Rule 2.
 
 ### 2.4 Form Request Declaration — `requests:` (`src/Request.php`, `src/DeclaredRequest.php`)
 
@@ -200,7 +200,7 @@ For the record, these audit rows are stale relative to current source and should
 
 1. **Service Container** — `[/]` → `[x]`: `tag`, `when`/`needs`/`give` (contextual bindings), `resolving`, `afterResolving`, `useBootstrapPath`, `useConfigPath`, `useEnvironmentPath` are declared on `src/App.php` and executed by `Providers/AppDeclarationServiceProvider.php`.
 2. **Route Registration** — `[/]` → resolved: native `uri` noun replaced `path`; the 16 static `#[Builder]` properties were replaced by dynamic `builders` dispatch; `whereAlpha`/`whereNumber`/`whereIn`/`secure`/`httpOnly`/`bindingFields` are reachable; the Router-level creation surfaces (groups, resource registrars, native shortcuts) are shipped via the `routes:` registrar map ([declarative-route-registrars.md](declarative-route-registrars.md)).
-3. **View Factory** — `[/]` defect list shrinks: `composer`/`creator` manifest signature matches the native `composer($views, $callback)` order. Remaining gaps are render-time factory methods (§2.3).
+3. **View Factory** — `[/]` → `[x]`: the `composer`/`creator` manifest signature matches the native `composer($views, $callback)` order, the render-time factory methods dispatch through `DeclaredView`'s `setDefaults.factory` ([declarative-view-factory.md](declarative-view-factory.md) §2), and `flushFinderCache`/`flushState` are provider epilogue keys (§2.5 there).
 4. **View Dispatch Controller** — `[/]` → resolved: `DeclaredView` dispatches inline templates via `Blade::render()` (`deleteCachedView` honored), bridges composer lifecycle via the `composing: {routeName}` event, and returns through `ResponseFactory::make()`. Inline templates intentionally have no view identity, so named-view composers do not fire — by design, documented in [declarative-inline-template.md](declarative-inline-template.md).
 5. **Form Request Declaration** — `[/]` defect list shrinks: `shouldFailOnUnknownFields` is native-named; rule class-strings are container-resolved. Remaining gap is the `validator:` Tier 1 factory (§2.4).
 6. **Form Request Seam** — `[/]` narrows: `authorize()` resolves string references through `Container::call` (policy checks are expressible as `Class@method` refs); the native `Gate::policy()` binding remains unmapped under the missing `gate:` Tier 1 row.
@@ -219,7 +219,7 @@ Ordered to close Rule 7 violations first, then unblock Phase 2:
 3. ~~**`router:` batch/group/alias methods** (§2.1) and **`routes:` groups/resources/shortcuts** (§2.2)~~ — **done**: the `router:` attribute-selected dispatch ([declarative-router-configuration.md](declarative-router-configuration.md)) and the `routes:` registrar map ([declarative-route-registrars.md](declarative-route-registrars.md)) ship `router.resourceParameters`/`router.singularResourceParameters` prerequisites and end seam-controller routing for static content.
 4. ~~**`models.relations`** (§2.6)~~ — **dropped**: relations stay PHP in the model class per [declarative-model.md](declarative-model.md) §2.6; Phase 2 synthesis scope narrows to the declared keys (§2.7).
 5. **`validator:` factory extensions** (§2.4) — closes the last `requests:` gap.
-6. **`view:` render-time factory methods** (§2.3) via `DeclaredView` `setDefaults` (`first`, `file`, `renderEach`).
+6. ~~**`view:` render-time factory methods** (§2.3) via `DeclaredView` `setDefaults` (`first`, `file`, `renderEach`)~~ — **done**: one dynamic dispatch, `setDefaults.factory` ([declarative-view-factory.md](declarative-view-factory.md)); `first`/`make` were already reachable through `setDefaults.view`.
 7. **`pagination:` Bootstrap presets** (§2.8) — `useBootstrapThree`/`useBootstrapFour`/`useBootstrap` close the styling gap left by the roadmap's Bootstrap 4/5 claim.
 ---
 

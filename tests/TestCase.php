@@ -10,6 +10,7 @@ use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\EventSpyProvider;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\ViewWarmProvider;
 
 use function Orchestra\Testbench\default_skeleton_path;
 
@@ -18,6 +19,9 @@ abstract class TestCase extends Orchestra
     /** @var array<string, mixed> */
     protected array $environmentConfig = [];
 
+    /** @var list<string> */
+    private array $tempManifests = [];
+
     /** @return array<int, class-string> */
     protected function getPackageProviders($app): array
     {
@@ -25,6 +29,9 @@ abstract class TestCase extends Orchestra
             // Real applications discover this from laravel/mcp's composer
             // manifest. Testbench does not, so it is listed explicitly.
             McpServiceProvider::class,
+            // Warms `view` only when config('laravel-declaration.warm-views') is set, so the
+            // declaration block's epilogue flushes genuinely stale state (§1.1.2's immediate run).
+            ViewWarmProvider::class,
             LaravelDeclarationProvider::class,
             // Its register() runs before the `app:` block is applied in the
             // registered() pass, so its LocaleUpdated listener observes the
@@ -63,6 +70,29 @@ abstract class TestCase extends Orchestra
         $this->refreshApplication();
 
         return $this;
+    }
+
+    /**
+     * Writes a temp manifest file for `laravel-declaration.manifest`. Deleted in
+     * tearDown() — the app reads it once, during the boot `withConfig()` triggers.
+     */
+    protected function manifest(string $yaml): string
+    {
+        $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+        file_put_contents($file, $yaml);
+
+        return $this->tempManifests[] = $file;
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->tempManifests as $file) {
+            @unlink($file);
+        }
+
+        $this->tempManifests = [];
+
+        parent::tearDown();
     }
 
     /**

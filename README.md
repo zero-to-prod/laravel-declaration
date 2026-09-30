@@ -207,7 +207,14 @@ view:
     App\View\Composers\Nav@primary: [layouts.app, layouts.admin]
   creator:                                     # -> creator($views, $callback), default method `create`
     App\View\Creators\Breadcrumbs: users.show
+  flushFinderCache: true                       # -> flushFinderCache(): empties the finder's resolved-view
+                                               #    cache after the block applies, so declared locations,
+                                               #    namespaces and extensions win over earlier finds
+  flushState: true                             # -> flushState(): resets renderCount, sections, stacks,
+                                               #    components and fragments (worker and test isolation)
 ```
+
+View routes also declare a render-time Factory dispatch: `setDefaults.factory` maps one `Illuminate\View\Factory` method name to its argument list — `factory: {file: resources/legal/terms.html}` — dispatched as `$Factory->{$method}(...$arguments)` (docs/declarative-view-factory.md).
 
 ## Kernel
 
@@ -286,6 +293,8 @@ routes:
       user: '[0-9]+'
     setDefaults:                         # -> Route::setDefaults()
       user: 1
+      # On a DeclaredView action, one render-time Factory dispatch:
+      # factory: {file: resources/legal/terms.html}   -> Factory::file('...')
     missing: App\Http\Handlers\UserMissingHandler   # -> Route::missing(); invokable class wrapped in a cache-safe Closure
     scopeBindings: true                  # -> Route::scopeBindings(); false skips the call
     withoutScopedBindings: false         # -> Route::withoutScopedBindings(); false skips the call

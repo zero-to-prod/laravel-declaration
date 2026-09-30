@@ -45,8 +45,7 @@ it('defaults data, status and headers as Router::view() does', function () use (
 });
 
 it('renders inline template using Blade::render with composing event', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-view-tpl-').'.yml';
-    file_put_contents($file, <<<'YAML'
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         routes:
           addRoute:
             - uri: "inline-template"
@@ -61,35 +60,23 @@ it('renders inline template using Blade::render with composing event', function 
                 headers:
                   X-Custom: inline
                 deleteCachedView: false
-        YAML);
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
-
-        $this->get('/inline-template')
-            ->assertStatus(201)
-            ->assertHeader('X-Custom', 'inline')
-            ->assertSeeText('Hello World');
-    } finally {
-        unlink($file);
-    }
+    $this->get('/inline-template')
+        ->assertStatus(201)
+        ->assertHeader('X-Custom', 'inline')
+        ->assertSeeText('Hello World');
 });
 
 it('throws LogicException when neither template nor view is specified', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-view-none-').'.yml';
-    file_put_contents($file, <<<'YAML'
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         routes:
           addRoute:
             - uri: "no-view"
               methods: GET
               action: ZeroToProd\LaravelDeclaration\DeclaredView
-        YAML);
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
-        $this->withoutExceptionHandling();
-        $this->get('/no-view');
-    } finally {
-        unlink($file);
-    }
-})->throws(LogicException::class, "DeclaredView requires either 'template' or 'view' to be specified in setDefaults.");
+    $this->withoutExceptionHandling();
+    $this->get('/no-view');
+})->throws(LogicException::class, "DeclaredView requires either 'template', 'view' or 'factory' to be specified in setDefaults.");

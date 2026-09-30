@@ -367,6 +367,7 @@ Zero hand-written controller classes. Zero physical `.blade.php` files on disk. 
 1. **Key = method or parameter name.** `template` matches `Blade::render($string)`, `data` matches `Blade::render($string, $data)` and `ViewController::$args['data']`, `status` and `headers` match `ResponseFactory::make($content, $status, $headers)` and `ResponseFactory::view($view, $data, $status, $headers)`. `deleteCachedView` matches `Blade::render()`'s third parameter.
 2. **Direct delegation over bespoke attribute DSLs.** Rendering strategies (`template`, `view`) delegate directly to native Laravel contracts (`BladeCompiler::render()` and `ResponseFactory::make()` / `view()`). Zero custom attribute classes (such as `RenderAction`) are introduced, strictly adhering to Rule 8.
 3. **Template takes precedence over view.** If both `template` and `view` are specified under `setDefaults`, `template` is dispatched first. If `template` is omitted, `view` executes for backwards compatibility.
+3b. **`factory` is a mutually exclusive render source.** `setDefaults.factory` ([declarative-view-factory.md](declarative-view-factory.md) §2) dispatches an `Illuminate\View\Factory` method instead, and declaring it beside `template` or `view` throws `LogicException`. Between `template` and `view` alone the precedence above is unchanged; `deleteCachedView` stays `Blade::render()`-only.
 4. **Wrap only where Laravel needs a Closure.** Query references (`queries:`) and container callables (`Class@method`) resolve via `DeclaredQuery::run()` and `Container::call()` with named route parameters.
 5. **One seam class per Laravel base class.** `DeclaredView extends ViewController`. It reads its declaration directly from the matched route's `$args` array populated by `RouteParameterBinder`.
 6. **`route:cache`-safe.** All default parameters under `setDefaults` are primitive strings, integers, lists, and associative maps. No runtime closures are stored in the route definition.
@@ -661,6 +662,7 @@ class DeclaredView extends ViewController
    - Inventing a new templating language. All syntax within `template:` is standard, 100% native Blade supported by Laravel's `BladeCompiler`.
    - Client-side reactive rendering inside YAML. Single-page application logic (React, Vue, Svelte) belongs in dedicated frontend builds.
    - Replacing hand-written controllers when complex procedural orchestration is required. `DeclaredView` coexists with standard Laravel controllers and routes.
+   - Rendering an inline template and a `factory:` dispatch on the same route. The two are mutually exclusive render sources (design rule 3b); the `composing: {routeName}` bridge fires only for `template:` renders, while `View`-returning `factory:` dispatches fire composers natively for the resolved view name ([declarative-view-factory.md](declarative-view-factory.md) §2.6).
 
 ---
 

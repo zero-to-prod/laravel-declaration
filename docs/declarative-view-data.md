@@ -310,6 +310,7 @@ final class PostStats
 | `setDefaults.data` | `$data` | `data` | `$data` | `?? []`; each reference → `Container::call()` |
 | `setDefaults.status` | `$status` | `status` | `$status` | `?? 200` |
 | `setDefaults.headers` | `$headers` | `headers` | `$headers` | `?? []` |
+| `setDefaults.factory` | — | — | — | one dynamic `Factory` dispatch ([declarative-view-factory.md](declarative-view-factory.md) §2); exclusive with `template`/`view` |
 | `metadata.request` | — | — | — | `app(DeclaredRequest::class)` as `$request`, before any reference |
 
 ### 2.5 Implementation
@@ -398,6 +399,7 @@ Departures from the roadmap draft (Phase 3), each smaller than the draft:
 - **No Closure or `.php` references.** `setDefaults` must stay `route:cache`-safe (roadmap rule 6), and `Class@method` covers what a Closure would do.
 - **Reuse is a YAML anchor.** `setDefaults: &posts {...}` on one route, and `setDefaults: {<<: *posts, status: 201}` on another. `symfony/yaml` resolves anchors and the merge key before `Route` hydrates.
 - **Not a validation layer.** Values pass through as YAML decoded them, and every failure is Laravel's own, at the first request (§1.4). `laravel-declaration:validate` cannot require `view` for a `DeclaredView` route: `justinrainbow/json-schema` 6.13.0 does not enforce draft-07 `if`/`then` in this validator (verified). So the schema only documents the keys (§3.2).
+- **One render source per route.** `template` > `view` is the inline-template precedence ([declarative-inline-template.md](declarative-inline-template.md)), and `factory` joins the pair as a third, mutually exclusive source: declaring `factory` beside `template` or `view` throws `LogicException` (declarative-view-factory.md §2.2).
 - **Redirects and JSON stay out.** `RedirectController` is roadmap Phase 0, and `ResponseFactory::json()` is a roadmap §6 non-goal.
 
 ---

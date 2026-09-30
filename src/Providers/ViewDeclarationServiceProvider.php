@@ -63,6 +63,12 @@ class ViewDeclarationServiceProvider extends ServiceProvider
 
                 $Factory->creator($viewsList, $callback);
             }
+
+            foreach ([View::flushFinderCache, View::flushState] as $method) {
+                if ($Manifest->view->{$method} === true) {
+                    $Factory->{$method}();
+                }
+            }
         });
     }
 

@@ -356,6 +356,14 @@
           "description": "-> creator($views, $callback), key is view name or comma-separated list of views, value is callback/class.",
           "type": "object",
           "additionalProperties": { "type": "string" }
+        },
+        "flushFinderCache": {
+          "description": "-> flushFinderCache(): true empties the finder's resolved-view cache after the block applies, so declared locations, namespaces and extensions win over finds cached before the provider booted.",
+          "type": "boolean"
+        },
+        "flushState": {
+          "description": "-> flushState(): true resets renderCount, renderedOnce, sections, stacks, components and fragments after the block applies (worker and test isolation).",
+          "type": "boolean"
         }
       }
     },

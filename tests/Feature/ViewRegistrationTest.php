@@ -68,10 +68,62 @@ it('hydrates view configuration properties', function (): void {
         'prependLocation' => ['path/b'],
         'composer' => ['home' => 'App\View\Composers\HomeComposer'],
         'creator' => ['home' => 'App\View\Creators\HomeCreator'],
+        'flushFinderCache' => true,
+        'flushState' => true,
     ]);
 
     expect($view->addLocation)->toBe(['path/a'])
         ->and($view->prependLocation)->toBe(['path/b'])
         ->and($view->composer)->toBe(['home' => 'App\View\Composers\HomeComposer'])
-        ->and($view->creator)->toBe(['home' => 'App\View\Creators\HomeCreator']);
+        ->and($view->creator)->toBe(['home' => 'App\View\Creators\HomeCreator'])
+        ->and($view->flushFinderCache)->toBeTrue()
+        ->and($view->flushState)->toBeTrue();
+});
+
+it('flushes stale finder entries when the factory resolved before the block applied', function (): void {
+    $this->withConfig([
+        'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+            view:
+              prependLocation:
+                - resources/declared-views/theme
+              flushFinderCache: true
+            YAML),
+        'laravel-declaration.warm-views' => true,
+    ]);
+
+    expect(view('greeting')->render())->toBe("theme\n");   // re-found: the prepended path wins
+});
+
+it('keeps stale finder entries without flushFinderCache', function (): void {
+    $this->withConfig([
+        'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+            view:
+              prependLocation:
+                - resources/declared-views/theme
+            YAML),
+        'laravel-declaration.warm-views' => true,
+    ]);
+
+    expect(view('greeting')->render())->toBe("base\n");    // the cached find short-circuits the finder
+});
+
+it('resets render bookkeeping when flushState is declared', function (): void {
+    $this->withConfig([
+        'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+            view:
+              flushState: true
+            YAML),
+        'laravel-declaration.warm-views' => true,
+    ]);
+
+    expect(app('view')->getSections())->toBe([]);
+});
+
+it('keeps render bookkeeping without flushState', function (): void {
+    $this->withConfig([
+        'laravel-declaration.manifest' => $this->manifest('view: {}'),
+        'laravel-declaration.warm-views' => true,
+    ]);
+
+    expect(app('view')->getSections())->toBe(['banner' => '']);
 });

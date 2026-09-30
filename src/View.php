@@ -64,4 +64,14 @@ final readonly class View
     /** @var array<string, string> */
     #[Describe([Describe::default => []])]
     public array $creator;
+
+    public const string flushFinderCache = 'flushFinderCache';
+
+    #[Describe([Describe::default => false])]
+    public bool $flushFinderCache;
+
+    public const string flushState = 'flushState';
+
+    #[Describe([Describe::default => false])]
+    public bool $flushState;
 }

@@ -74,11 +74,12 @@ Consequences, each verified against v13.33.0 with Testbench:
 |---|---|
 | `composers` | `(array $composers)`: `foreach ($composers as $callback => $views) $this->composer($views, $callback)` (ManagesEvents.php:35). The `composer` map *is* that loop (§2.1) |
 | `addExtension()`'s `$resolver` | `?Closure`, and YAML has no Closure (§2.6) |
-| `make` / `file` / `first` / `exists` / `renderWhen` / `renderUnless` / `renderEach` | runtime rendering |
+| `make` / `file` / `first` / `exists` / `renderWhen` / `renderUnless` / `renderEach` | runtime rendering — dispatched per request by `DeclaredView`'s `setDefaults.factory` ([declarative-view-factory.md](declarative-view-factory.md) §2) |
 | `shared` / `getShared` / `getExtensions` / `getFinder` / `getEngineResolver` / `getDispatcher` / `getContainer` | runtime read-back |
 | `setFinder` / `setDispatcher` / `setContainer` | take objects |
 | `callComposer` / `callCreator` | runtime; `View::renderContents()` and `make()` call them |
-| `flushState` / `flushStateIfDoneRendering` / `flushFinderCache` / `incrementRender` / `decrementRender` / `doneRendering` / `hasRenderedOnce` / `markAsRenderedOnce` | render bookkeeping |
+| `flushFinderCache` / `flushState` | the `view:` epilogue booleans ([declarative-view-factory.md](declarative-view-factory.md) §2.5) |
+| `flushStateIfDoneRendering` / `incrementRender` / `decrementRender` / `doneRendering` / `hasRenderedOnce` / `markAsRenderedOnce` | render bookkeeping |
 | sections, stacks, loops, components, fragments, translations (`ManagesLayouts`, `ManagesStacks`, ...) | called by compiled Blade |
 | `macro` / `mixin` | `Macroable`; take Closures |
 
@@ -299,8 +300,10 @@ routes:
 | `share` | `share` | `map<key, literal>` | `$Factory->share($share)`, one call | `__env`, `app` only |
 | `composer` | `composer` | `map<Class \| Class@method, view \| list<view>>` | `$Factory->composer($views, $callback)` per entry | no composer |
 | `creator` | `creator` | same | `$Factory->creator($views, $callback)` per entry | no creator |
+| `flushFinderCache` | `flushFinderCache` | `boolean` | `$Factory->flushFinderCache()` when `true` (the epilogue, after `creator`) | no flush |
+| `flushState` | `flushState` | `boolean` | `$Factory->flushState()` when `true` (the epilogue, after `creator`) | no flush |
 
-The order is fixed: `addLocation` → `prependLocation` → `addNamespace` → `prependNamespace` → `replaceNamespace` → `addExtension` → `share` → `composer` → `creator`. One pair interacts: `replaceNamespace` runs last among the namespace keys, so it discards the manifest's own `addNamespace` / `prependNamespace` hints for the same namespace. `composer` and `creator` do not interact, because they are separate events fired at fixed points (§1.1). An unknown key throws `LogicException` when the manifest is read. `composers` is an unknown key (§2.6).
+The order is fixed: `addLocation` → `prependLocation` → `addNamespace` → `prependNamespace` → `replaceNamespace` → `addExtension` → `share` → `composer` → `creator` → `flushFinderCache` / `flushState` (the epilogue). One pair interacts: `replaceNamespace` runs last among the namespace keys, so it discards the manifest's own `addNamespace` / `prependNamespace` hints for the same namespace. `composer` and `creator` do not interact, because they are separate events fired at fixed points (§1.1). The epilogue always runs after every registration, so a flushed finder cache cannot hide a declared path ([declarative-view-factory.md](declarative-view-factory.md) §2.5). An unknown key throws `LogicException` when the manifest is read. `composers` is an unknown key (§2.6).
 
 ### 2.5 Registration algorithm (for the provider)
 
