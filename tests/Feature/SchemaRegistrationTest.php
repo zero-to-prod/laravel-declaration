@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ColumnDefinition;
-use Illuminate\Database\Schema\ForeignKeyDefinition;
+use Illuminate\Database\Schema\ForeignIdColumnDefinition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use ZeroToProd\LaravelDeclaration\Attributes\ColumnModifier;
@@ -165,22 +165,24 @@ test('it throws LogicException during manifest hydration when table key is unkno
             ],
         ],
     ]);
-})->throws(LogicException::class, 'Unknown table key or Blueprint method [nonExistentBlueprintMethod].');
+})->throws(LogicException::class, 'Unknown Blueprint method or table option [nonExistentBlueprintMethod].');
 
-test('it throws LogicException during manifest hydration when column modifier is unknown', function (): void {
+test('it throws LogicException during manifest hydration when column method is unknown', function (): void {
     Manifest::from([
         'schema' => [
             'tables' => [
                 'users' => [
                     'string' => [
                         'column' => 'email',
-                        'invalidModifier' => true,
                     ],
                 ],
             ],
         ],
     ]);
-})->throws(LogicException::class, 'Unknown column modifier or option [invalidModifier] for column type [string].');
+
+    expect(fn (): ColumnDefinitionModel => ColumnDefinitionModel::fromDefinition('invalidBlueprintCol', null))
+        ->toThrow(LogicException::class, 'Unknown Blueprint column method [invalidBlueprintCol].');
+});
 
 function createTestBlueprint(string $table = 'test_table'): Blueprint
 {
@@ -277,46 +279,51 @@ test('dynamic dispatch TableOption attribute applies table options', function ()
 test('ColumnDefinitionModel handles constraint shapes and factory parameters', function (): void {
     $blueprint = createTestBlueprint();
 
-    // Constrained true
-    $model1 = new ColumnDefinitionModel([], [], [], true);
-    expect($model1->isConstrained())->toBeTrue();
-    $fk1 = $model1->applyConstraint($blueprint->foreignId('user_id'));
-    expect($fk1)->toBeInstanceOf(ForeignKeyDefinition::class);
+    // Constrained true with fk modifiers
+    $model1 = new ColumnDefinitionModel(['user_id'], [], ['cascadeOnDelete' => true, 'onDelete' => 'cascade', 'onUpdate' => ['cascade']], true);
+    $col1 = $model1->apply($blueprint, 'foreignId');
+    expect($col1)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
-    // Constrained null
-    $modelNull = new ColumnDefinitionModel([], [], []);
-    expect($modelNull->isConstrained())->toBeFalse();
+    // Constrained null with col modifiers
+    $modelNull = new ColumnDefinitionModel(['account_id'], ['nullable' => true, 'default' => 'active', 'comment' => ['a comment']], []);
+    $colNull = $modelNull->apply($blueprint, 'foreignId');
+    expect($colNull)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
     // Constrained string table
-    $model2 = new ColumnDefinitionModel([], [], [], 'accounts');
-    $fk2 = $model2->applyConstraint($blueprint->foreignId('account_id'));
-    expect($fk2->get('on'))->toBe('accounts');
+    $model2 = new ColumnDefinitionModel(['account_id'], [], [], 'accounts');
+    $col2 = $model2->apply($blueprint, 'foreignId');
+    expect($col2)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
     // Constrained list array
-    $model3 = new ColumnDefinitionModel([], [], [], ['accounts', 'acc_id']);
-    $fk3 = $model3->applyConstraint($blueprint->foreignId('account_id'));
-    expect($fk3->get('on'))->toBe('accounts');
+    $model3 = new ColumnDefinitionModel(['account_id'], [], [], ['accounts', 'acc_id']);
+    $col3 = $model3->apply($blueprint, 'foreignId');
+    expect($col3)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
     // Constrained map array
-    $model4 = new ColumnDefinitionModel([], [], [], ['table' => 'accounts', 'column' => 'acc_id', 'indexName' => 'acc_fk']);
-    $fk4 = $model4->applyConstraint($blueprint->foreignId('account_id'));
-    expect($fk4->get('on'))->toBe('accounts');
+    $model4 = new ColumnDefinitionModel(['account_id'], [], [], ['table' => 'accounts', 'column' => 'acc_id', 'indexName' => 'acc_fk']);
+    $col4 = $model4->apply($blueprint, 'foreignId');
+    expect($col4)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
-    // Constrained fallback/other
-    $model5 = new ColumnDefinitionModel([], [], [], false);
-    expect($model5->isConstrained())->toBeFalse();
+    // Constrained fallback/other (e.g. object)
+    $model5 = new ColumnDefinitionModel(['obj_id'], [], [], (object) ['other' => true]);
+    $col5 = $model5->apply($blueprint, 'foreignId');
+    expect($col5)->toBeInstanceOf(ForeignIdColumnDefinition::class);
 
-    // morphs parameter mapping (column vs name)
+    // fromDefinition with column vs name
     $morphModel = ColumnDefinitionModel::fromDefinition('morphs', ['column' => 'imageable']);
-    expect($morphModel->factoryArguments())->toBe(['imageable']);
+    expect($morphModel->factoryArguments)->toBe(['imageable']);
 
-    // decimal parameters with defaults
-    $decimalModel = ColumnDefinitionModel::fromDefinition('decimal', ['column' => 'balance', 'places' => 4]);
-    expect($decimalModel->factoryArguments())->toBe(['balance', 8, 4]);
+    // fromDefinition with args array
+    $decimalModel = ColumnDefinitionModel::fromDefinition('decimal', ['args' => ['balance', 8, 4]]);
+    expect($decimalModel->factoryArguments)->toBe(['balance', 8, 4]);
 
-    // enum parameters
-    $enumModel = ColumnDefinitionModel::fromDefinition('enum', ['column' => 'type', 'allowed' => ['a', 'b']]);
-    expect($enumModel->factoryArguments())->toBe(['type', ['a', 'b']]);
+    // fromDefinition with scalar value
+    $enumModel = ColumnDefinitionModel::fromDefinition('string', 'username');
+    expect($enumModel->factoryArguments)->toBe(['username']);
+
+    // fromDefinition with null
+    $nullModel = ColumnDefinitionModel::fromDefinition('timestamps', null);
+    expect($nullModel->factoryArguments)->toBeEmpty();
 });
 
 test('TableDefinition handles instance context, scalar index, associative index, and pre-partitioned', function (): void {
@@ -341,15 +348,22 @@ test('TableDefinition handles instance context, scalar index, associative index,
     // Pre-partitioned context
     $partitioned = TableDefinition::from([
         'options' => ['engine' => 'InnoDB'],
-        'columns' => [],
-        'indexes' => [],
+        'columns' => ['string' => [new ColumnDefinitionModel(['col_a'])]],
+        'indexes' => ['index' => ['col_a']],
     ]);
-    expect($partitioned->options)->toBe(['engine' => 'InnoDB']);
+    expect($partitioned->options)->toBe(['engine' => 'InnoDB'])
+        ->and($partitioned->columns['string'])->toHaveCount(1)
+        ->and($partitioned->indexes['index'])->toBe(['col_a']);
 
-    // Blueprint method that returns void (morphs) and Collection (timestamps)
+    // Blueprint method that returns void (morphs) and Collection (timestamps) and options with method
     $tableDef = TableDefinition::from([
         'morphs' => 'taggable',
         'timestamps' => null,
+        'comment' => 'table comment',
+        'index' => [
+            [['taggable_id', 'taggable_type'], 'composite_idx'],
+            'taggable_id',
+        ],
     ]);
 
     $blueprint = createTestBlueprint('items');
@@ -362,22 +376,18 @@ test('TableDefinition handles instance context, scalar index, associative index,
 test('ColumnDefinitionModel covers remaining branches', function (): void {
     $blueprint = createTestBlueprint();
 
-    // Line 90: Fallback when constrained is neither true, string, nor array
-    $modelObjectConstrained = new ColumnDefinitionModel([], [], [], (object) ['other' => true]);
-    $fk = $modelObjectConstrained->applyConstraint($blueprint->foreignId('obj_id'));
-    expect($fk)->toBeInstanceOf(ForeignKeyDefinition::class);
-
-    // Line 96: fromDefinition throws when column type is not a Blueprint method
+    // fromDefinition throws when column type is not a Blueprint method
     expect(fn (): ColumnDefinitionModel => ColumnDefinitionModel::fromDefinition('invalidColType', null))
-        ->toThrow(LogicException::class, 'Unknown table key or Blueprint method [invalidColType].');
+        ->toThrow(LogicException::class, 'Unknown Blueprint column method [invalidColType].');
 
-    // Lines 122..123: Method parameter named 'column' receives 'name' from definition
+    // Method parameter named 'column' receives 'name' from definition
     $nameModel = ColumnDefinitionModel::fromDefinition('string', ['name' => 'username']);
-    expect($nameModel->factoryArguments())->toBe(['username']);
+    expect($nameModel->factoryArguments)->toBe(['username']);
 
-    // Line 144: Parameter with no default value not present in paramValues resolves to null
-    $missingParamModel = ColumnDefinitionModel::fromDefinition('foreignIdFor', ['column' => 'author_id']);
-    expect($missingParamModel->factoryArguments())->toBe([null, 'author_id']);
+    // apply with scalar modifier
+    $colModel = new ColumnDefinitionModel(['bio'], ['default' => 'none', 'nullable' => true, 'comment' => null]);
+    $col = $colModel->apply($blueprint, 'text');
+    expect($col->get('default'))->toBe('none');
 });
 
 test('Schema DataModel instantiates with null connection and empty tables collection by default', function (): void {

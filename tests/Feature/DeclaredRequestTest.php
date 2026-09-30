@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
-use ZeroToProd\LaravelDeclaration\Attributes\Redirect;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Request;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController;
@@ -177,10 +176,17 @@ it('throws when no manifest is declared, binding an empty one', function (): voi
     expect(fn (): TestResponse => $this->postJson('/manual'))->toThrow(LogicException::class);
 });
 
-it('selects redirect properties via attributes', function (): void {
-    expect(Request::selected(Redirect::class))->toBe([
-        Request::redirect,
-        Request::redirectRoute,
-        Request::redirectAction,
+it('hydrates shouldFailOnUnknownFields and redirect properties on request declaration', function (): void {
+    $request = Request::from([
+        'name' => 'test',
+        'shouldFailOnUnknownFields' => true,
+        'redirect' => '/failed',
+        'redirectRoute' => 'home',
+        'redirectAction' => 'Controller@action',
     ]);
+
+    expect($request->shouldFailOnUnknownFields)->toBeTrue()
+        ->and($request->redirect)->toBe('/failed')
+        ->and($request->redirectRoute)->toBe('home')
+        ->and($request->redirectAction)->toBe('Controller@action');
 });

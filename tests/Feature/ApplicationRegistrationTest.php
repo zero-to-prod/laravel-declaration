@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Translation\Translator;
 use ZeroToProd\LaravelDeclaration\App;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\Hook;
-use ZeroToProd\LaravelDeclaration\Attributes\Path;
-use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf;
@@ -20,6 +16,7 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Report
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\SlowWarmup;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass;
 
 $manifest = __DIR__.'/../Fixtures/manifest/app.yml';
 
@@ -202,26 +199,91 @@ it('ignores unknown app keys', function (): void {
         ->and(app()->bound('Foo'))->toBeFalse();
 });
 
-it('selects binding, path, setter, and hook properties via attributes', function (): void {
-    expect(App::selected(Binding::class))->toBe([
-        App::bind,
-        App::bindIf,
-        App::singleton,
-        App::singletonIf,
-        App::scoped,
-        App::scopedIf,
-    ])->and(App::selected(Path::class))->toBe([
-        App::useAppPath,
-        App::useDatabasePath,
-        App::useLangPath,
-        App::usePublicPath,
-        App::useStoragePath,
-    ])->and(App::selected(Setter::class))->toBe([
-        App::setLocale,
-        App::setFallbackLocale,
-    ])->and(App::selected(Hook::class))->toBe([
-        App::registered,
-        App::booting,
-        App::booted,
+it('hydrates container and application path properties', function (): void {
+    $app = App::from([
+        'tag' => ['service' => ['tag1', 'tag2']],
+        'when' => ['ServiceClass' => ['needs' => 'DepClass', 'give' => 'ConcreteClass']],
+        'useBootstrapPath' => 'bootstrap',
+        'useConfigPath' => 'config',
+        'useEnvironmentPath' => 'env',
     ]);
+
+    expect($app->tag)->toBe(['service' => ['tag1', 'tag2']])
+        ->and($app->when)->toBe(['ServiceClass' => ['needs' => 'DepClass', 'give' => 'ConcreteClass']])
+        ->and($app->useBootstrapPath)->toBe('bootstrap')
+        ->and($app->useConfigPath)->toBe('config')
+        ->and($app->useEnvironmentPath)->toBe('env');
 });
+
+it('applies tag, when, resolving, afterResolving, and path setters', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-app-bindings-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        app:
+          tag:
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
+              - my_tag
+          resolving:
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
+              - AppTestHelper::resolvingCallback
+          afterResolving:
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
+              - AppTestHelper::afterResolvingCallback
+          useBootstrapPath: bootstrap
+          useConfigPath: config
+          useEnvironmentPath: env
+        YAML);
+
+    try {
+        AppTestHelper::$resolvingCalled = false;
+        AppTestHelper::$afterResolvingCalled = false;
+
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        $tagged = app()->tagged('my_tag');
+        expect($tagged)->toHaveCount(1);
+
+        app()->make(MockClass::class, ['name' => 'test']);
+
+        expect(AppTestHelper::$resolvingCalled)->toBeTrue()
+            ->and(AppTestHelper::$afterResolvingCalled)->toBeTrue();
+    } finally {
+        unlink($file);
+    }
+});
+
+it('applies contextual when binding', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-app-when-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        app:
+          when:
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
+              needs: '$name'
+              give: contextual-value
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        $instance = app()->make(MockClass::class);
+        expect($instance->name)->toBe('contextual-value');
+    } finally {
+        unlink($file);
+    }
+});
+
+class AppTestHelper
+{
+    public static bool $resolvingCalled = false;
+
+    public static bool $afterResolvingCalled = false;
+
+    public static function resolvingCallback(): void
+    {
+        self::$resolvingCalled = true;
+    }
+
+    public static function afterResolvingCallback(): void
+    {
+        self::$afterResolvingCalled = true;
+    }
+}

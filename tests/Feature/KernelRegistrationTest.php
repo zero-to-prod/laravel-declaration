@@ -122,7 +122,7 @@ it('supports interval string and php file references in duration handlers', func
             0ms: $reporterPath
         routes:
           - methods: get
-            path: /interval-test
+            uri: /interval-test
             action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
         YAML);
 

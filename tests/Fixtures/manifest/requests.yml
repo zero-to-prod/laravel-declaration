@@ -22,7 +22,7 @@ requests:
       - 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Hooks\ValidateUserStatus'
     errorBag: user
     stopOnFirstFailure: true
-    failOnUnknownFields: true
+    shouldFailOnUnknownFields: true
     bogus: ignored
 
   - name: data
@@ -62,57 +62,57 @@ requests:
       name: [required, string]
 
 routes:
-  - path: users
+  - uri: users
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: user
 
-  - path: data
+  - uri: data
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: data
 
-  - path: avatar
+  - uri: avatar
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, avatar]
     middleware: [web]
     metadata:
       request: avatar
 
-  - path: hooks
+  - uri: hooks
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, hook]
     metadata:
       request: custom-failure
 
-  - path: denied
+  - uri: denied
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: denied
 
-  - path: forbidden
+  - uri: forbidden
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: forbidden
 
-  - path: granted
+  - uri: granted
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: granted
 
   # names an undeclared request
-  - path: ghost
+  - uri: ghost
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
     metadata:
       request: undeclared
 
   # no `metadata.request`: the type-hint still resolves, and fails
-  - path: untyped
+  - uri: untyped
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]

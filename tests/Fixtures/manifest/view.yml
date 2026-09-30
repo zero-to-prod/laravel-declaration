@@ -17,14 +17,15 @@ view:
     brand: Tenant Console
     title: shared
   composer:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu: users.*
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant: '*'
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary: [users.show, greeting]
+    users.*: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu
+    '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant
+    "users.show, greeting": ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary
   creator:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs: users.show
+    "users.show,greeting": ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
+    single: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
 
 routes:
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: GET
     action: Illuminate\Routing\ViewController
     setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}

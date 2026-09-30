@@ -13,7 +13,7 @@ view:
   share:
     brand: Tenant Console
   composer:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant: '*'
+    '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant
 
 requests:
   - name: post-filters
@@ -22,13 +22,13 @@ requests:
 
 queries:
   - name: user-posts
-    from: user.posts
+    relation: user.posts
     with: [author]
     latest: created_at
     paginate: 15
 
 routes:
-  - path: "users/{user}/posts"
+  - uri: "users/{user}/posts"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\DeclaredView
     name: users.posts

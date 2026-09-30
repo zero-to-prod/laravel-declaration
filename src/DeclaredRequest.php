@@ -12,10 +12,36 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use LogicException;
-use ZeroToProd\LaravelDeclaration\Attributes\Redirect;
 
 class DeclaredRequest extends FormRequest
 {
+    public function validateResolved(): void
+    {
+        $this->configureDeclaration();
+
+        parent::validateResolved();
+    }
+
+    protected function configureDeclaration(): void
+    {
+        $declaration = $this->declaration();
+
+        if ($declaration->redirect !== null) {
+            $this->redirect = $declaration->redirect;
+        }
+
+        if ($declaration->redirectRoute !== null) {
+            $this->redirectRoute = $declaration->redirectRoute;
+        }
+
+        if ($declaration->redirectAction !== null) {
+            $this->redirectAction = $declaration->redirectAction;
+        }
+
+        $this->errorBag = $declaration->errorBag;
+        $this->stopOnFirstFailure = $declaration->stopOnFirstFailure;
+    }
+
     public function authorize(): bool|Response
     {
         $authorize = $this->declaration()->authorize;
@@ -101,9 +127,9 @@ class DeclaredRequest extends FormRequest
 
     protected function shouldFailOnUnknownFields(): bool
     {
-        $failOnUnknownFields = $this->declaration()->failOnUnknownFields;
+        $shouldFail = $this->declaration()->shouldFailOnUnknownFields;
 
-        return $failOnUnknownFields ?? parent::shouldFailOnUnknownFields();
+        return $shouldFail ?? parent::shouldFailOnUnknownFields();
     }
 
     protected function failedValidation(Validator $validator): void
@@ -120,31 +146,17 @@ class DeclaredRequest extends FormRequest
         throw new AuthorizationException;
     }
 
-    protected function configureFromAttributes(): void
-    {
-        $Request = $this->declaration();
-
-        foreach (Request::selected(Redirect::class) as $property) {
-            if ($Request->{$property} !== null) {
-                $this->{$property} = $Request->{$property};
-            }
-        }
-
-        $this->errorBag = $Request->errorBag;
-        $this->stopOnFirstFailure = $Request->stopOnFirstFailure;
-    }
-
     private function declaration(): Request
     {
         /** @var string|null $name */
-        $name = $this->route()->getMetadata('request');
+        $name = $this->route()->getMetadata('request') ?? $this->route()->defaults['request'] ?? null;
 
         /** @var Request|null $Request */
         $Request = $this->container->make(Manifest::class)->requests->get($name);
 
         return $Request
             ?? throw new LogicException(
-                "The route declares no `metadata.request`, or [{$name}] is not declared under `requests`.",
+                "The route declares no `request` metadata or default, or [{$name}] is not declared under `requests`.",
             );
     }
 

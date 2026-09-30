@@ -33,18 +33,42 @@ readonly class Manifest
     #[Describe([Describe::nullable => true])]
     public ?View $view;
 
+    public const string blade = 'blade';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Blade $blade;
+
+    public const string responses = 'responses';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Response $responses;
+
+    public const string pagination = 'pagination';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Pagination $pagination;
+
+    public const string db = 'db';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Database $db;
+
     public const string kernel = 'kernel';
 
     #[Describe([Describe::nullable => true])]
     public ?Kernel $kernel;
 
+    public const string providers = 'providers';
+
     /** @var Collection<string, Provider> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],
         'type' => Provider::class,
-        'key_by' => Provider::name,
+        'key_by' => 'class',
     ])]
     public Collection $providers;
+
+    public const string requests = 'requests';
 
     /** @var Collection<string, Request> */
     #[Describe([
@@ -54,6 +78,8 @@ readonly class Manifest
     ])]
     public Collection $requests;
 
+    public const string models = 'models';
+
     /** @var Collection<string, Model> */
     #[Describe([
         Describe::cast => [self::class, 'mapOf'],
@@ -61,6 +87,8 @@ readonly class Manifest
         'key_by' => 'class',
     ])]
     public Collection $models;
+
+    public const string routes = 'routes';
 
     /** @var Collection<int, Route> */
     #[Describe([

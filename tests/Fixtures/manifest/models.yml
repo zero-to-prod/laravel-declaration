@@ -41,7 +41,7 @@ models:
     withCount: [flights]
 
 routes:
-  - path: "flights/{flight}"
+  - uri: "flights/{flight}"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
     middleware: [Illuminate\Routing\Middleware\SubstituteBindings]

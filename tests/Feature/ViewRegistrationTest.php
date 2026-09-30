@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-use ZeroToProd\LaravelDeclaration\Attributes\Composer;
-use ZeroToProd\LaravelDeclaration\Attributes\Location;
-use ZeroToProd\LaravelDeclaration\Attributes\ViewNamespace;
 use ZeroToProd\LaravelDeclaration\View;
 
 $manifest = __DIR__.'/../Fixtures/manifest/view.yml';
@@ -65,16 +62,16 @@ it('ignores unknown view keys', function (): void {
     expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
 });
 
-it('selects location, viewNamespace, and composer properties via attributes', function (): void {
-    expect(View::selected(Location::class))->toBe([
-        View::addLocation,
-        View::prependLocation,
-    ])->and(View::selected(ViewNamespace::class))->toBe([
-        View::addNamespace,
-        View::prependNamespace,
-        View::replaceNamespace,
-    ])->and(View::selected(Composer::class))->toBe([
-        View::composer,
-        View::creator,
+it('hydrates view configuration properties', function (): void {
+    $view = View::from([
+        'addLocation' => ['path/a'],
+        'prependLocation' => ['path/b'],
+        'composer' => ['home' => 'App\View\Composers\HomeComposer'],
+        'creator' => ['home' => 'App\View\Creators\HomeCreator'],
     ]);
+
+    expect($view->addLocation)->toBe(['path/a'])
+        ->and($view->prependLocation)->toBe(['path/b'])
+        ->and($view->composer)->toBe(['home' => 'App\View\Composers\HomeComposer'])
+        ->and($view->creator)->toBe(['home' => 'App\View\Creators\HomeCreator']);
 });

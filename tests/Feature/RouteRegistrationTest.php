@@ -111,7 +111,7 @@ it('rejects a non-invokable missing handler', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
         routes:
-          - path: "/"
+          - uri: "/"
             methods: GET
             action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
             name: temp-home
@@ -133,3 +133,52 @@ it('registers no routes without a manifest', function (): void {
     expect(app(Router::class)->getRoutes()->count())->toBe(0)
         ->and(app(MockController::class))->toBeInstanceOf(MockController::class);
 });
+
+it('verifies HTTP verb arrays and dynamic route constraints', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        routes:
+          - uri: "items/{id}/{type}"
+            methods: [GET, POST]
+            action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+            name: items.show
+            whereNumber: id
+            whereAlpha: type
+            bindingFields:
+              id: slug
+            fallback: false
+            block: ~
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        $router = app(Router::class);
+        $route = $router->getRoutes()->getByName('items.show');
+
+        $ref = new ReflectionProperty($route, 'bindingFields');
+        expect($route)->not->toBeNull()
+            ->and($route->methods())->toContain('GET', 'POST')
+            ->and($route->wheres['id'])->toBe('[0-9]+')
+            ->and($route->wheres['type'])->toBe('[a-zA-Z]+')
+            ->and($ref->getValue($route)['id'])->toBe('slug');
+    } finally {
+        unlink($file);
+    }
+});
+
+it('throws LogicException when route specifies no action', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        routes:
+          - uri: "/no-action"
+            methods: GET
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+        app(Router::class);
+    } finally {
+        unlink($file);
+    }
+})->throws(LogicException::class, 'Route for URI [/no-action] must specify an action.');

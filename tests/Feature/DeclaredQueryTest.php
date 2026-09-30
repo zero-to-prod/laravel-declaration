@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use BadMethodCallException;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -103,29 +105,30 @@ it('throws LogicException when the declared query does not exist', function (): 
     DeclaredQuery::run('non-existent-query');
 })->throws(LogicException::class, 'The declared query [non-existent-query] does not exist.');
 
-it('ignores unknown keys in queries entry', function (): void {
+it('throws BadMethodCallException when query calls unmapped or invalid method', function (): void {
     $query = Query::from([
         'name' => 'broken',
-        'from' => Flight::class,
-        'unknownKey' => 'value',
+        'model' => Flight::class,
+        'nonExistentBuilderMethod' => 'value',
+    ]);
+
+    $query->run();
+})->throws(BadMethodCallException::class);
+
+it('allows native from method on Query Builder', function (): void {
+    $query = Query::from([
+        'name' => 'native-from',
+        'model' => Flight::class,
+        'from' => 'my_flights',
     ]);
 
     expect($query->run())->toBeInstanceOf(Collection::class);
 });
 
-it('allows queries.from when instantiating Query', function (): void {
-    $query = Query::from([
-        'name' => 'broken-from',
-        'from' => 'NotAClassOrRelation',
-    ]);
-
-    expect($query->from)->toBe('NotAClassOrRelation');
-});
-
 it('allows multiple terminal methods, executing the last declared terminal', function (): void {
     $query = Query::from([
         'name' => 'multi-terminal',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'count' => true,
         'paginate' => 10,
     ]);
@@ -136,17 +139,43 @@ it('allows multiple terminal methods, executing the last declared terminal', fun
 it('throws InvalidArgumentException when route parameter is not a Model', function (): void {
     $query = Query::from([
         'name' => 'param-test',
-        'from' => 'airline.flights',
+        'relation' => 'airline.flights',
     ]);
 
     $query->run(['airline' => 'not-a-model']);
 })->throws(InvalidArgumentException::class, 'Route parameter [airline] must be an instance of Illuminate\Database\Eloquent\Model to query relation [flights].');
 
+it('throws LogicException when query declares neither model nor relation', function (): void {
+    $query = Query::from([
+        'name' => 'no-root',
+    ]);
+
+    $query->run();
+})->throws(LogicException::class, "Query [no-root] must declare either 'model' or 'relation'.");
+
+it('throws InvalidArgumentException when declared query model is not an Eloquent Model subclass', function (): void {
+    $query = Query::from([
+        'name' => 'not-a-model-class',
+        'model' => stdClass::class,
+    ]);
+
+    $query->run();
+})->throws(InvalidArgumentException::class, 'Declared query model [stdClass] must be a subclass of Illuminate\Database\Eloquent\Model.');
+
+it('throws InvalidArgumentException when relation is not formatted as param.relation', function (): void {
+    $query = Query::from([
+        'name' => 'invalid-relation-format',
+        'relation' => 'invalidformat',
+    ]);
+
+    $query->run();
+})->throws(InvalidArgumentException::class, "Relation query must specify route parameter and relation in 'param.relation' format; 'invalidformat' given.");
+
 it('throws LogicException when model does not define the relationship method', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
     $query = Query::from([
         'name' => 'missing-rel',
-        'from' => 'airline.nonExistentRelation',
+        'relation' => 'airline.nonExistentRelation',
     ]);
 
     $query->run(['airline' => $airline]);
@@ -156,11 +185,11 @@ it('throws LogicException when relationship method does not return Relation or B
     $airline = Airline::create(['name' => 'Acme Air']);
     $query = Query::from([
         'name' => 'invalid-rel-return',
-        'from' => 'airline.notARelation',
+        'relation' => 'airline.notARelation',
     ]);
 
     $query->run(['airline' => $airline]);
-})->throws(LogicException::class, 'Method [notARelation] on ['.Airline::class.'] must return an instance of Illuminate\Database\Eloquent\Relations\Relation or Illuminate\Database\Eloquent\Builder.');
+})->throws(LogicException::class, 'Relationship method [notARelation] on ['.Airline::class.'] must return an Eloquent Relation or Builder.');
 
 it('tests where shapes and operators', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
@@ -170,7 +199,7 @@ it('tests where shapes and operators', function (): void {
     // Associative map where
     $qMap = Query::from([
         'name' => 'test-map',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'where' => ['status' => 'active', 'delayed' => false],
     ]);
     expect($qMap->run())->toHaveCount(1);
@@ -178,7 +207,7 @@ it('tests where shapes and operators', function (): void {
     // List of tuples where
     $qTuples = Query::from([
         'name' => 'test-tuples',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'where' => [['status', 'active'], ['code', 'AA100']],
     ]);
     expect($qTuples->run())->toHaveCount(1);
@@ -186,7 +215,7 @@ it('tests where shapes and operators', function (): void {
     // orWhere, whereNot, orWhereNot
     $qOrWhere = Query::from([
         'name' => 'test-or',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'where' => ['status', 'active'],
         'orWhere' => ['status', 'delayed'],
         'whereNot' => ['code', 'AA999'],
@@ -202,14 +231,14 @@ it('tests primary key whereKey and whereKeyNot clauses', function (): void {
 
     $qKey = Query::from([
         'name' => 'test-key',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereKey' => 'f-1',
     ]);
     expect($qKey->run())->toHaveCount(1);
 
     $qKeyNot = Query::from([
         'name' => 'test-key-not',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereKeyNot' => 'f-1',
     ]);
     expect($qKeyNot->run())->toHaveCount(1);
@@ -222,7 +251,7 @@ it('tests whereIn and whereNotIn spread clauses', function (): void {
 
     $qIn = Query::from([
         'name' => 'test-in',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereIn' => ['code', ['AA100', 'AA200']],
         'whereNotIn' => ['code', ['AA300']],
     ]);
@@ -236,14 +265,14 @@ it('tests whereNull and whereNotNull clauses', function (): void {
 
     $qNull = Query::from([
         'name' => 'test-null',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereNull' => 'secret',
     ]);
     expect($qNull->run())->toHaveCount(1);
 
     $qNotNull = Query::from([
         'name' => 'test-not-null',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereNotNull' => 'secret',
     ]);
     expect($qNotNull->run())->toHaveCount(1);
@@ -256,7 +285,7 @@ it('tests whereBetween and whereNotBetween spread clauses', function (): void {
 
     $qBetween = Query::from([
         'name' => 'test-between',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereBetween' => ['altitude', [50, 150]],
         'whereNotBetween' => ['altitude', [300, 400]],
     ]);
@@ -269,7 +298,7 @@ it('tests whereDate, whereMonth, whereDay, whereYear, whereTime and whereColumn 
 
     $qDate = Query::from([
         'name' => 'test-date',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereDate' => ['created_at', '>=', '2020-01-01'],
         'whereMonth' => ['created_at', '>=', '1'],
         'whereDay' => ['created_at', '>=', '1'],
@@ -286,7 +315,7 @@ it('tests relationship constraints: whereRelation, orWhereRelation, whereDoesntH
 
     $qRel = Query::from([
         'name' => 'test-rel',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'whereRelation' => ['airline', 'name', 'Acme Air'],
         'orWhereRelation' => ['airline', 'name', 'NonExistent'],
         'whereDoesntHaveRelation' => ['airline', 'name', 'Bad Air'],
@@ -302,14 +331,14 @@ it('tests relationship has and doesntHave on Airline', function (): void {
 
     $qHas = Query::from([
         'name' => 'test-has',
-        'from' => Airline::class,
+        'model' => Airline::class,
         'has' => ['flights', '>=', 1],
     ]);
     expect($qHas->run())->toHaveCount(1);
 
     $qDoesntHave = Query::from([
         'name' => 'test-doesnt-have',
-        'from' => Airline::class,
+        'model' => Airline::class,
         'doesntHave' => 'flights',
     ]);
     expect($qDoesntHave->run())->toHaveCount(1);
@@ -322,39 +351,19 @@ it('tests whereBelongsTo clause with owner model and relation', function (): voi
 
     $qBelongsTo = Query::from([
         'name' => 'test-belongs-to',
-        'from' => Flight::class,
-        'whereBelongsTo' => 'airline',
+        'model' => Flight::class,
+        'whereBelongsTo' => $airline1,
     ]);
-    expect($qBelongsTo->run(['airline' => $airline1]))->toHaveCount(1);
+    expect($qBelongsTo->run())->toHaveCount(1);
 
     // Tuple form with relation name
     $qBelongsToTuple = Query::from([
         'name' => 'test-belongs-to-tuple',
-        'from' => Flight::class,
-        'whereBelongsTo' => ['airline', 'airline'],
+        'model' => Flight::class,
+        'whereBelongsTo' => [$airline1, 'airline'],
     ]);
-    expect($qBelongsToTuple->run(['airline' => $airline1]))->toHaveCount(1);
+    expect($qBelongsToTuple->run())->toHaveCount(1);
 });
-
-it('throws InvalidArgumentException when BelongsTo parameter is not a Model', function (): void {
-    $qBelongsTo = Query::from([
-        'name' => 'test-belongs-to-err',
-        'from' => Flight::class,
-        'whereBelongsTo' => 'airline',
-    ]);
-
-    $qBelongsTo->run(['airline' => 'string-not-model']);
-})->throws(InvalidArgumentException::class, 'Route parameter [airline] must be an instance of Illuminate\Database\Eloquent\Model.');
-
-it('throws InvalidArgumentException when BelongsTo parameter is non-scalar', function (): void {
-    $qBelongsTo = Query::from([
-        'name' => 'test-belongs-to-nonscalar',
-        'from' => Flight::class,
-        'whereBelongsTo' => [['nested'], null],
-    ]);
-
-    $qBelongsTo->run([]);
-})->throws(InvalidArgumentException::class, 'Route parameter [array] must be an instance of Illuminate\Database\Eloquent\Model.');
 
 it('tests eager loading clauses: with, without, withOnly, withCount, withMax, withMin, withSum, withAvg, withExists', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
@@ -362,7 +371,7 @@ it('tests eager loading clauses: with, without, withOnly, withCount, withMax, wi
 
     $qEager = Query::from([
         'name' => 'test-eager',
-        'from' => Airline::class,
+        'model' => Airline::class,
         'with' => 'flights',
         'withOnly' => 'flights',
         'without' => 'flights',
@@ -386,29 +395,21 @@ it('tests local scopes clause', function (): void {
 
     $qScope = Query::from([
         'name' => 'test-scope',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'scopes' => 'active',
     ]);
     expect($qScope->run())->toHaveCount(1);
 });
 
-it('tests Flag attribute branches: false, true, null, and custom value', function (): void {
+it('tests dynamic method dispatch: boolean, null, array, and scalar arguments', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100', 'departed_at' => 100]);
     Flight::create(['flight_id' => 'f-2', 'airline_id' => $airline->id, 'name' => 'Denver', 'code' => 'AA200', 'departed_at' => 200]);
 
-    // distinct false (early return)
-    $qDistinctFalse = Query::from([
-        'name' => 'test-distinct-false',
-        'from' => Flight::class,
-        'distinct' => false,
-    ]);
-    expect($qDistinctFalse->run())->toHaveCount(2);
-
     // distinct true (calls method with no args)
     $qDistinctTrue = Query::from([
         'name' => 'test-distinct-true',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'distinct' => true,
     ]);
     expect($qDistinctTrue->run())->toHaveCount(2);
@@ -416,7 +417,7 @@ it('tests Flag attribute branches: false, true, null, and custom value', functio
     // latest null (calls latest() with default created_at)
     $qLatestNull = Query::from([
         'name' => 'test-latest-null',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'latest' => null,
     ]);
     expect($qLatestNull->run())->toHaveCount(2);
@@ -424,7 +425,7 @@ it('tests Flag attribute branches: false, true, null, and custom value', functio
     // latest with column value
     $qLatestCol = Query::from([
         'name' => 'test-latest-col',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'latest' => 'departed_at',
     ]);
     expect($qLatestCol->run()->first()->flight_id)->toBe('f-2');
@@ -432,7 +433,7 @@ it('tests Flag attribute branches: false, true, null, and custom value', functio
     // oldest
     $qOldest = Query::from([
         'name' => 'test-oldest',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'oldest' => 'departed_at',
     ]);
     expect($qOldest->run()->first()->flight_id)->toBe('f-1');
@@ -440,7 +441,7 @@ it('tests Flag attribute branches: false, true, null, and custom value', functio
     // inRandomOrder with seed
     $qRandom = Query::from([
         'name' => 'test-random',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'inRandomOrder' => true,
     ]);
     expect($qRandom->run())->toHaveCount(2);
@@ -448,7 +449,7 @@ it('tests Flag attribute branches: false, true, null, and custom value', functio
     // withoutGlobalScopes
     $qNoScopes = Query::from([
         'name' => 'test-noscopes',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'withoutGlobalScopes' => true,
     ]);
     expect($qNoScopes->run())->toHaveCount(2);
@@ -461,7 +462,7 @@ it('tests select, addSelect, orderBy, orderByDesc, groupBy, having, limit, offse
 
     $qClauses = Query::from([
         'name' => 'test-clauses',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'select' => ['flight_id', 'status'],
         'addSelect' => 'name',
         'orderBy' => ['flight_id', 'desc'],
@@ -475,7 +476,7 @@ it('tests select, addSelect, orderBy, orderByDesc, groupBy, having, limit, offse
     // orderByDesc and string orderBy
     $qOrderDesc = Query::from([
         'name' => 'test-order-desc',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'orderByDesc' => 'name',
         'orderBy' => 'flight_id',
     ]);
@@ -484,7 +485,7 @@ it('tests select, addSelect, orderBy, orderByDesc, groupBy, having, limit, offse
     // groupBy and having
     $qGroup = Query::from([
         'name' => 'test-group',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'select' => ['status'],
         'groupBy' => 'status',
         'having' => ['status', '=', 'active'],
@@ -496,32 +497,32 @@ it('tests terminal methods: first, firstOrFail, sole, find, findOrFail', functio
     $airline = Airline::create(['name' => 'Acme Air']);
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100']);
 
-    // first true (Fetch no args)
-    $qFirst = Query::from(['name' => 't-first', 'from' => Flight::class, 'first' => true]);
+    // first true
+    $qFirst = Query::from(['name' => 't-first', 'model' => Flight::class, 'first' => true]);
     expect($qFirst->run()->flight_id)->toBe('f-1');
 
     // first with string column
-    $qFirstCol = Query::from(['name' => 't-first-col', 'from' => Flight::class, 'first' => 'flight_id']);
+    $qFirstCol = Query::from(['name' => 't-first-col', 'model' => Flight::class, 'first' => 'flight_id']);
     expect($qFirstCol->run()->flight_id)->toBe('f-1');
 
     // first with array columns
-    $qFirstArr = Query::from(['name' => 't-first-arr', 'from' => Flight::class, 'first' => ['flight_id']]);
+    $qFirstArr = Query::from(['name' => 't-first-arr', 'model' => Flight::class, 'first' => ['flight_id']]);
     expect($qFirstArr->run()->flight_id)->toBe('f-1');
 
     // firstOrFail
-    $qFirstOrFail = Query::from(['name' => 't-first-or-fail', 'from' => Flight::class, 'firstOrFail' => true]);
+    $qFirstOrFail = Query::from(['name' => 't-first-or-fail', 'model' => Flight::class, 'firstOrFail' => true]);
     expect($qFirstOrFail->run()->flight_id)->toBe('f-1');
 
     // sole
-    $qSole = Query::from(['name' => 't-sole', 'from' => Flight::class, 'sole' => true]);
+    $qSole = Query::from(['name' => 't-sole', 'model' => Flight::class, 'sole' => true]);
     expect($qSole->run()->flight_id)->toBe('f-1');
 
     // find (single arg)
-    $qFind = Query::from(['name' => 't-find', 'from' => Flight::class, 'find' => 'f-1']);
+    $qFind = Query::from(['name' => 't-find', 'model' => Flight::class, 'find' => 'f-1']);
     expect($qFind->run()->flight_id)->toBe('f-1');
 
     // findOrFail
-    $qFindOrFail = Query::from(['name' => 't-find-or-fail', 'from' => Flight::class, 'findOrFail' => 'f-1']);
+    $qFindOrFail = Query::from(['name' => 't-find-or-fail', 'model' => Flight::class, 'findOrFail' => 'f-1']);
     expect($qFindOrFail->run()->flight_id)->toBe('f-1');
 });
 
@@ -530,15 +531,15 @@ it('tests scalar terminal methods: min, max, sum, avg, value, exists, doesntExis
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100', 'altitude' => 10]);
     Flight::create(['flight_id' => 'f-2', 'airline_id' => $airline->id, 'name' => 'Denver', 'code' => 'AA200', 'altitude' => 20]);
 
-    expect(Query::from(['name' => 't-min', 'from' => Flight::class, 'min' => 'altitude'])->run())->toBe(10)
-        ->and(Query::from(['name' => 't-max', 'from' => Flight::class, 'max' => 'altitude'])->run())->toBe(20)
-        ->and(Query::from(['name' => 't-sum', 'from' => Flight::class, 'sum' => 'altitude'])->run())->toBe(30)
-        ->and(Query::from(['name' => 't-avg', 'from' => Flight::class, 'avg' => 'altitude'])->run())->toBe(15.0)
-        ->and(Query::from(['name' => 't-val', 'from' => Flight::class, 'value' => 'code'])->run())->toBe('AA100')
-        ->and(Query::from(['name' => 't-exists', 'from' => Flight::class, 'exists' => true])->run())->toBeTrue()
-        ->and(Query::from(['name' => 't-not-exists', 'from' => Flight::class, 'doesntExist' => true])->run())->toBeFalse()
-        ->and(Query::from(['name' => 't-pluck-str', 'from' => Flight::class, 'pluck' => 'code'])->run()->all())->toBe(['AA100', 'AA200'])
-        ->and(Query::from(['name' => 't-pluck-arr', 'from' => Flight::class, 'pluck' => ['name', 'flight_id']])->run()->all())->toBe(['f-1' => 'Boston', 'f-2' => 'Denver']);
+    expect(Query::from(['name' => 't-min', 'model' => Flight::class, 'min' => 'altitude'])->run())->toBe(10)
+        ->and(Query::from(['name' => 't-max', 'model' => Flight::class, 'max' => 'altitude'])->run())->toBe(20)
+        ->and(Query::from(['name' => 't-sum', 'model' => Flight::class, 'sum' => 'altitude'])->run())->toBe(30)
+        ->and(Query::from(['name' => 't-avg', 'model' => Flight::class, 'avg' => 'altitude'])->run())->toBe(15.0)
+        ->and(Query::from(['name' => 't-val', 'model' => Flight::class, 'value' => 'code'])->run())->toBe('AA100')
+        ->and(Query::from(['name' => 't-exists', 'model' => Flight::class, 'exists' => true])->run())->toBeTrue()
+        ->and(Query::from(['name' => 't-not-exists', 'model' => Flight::class, 'doesntExist' => true])->run())->toBeFalse()
+        ->and(Query::from(['name' => 't-pluck-str', 'model' => Flight::class, 'pluck' => 'code'])->run()->all())->toBe(['AA100', 'AA200'])
+        ->and(Query::from(['name' => 't-pluck-arr', 'model' => Flight::class, 'pluck' => ['name', 'flight_id']])->run()->all())->toBe(['f-1' => 'Boston', 'f-2' => 'Denver']);
 });
 
 it('tests pagination terminals: paginate, simplePaginate, cursorPaginate', function (): void {
@@ -546,27 +547,26 @@ it('tests pagination terminals: paginate, simplePaginate, cursorPaginate', funct
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100']);
 
     // paginate with array args
-    $qPagArr = Query::from(['name' => 't-pag-arr', 'from' => Flight::class, 'paginate' => [1, ['flight_id']]]);
+    $qPagArr = Query::from(['name' => 't-pag-arr', 'model' => Flight::class, 'paginate' => [1, ['flight_id']]]);
     expect($qPagArr->run())->toBeInstanceOf(LengthAwarePaginator::class);
 
     // paginate with bool/true
-    $qPagTrue = Query::from(['name' => 't-pag-true', 'from' => Flight::class, 'paginate' => true]);
+    $qPagTrue = Query::from(['name' => 't-pag-true', 'model' => Flight::class, 'paginate' => true]);
     expect($qPagTrue->run())->toBeInstanceOf(LengthAwarePaginator::class);
 
     // simplePaginate
-    $qSimple = Query::from(['name' => 't-simple-pag', 'from' => Flight::class, 'simplePaginate' => 1]);
+    $qSimple = Query::from(['name' => 't-simple-pag', 'model' => Flight::class, 'simplePaginate' => 1]);
     expect($qSimple->run())->toBeInstanceOf(Paginator::class);
 
     // cursorPaginate
-    $qCursor = Query::from(['name' => 't-cursor-pag', 'from' => Flight::class, 'cursorPaginate' => 1]);
+    $qCursor = Query::from(['name' => 't-cursor-pag', 'model' => Flight::class, 'cursorPaginate' => 1]);
     expect($qCursor->run())->toBeInstanceOf(CursorPaginator::class);
 });
 
 it('tests withoutGlobalScope clause', function (): void {
-    // withoutGlobalScope
     $qWithoutScope = Query::from([
         'name' => 't-without-scope',
-        'from' => Flight::class,
+        'model' => Flight::class,
         'withoutGlobalScope' => 'nonExistentScopeClass',
     ]);
     expect($qWithoutScope->run())->toBeInstanceOf(Collection::class);
@@ -576,10 +576,10 @@ it('tests get terminal with string and array columns', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100']);
 
-    $qGetStr = Query::from(['name' => 't-get-str', 'from' => Flight::class, 'get' => 'flight_id']);
+    $qGetStr = Query::from(['name' => 't-get-str', 'model' => Flight::class, 'get' => 'flight_id']);
     expect($qGetStr->run())->toHaveCount(1);
 
-    $qGetArr = Query::from(['name' => 't-get-arr', 'from' => Flight::class, 'get' => ['flight_id']]);
+    $qGetArr = Query::from(['name' => 't-get-arr', 'model' => Flight::class, 'get' => ['flight_id']]);
     expect($qGetArr->run())->toHaveCount(1);
 });
 
@@ -587,6 +587,6 @@ it('tests count terminal with string column', function (): void {
     $airline = Airline::create(['name' => 'Acme Air']);
     Flight::create(['flight_id' => 'f-1', 'airline_id' => $airline->id, 'name' => 'Boston', 'code' => 'AA100']);
 
-    $qCountStr = Query::from(['name' => 't-count-str', 'from' => Flight::class, 'count' => 'flight_id']);
+    $qCountStr = Query::from(['name' => 't-count-str', 'model' => Flight::class, 'count' => 'flight_id']);
     expect($qCountStr->run())->toBe(1);
 });

@@ -13,7 +13,7 @@ class ProvidersDeclarationServiceProvider extends ServiceProvider
     public function boot(Manifest $manifest): void
     {
         foreach ($manifest->providers as $provider) {
-            $this->app->register($provider->class);
+            $this->app->register($provider->class, $provider->force);
         }
     }
 }

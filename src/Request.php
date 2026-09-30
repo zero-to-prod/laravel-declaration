@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\Redirect;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Request
@@ -83,17 +82,17 @@ final readonly class Request
 
     public const string redirect = 'redirect';
 
-    #[Redirect, Describe([Describe::nullable => true])]
+    #[Describe([Describe::nullable => true])]
     public ?string $redirect;
 
     public const string redirectRoute = 'redirectRoute';
 
-    #[Redirect, Describe([Describe::nullable => true])]
+    #[Describe([Describe::nullable => true])]
     public ?string $redirectRoute;
 
     public const string redirectAction = 'redirectAction';
 
-    #[Redirect, Describe([Describe::nullable => true])]
+    #[Describe([Describe::nullable => true])]
     public ?string $redirectAction;
 
     public const string errorBag = 'errorBag';
@@ -106,8 +105,8 @@ final readonly class Request
     #[Describe([Describe::default => false])]
     public bool $stopOnFirstFailure;
 
-    public const string failOnUnknownFields = 'failOnUnknownFields';
+    public const string shouldFailOnUnknownFields = 'shouldFailOnUnknownFields';
 
     #[Describe([Describe::nullable => true])]
-    public ?bool $failOnUnknownFields;
+    public ?bool $shouldFailOnUnknownFields;
 }

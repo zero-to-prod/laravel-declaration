@@ -38,14 +38,14 @@ kernel:
 
 routes:
   - methods: get
-    path: /kernel-test
+    uri: /kernel-test
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
     middleware:
       - web
       - subscribed
 
   - methods: get
-    path: /priority-test
+    uri: /priority-test
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
     middleware:
       - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
@@ -55,11 +55,11 @@ routes:
       - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
 
   - methods: get
-    path: /token-test
+    uri: /token-test
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
     middleware:
       - token_auth
 
   - methods: get
-    path: /slow-request
+    uri: /slow-request
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow

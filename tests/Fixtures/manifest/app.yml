@@ -45,12 +45,12 @@ app:
 providers:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
 routes:
-  - path: "/"
+  - uri: "/"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
     name: home
 
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: GET
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
     name: users.show
@@ -62,13 +62,13 @@ routes:
       group: admin
     missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
 
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: PUT
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
     name: users.update
     withoutMiddleware: [web]
 
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: DELETE
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
     name: users.destroy
@@ -78,13 +78,13 @@ routes:
       lockSeconds: 10
       waitSeconds: 5
 
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: patch
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
     name: users.patch
     scopeBindings: true
 
-  - path: "users/{user}"
+  - uri: "users/{user}"
     methods: POST
     action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
     name: users.store
@@ -93,7 +93,7 @@ routes:
       models: user
     withTrashed: true
 
-  - path: "{any}"
+  - uri: "{any}"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
     where:

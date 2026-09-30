@@ -7,9 +7,6 @@ namespace ZeroToProd\LaravelDeclaration\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\View\Factory;
-use ZeroToProd\LaravelDeclaration\Attributes\Composer;
-use ZeroToProd\LaravelDeclaration\Attributes\Location;
-use ZeroToProd\LaravelDeclaration\Attributes\ViewNamespace;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\View;
 
@@ -25,28 +22,48 @@ class ViewDeclarationServiceProvider extends ServiceProvider
         $view = $manifest->view;
 
         $this->callAfterResolving('view', function (Factory $factory) use ($view): void {
-            foreach (View::selected(Location::class) as $method) {
-                foreach ($view->{$method} as $location) {
-                    $factory->{$method}($this->absolute($location));
-                }
+            foreach ($view->addLocation as $location) {
+                $factory->addLocation($this->absolute($location));
             }
 
-            foreach (View::selected(ViewNamespace::class) as $method) {
-                foreach ($view->{$method} as $namespace => $hints) {
-                    $factory->{$method}($namespace, array_map($this->absolute(...), (array) $hints));
-                }
+            foreach ($view->prependLocation as $location) {
+                $factory->prependLocation($this->absolute($location));
+            }
+
+            foreach ($view->addNamespace as $namespace => $hints) {
+                $factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+            }
+
+            foreach ($view->prependNamespace as $namespace => $hints) {
+                $factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+            }
+
+            foreach ($view->replaceNamespace as $namespace => $hints) {
+                $factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
             foreach ($view->addExtension as $extension => $engine) {
                 $factory->addExtension($extension, $engine);
             }
 
-            $factory->share($view->share);
+            if ($view->share !== []) {
+                $factory->share($view->share);
+            }
 
-            foreach (View::selected(Composer::class) as $method) {
-                foreach ($view->{$method} as $callback => $views) {
-                    $factory->{$method}($views, $callback);
-                }
+            foreach ($view->composer as $views => $callback) {
+                $viewsList = str_contains($views, ',')
+                    ? array_map(trim(...), explode(',', $views))
+                    : $views;
+
+                $factory->composer($viewsList, $callback);
+            }
+
+            foreach ($view->creator as $views => $callback) {
+                $viewsList = str_contains($views, ',')
+                    ? array_map(trim(...), explode(',', $views))
+                    : $views;
+
+                $factory->creator($viewsList, $callback);
             }
         });
     }

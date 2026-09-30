@@ -43,3 +43,51 @@ it('defaults data, status and headers as Router::view() does', function () use (
 
     $this->get('/created')->assertCreated()->assertHeader('X-Declared', 'yes')->assertSeeText('base');
 });
+
+it('renders inline template using Blade::render with composing event', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-view-tpl-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        routes:
+          - uri: "inline-template"
+            methods: GET
+            action: ZeroToProd\LaravelDeclaration\DeclaredView
+            name: inline.template
+            setDefaults:
+              template: "Hello {{ $name }}"
+              data:
+                name: World
+              status: 201
+              headers:
+                X-Custom: inline
+              deleteCachedView: false
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        $this->get('/inline-template')
+            ->assertStatus(201)
+            ->assertHeader('X-Custom', 'inline')
+            ->assertSeeText('Hello World');
+    } finally {
+        unlink($file);
+    }
+});
+
+it('throws LogicException when neither template nor view is specified', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-view-none-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        routes:
+          - uri: "no-view"
+            methods: GET
+            action: ZeroToProd\LaravelDeclaration\DeclaredView
+        YAML);
+
+    try {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+        $this->withoutExceptionHandling();
+        $this->get('/no-view');
+    } finally {
+        unlink($file);
+    }
+})->throws(LogicException::class, "DeclaredView requires either 'template' or 'view' to be specified in setDefaults.");

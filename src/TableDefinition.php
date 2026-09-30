@@ -5,16 +5,8 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Schema\ColumnDefinition;
-use Illuminate\Database\Schema\ForeignIdColumnDefinition;
 use LogicException;
 use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\ColumnModifier;
-use ZeroToProd\LaravelDeclaration\Attributes\ColumnType;
-use ZeroToProd\LaravelDeclaration\Attributes\ForeignKeyModifier;
-use ZeroToProd\LaravelDeclaration\Attributes\Key;
-use ZeroToProd\LaravelDeclaration\Attributes\TableConstraint;
-use ZeroToProd\LaravelDeclaration\Attributes\TableOption;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class TableDefinition
@@ -33,13 +25,44 @@ final readonly class TableDefinition
      * @param  array<string, list<mixed>>  $indexes
      */
     public function __construct(
-        #[Key, Describe([Describe::default => []])]
+        #[Describe([Describe::default => []])]
         public array $options = [],
-        #[Key, Describe([Describe::default => []])]
+        #[Describe([Describe::default => []])]
         public array $columns = [],
-        #[Key, Describe([Describe::default => []])]
+        #[Describe([Describe::default => []])]
         public array $indexes = []
     ) {}
+
+    public function apply(Blueprint $table): void
+    {
+        foreach ($this->options as $option => $value) {
+            if (property_exists($table, $option)) {
+                $table->{$option} = $value;
+            } elseif (method_exists($table, $option)) {
+                $table->{$option}($value);
+            }
+        }
+
+        foreach ($this->columns as $type => $columnModels) {
+            foreach ($columnModels as $columnModel) {
+                $columnModel->apply($table, $type);
+            }
+        }
+
+        foreach ($this->indexes as $indexMethod => $indexDefinitions) {
+            foreach ($indexDefinitions as $definition) {
+                if (is_array($definition) && array_is_list($definition)) {
+                    if (isset($definition[0]) && is_array($definition[0])) {
+                        $table->{$indexMethod}(...$definition);
+                    } else {
+                        $table->{$indexMethod}($definition);
+                    }
+                } else {
+                    $table->{$indexMethod}($definition);
+                }
+            }
+        }
+    }
 
     public static function from(mixed $context = []): self
     {
@@ -51,33 +74,30 @@ final readonly class TableDefinition
             return new self;
         }
 
-        if (isset($context[self::options]) && isset($context[self::columns]) && isset($context[self::indexes]) && count($context) === 3) {
-            /** @var array<string, mixed> $options */
-            $options = $context[self::options];
-            /** @var array<string, list<ColumnDefinitionModel>> $columns */
-            $columns = $context[self::columns];
-            /** @var array<string, list<mixed>> $indexes */
-            $indexes = $context[self::indexes];
+        if (isset($context[self::options], $context[self::columns], $context[self::indexes]) && count($context) === 3 && is_array($context[self::options]) && is_array($context[self::columns]) && is_array($context[self::indexes])) {
+            $options = [];
+            foreach ($context[self::options] as $k => $v) {
+                $options[(string) $k] = $v;
+            }
+            $columns = [];
+            foreach ($context[self::columns] as $k => $models) {
+                if (is_array($models)) {
+                    $columnList = [];
+                    foreach ($models as $m) {
+                        if ($m instanceof ColumnDefinitionModel) {
+                            $columnList[] = $m;
+                        }
+                    }
+                    $columns[(string) $k] = $columnList;
+                }
+            }
+            $indexes = [];
+            foreach ($context[self::indexes] as $k => $idxList) {
+                $indexes[(string) $k] = is_array($idxList) ? array_values($idxList) : [$idxList];
+            }
 
             return new self($options, $columns, $indexes);
         }
-
-        $tableOptions = [
-            'engine' => true,
-            'charset' => true,
-            'collation' => true,
-            'temporary' => true,
-            'comment' => true,
-        ];
-
-        $tableConstraints = [
-            'primary' => true,
-            'unique' => true,
-            'index' => true,
-            'fullText' => true,
-            'spatialIndex' => true,
-            'vectorIndex' => true,
-        ];
 
         $options = [];
         $columns = [];
@@ -86,97 +106,33 @@ final readonly class TableDefinition
         foreach ($context as $key => $value) {
             $keyStr = (string) $key;
 
-            if (isset($tableOptions[$keyStr])) {
+            if (in_array($keyStr, ['engine', 'charset', 'collation', 'temporary', 'comment'], true)) {
                 $options[$keyStr] = $value;
 
                 continue;
             }
 
-            if (isset($tableConstraints[$keyStr])) {
-                $indexes[$keyStr] = self::normalizeIndexes($value);
+            if (in_array($keyStr, ['primary', 'unique', 'index', 'fullText', 'spatialIndex'], true)) {
+                $indexes[$keyStr] = is_array($value) && ! array_is_list($value)
+                    ? [$value]
+                    : array_values((array) $value);
 
                 continue;
             }
 
             if (method_exists(Blueprint::class, $keyStr)) {
-                if (is_array($value) && array_is_list($value)) {
-                    $columnList = [];
-                    foreach ($value as $item) {
-                        $columnList[] = ColumnDefinitionModel::fromDefinition($keyStr, $item);
-                    }
-                    $columns[$keyStr] = $columnList;
-                } else {
-                    $columns[$keyStr] = [ColumnDefinitionModel::fromDefinition($keyStr, $value)];
-                }
+                $items = is_array($value) && array_is_list($value) ? $value : [$value];
+                $columns[$keyStr] = array_map(
+                    fn ($item): ColumnDefinitionModel => ColumnDefinitionModel::fromDefinition($keyStr, $item),
+                    $items
+                );
 
                 continue;
             }
 
-            throw new LogicException("Unknown table key or Blueprint method [{$keyStr}].");
+            throw new LogicException("Unknown Blueprint method or table option [{$keyStr}].");
         }
 
         return new self($options, $columns, $indexes);
-    }
-
-    /**
-     * @return list<mixed>
-     */
-    private static function normalizeIndexes(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [$value];
-        }
-
-        if (! array_is_list($value)) {
-            return [$value];
-        }
-
-        return $value;
-    }
-
-    public function apply(Blueprint $table): void
-    {
-        $tableOptionDispatcher = new TableOption;
-        $columnTypeDispatcher = new ColumnType;
-        $columnModifierDispatcher = new ColumnModifier;
-        $foreignKeyModifierDispatcher = new ForeignKeyModifier;
-        $tableConstraintDispatcher = new TableConstraint;
-
-        // 2. Blueprint Level Dynamic Dispatch: Table Options
-        foreach ($this->options as $option => $value) {
-            $tableOptionDispatcher->apply($table, $option, $value);
-        }
-
-        // 3. Blueprint Level Dynamic Dispatch: Columns
-        foreach ($this->columns as $columnType => $definitions) {
-            foreach ($definitions as $column) {
-                $columnTarget = $columnTypeDispatcher->apply($table, $columnType, $column->factoryArguments());
-
-                // If column factory returns void (morphs) or Collection (timestamps), skip modifier chaining
-                if (! $columnTarget instanceof ColumnDefinition) {
-                    continue;
-                }
-
-                // 4. ColumnDefinition Level Dynamic Dispatch: Fluent Column Modifiers
-                foreach ($column->columnModifiers as $modifier => $modifierArgs) {
-                    $columnModifierDispatcher->apply($columnTarget, $modifier, $modifierArgs);
-                }
-
-                // 5. Foreign Key Transition & Actions (ForeignIdColumnDefinition -> ForeignKeyDefinition)
-                if ($columnTarget instanceof ForeignIdColumnDefinition && $column->isConstrained()) {
-                    $foreignKey = $column->applyConstraint($columnTarget);
-                    foreach ($column->foreignKeyModifiers as $modifier => $modifierArgs) {
-                        $foreignKeyModifierDispatcher->apply($foreignKey, $modifier, $modifierArgs);
-                    }
-                }
-            }
-        }
-
-        // 6. Blueprint Level Dynamic Dispatch: Table Indexes & Constraints
-        foreach ($this->indexes as $indexType => $indexDefinitions) {
-            foreach ($indexDefinitions as $indexArgs) {
-                $tableConstraintDispatcher->apply($table, $indexType, $indexArgs);
-            }
-        }
     }
 }

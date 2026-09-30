@@ -16,7 +16,7 @@ it('defaults to no routes', function (): void {
 
 it('hydrates a route declaration', function (): void {
     $Route = Route::from([
-        'path' => 'users/{user}',
+        'uri' => 'users/{user}',
         'methods' => 'GET',
         'action' => [UserController::class, 'show'],
         'name' => 'users.show',
@@ -34,14 +34,16 @@ it('hydrates a route declaration', function (): void {
         'metadata' => ['group' => 'admin'],
     ]);
 
-    expect($Route->path)->toBe('users/{user}')
+    expect($Route->uri)->toBe('users/{user}')
         ->and($Route->methods)->toBe('GET')
-        ->and($Route->action)->toBe([UserController::class, 'show']);
+        ->and($Route->action)->toBe([UserController::class, 'show'])
+        ->and($Route->builders['name'])->toBe('users.show')
+        ->and($Route->builders['prefix'])->toBe('api');
 });
 
 it('exposes builders in dispatch order, skipping unset builders', function (): void {
     $Route = Route::from([
-        'path' => 'users/{user}',
+        'uri' => 'users/{user}',
         'methods' => 'PUT',
         'action' => [UserController::class, 'update'],
         'name' => 'users.update',
@@ -55,13 +57,14 @@ it('exposes builders in dispatch order, skipping unset builders', function (): v
         'metadata' => ['group' => 'admin'],
     ]);
 
-    expect($Route->builders())->toBe([
+    expect($Route->builders)->toBe([
         'name' => 'users.update',
         'prefix' => 'api',
         'domain' => '{account}.example.com',
         'middleware' => ['auth:sanctum'],
         'can' => ['ability' => 'update', 'models' => 'user'],
         'where' => ['user' => '[0-9]+'],
+        'fallback' => false,
         'scopeBindings' => true,
         'metadata' => ['group' => 'admin'],
     ]);
@@ -69,13 +72,13 @@ it('exposes builders in dispatch order, skipping unset builders', function (): v
 
 it('exposes flag builders as true', function (): void {
     $Route = Route::from([
-        'path' => 'users',
+        'uri' => 'users',
         'methods' => 'GET',
         'action' => UserController::class,
         'fallback' => true,
     ]);
 
-    expect($Route->builders())->toBe(['fallback' => true]);
+    expect($Route->builders)->toBe(['fallback' => true]);
 });
 
 it('hydrates routes from the manifest', function (): void {
@@ -84,28 +87,28 @@ it('hydrates routes from the manifest', function (): void {
     );
 
     expect($manifest->routes->count())->toBe(7)
-        ->and($manifest->routes->first()->path)->toBe('/')
+        ->and($manifest->routes->first()->uri)->toBe('/')
         ->and($manifest->routes->first()->methods)->toBe('GET')
         ->and($manifest->routes->first()->action)->toBe(
             MockController::class,
         )
-        ->and($manifest->routes->first()->builders())->toBe(['name' => 'home'])
-        ->and($manifest->routes->get(5)->builders()['can'])->toBe(
+        ->and($manifest->routes->first()->builders)->toBe(['name' => 'home'])
+        ->and($manifest->routes->get(5)->builders['can'])->toBe(
             ['ability' => 'view', 'models' => 'user'],
         )
-        ->and($manifest->routes->last()->builders())->toBe([
+        ->and($manifest->routes->last()->builders)->toBe([
             'where' => ['any' => '.*'],
             'fallback' => true,
         ]);
 });
 
-it('requires path, methods and action', function (): void {
-    Route::from(['path' => '/', 'methods' => 'GET']);
+it('requires uri, methods and action', function (): void {
+    Route::from(['methods' => 'GET']);
 })->throws(PropertyRequiredException::class);
 
 it('accepts a lowercase verb', function (): void {
     expect(Route::from([
-        'path' => '/',
+        'uri' => '/',
         'methods' => 'get',
         'action' => MockController::class,
     ])->methods)->toBe('get');
@@ -117,7 +120,7 @@ it('treats a string context as empty', function (): void {
 
 it('returns an instance context unchanged', function (): void {
     $Route = Route::from([
-        'path' => '/',
+        'uri' => '/',
         'methods' => 'GET',
         'action' => MockController::class,
     ]);
@@ -127,32 +130,17 @@ it('returns an instance context unchanged', function (): void {
 
 it('round-trips through the array and collection helpers', function (): void {
     $Route = Route::from([
-        'path' => '/',
+        'uri' => '/',
         'methods' => 'GET',
         'action' => MockController::class,
         'name' => 'home',
     ]);
 
     expect($Route->toArray())->toBe([
-        'path' => '/',
+        'uri' => '/',
         'methods' => 'GET',
         'action' => MockController::class,
-        'name' => 'home',
-        'prefix' => null,
-        'domain' => null,
-        'middleware' => [],
-        'withoutMiddleware' => [],
-        'can' => [],
-        'where' => [],
-        'setDefaults' => [],
-        'missing' => null,
-        'fallback' => false,
-        'scopeBindings' => false,
-        'withoutScopedBindings' => false,
-        'withTrashed' => false,
-        'block' => null,
-        'withoutBlocking' => false,
-        'metadata' => [],
+        'builders' => ['name' => 'home'],
     ])
-        ->and($Route->collect()->get('name'))->toBe('home');
+        ->and($Route->collect()->get('builders'))->toBe(['name' => 'home']);
 });

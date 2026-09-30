@@ -15,7 +15,7 @@ requests:
       sort: [nullable, 'in:created_at,title']
 
 routes:
-  - path: "users/{user}/posts"
+  - uri: "users/{user}/posts"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\DeclaredView
     middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
@@ -31,7 +31,7 @@ routes:
       status: 200
       headers: {Cache-Control: private}
 
-  - path: "greet/{name}"
+  - uri: "greet/{name}"
     methods: GET
     action: ZeroToProd\LaravelDeclaration\DeclaredView
     setDefaults:
@@ -40,7 +40,7 @@ routes:
         greeting: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Greeting::for
         email: ada@example.com
 
-  - path: created
+  - uri: created
     methods: GET
     action: ZeroToProd\LaravelDeclaration\DeclaredView
     setDefaults:

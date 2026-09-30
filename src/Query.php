@@ -4,26 +4,13 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
+use BadMethodCallException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use InvalidArgumentException;
 use LogicException;
-use ReflectionAttribute;
-use ReflectionClass;
 use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\BelongsTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Clause;
-use ZeroToProd\LaravelDeclaration\Attributes\Count;
-use ZeroToProd\LaravelDeclaration\Attributes\Exists;
-use ZeroToProd\LaravelDeclaration\Attributes\Fetch;
-use ZeroToProd\LaravelDeclaration\Attributes\Find;
-use ZeroToProd\LaravelDeclaration\Attributes\Flag;
-use ZeroToProd\LaravelDeclaration\Attributes\Key;
-use ZeroToProd\LaravelDeclaration\Attributes\Paginate;
-use ZeroToProd\LaravelDeclaration\Attributes\Spread;
-use ZeroToProd\LaravelDeclaration\Attributes\Terminal;
-use ZeroToProd\LaravelDeclaration\Attributes\Where;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Query
@@ -32,370 +19,31 @@ final readonly class Query
 
     public const string name = 'name';
 
-    #[Key, Describe([Describe::required => true])]
+    #[Describe([Describe::required => true])]
     public string $name;
 
-    public const string from = 'from';
-
-    #[Key, Describe([Describe::required => true])]
-    public string $from;
-
-    public const string select = 'select';
-
-    /** @var list<string>|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public ?array $select;
-
-    public const string addSelect = 'addSelect';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $addSelect;
-
-    public const string distinct = 'distinct';
-
-    #[Key, Flag, Describe([Describe::nullable => true])]
-    public ?bool $distinct;
-
-    public const string where = 'where';
-
-    #[Key, Where, Describe([Describe::nullable => true])]
-    public mixed $where;
-
-    public const string orWhere = 'orWhere';
-
-    #[Key, Where, Describe([Describe::nullable => true])]
-    public mixed $orWhere;
-
-    public const string whereNot = 'whereNot';
-
-    #[Key, Where, Describe([Describe::nullable => true])]
-    public mixed $whereNot;
-
-    public const string orWhereNot = 'orWhereNot';
-
-    #[Key, Where, Describe([Describe::nullable => true])]
-    public mixed $orWhereNot;
-
-    public const string whereKey = 'whereKey';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public mixed $whereKey;
-
-    public const string whereKeyNot = 'whereKeyNot';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public mixed $whereKeyNot;
-
-    public const string whereIn = 'whereIn';
-
-    /** @var array{0: string, 1: list<mixed>}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $whereIn;
-
-    public const string whereNotIn = 'whereNotIn';
-
-    /** @var array{0: string, 1: list<mixed>}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $whereNotIn;
-
-    public const string whereNull = 'whereNull';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $whereNull;
-
-    public const string whereNotNull = 'whereNotNull';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $whereNotNull;
-
-    public const string whereBetween = 'whereBetween';
-
-    /** @var array{0: string, 1: array{0: mixed, 1: mixed}}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $whereBetween;
-
-    public const string whereNotBetween = 'whereNotBetween';
-
-    /** @var array{0: string, 1: array{0: mixed, 1: mixed}}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $whereNotBetween;
-
-    public const string whereDate = 'whereDate';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereDate;
-
-    public const string whereMonth = 'whereMonth';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereMonth;
-
-    public const string whereDay = 'whereDay';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereDay;
-
-    public const string whereYear = 'whereYear';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereYear;
-
-    public const string whereTime = 'whereTime';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereTime;
-
-    public const string whereColumn = 'whereColumn';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereColumn;
-
-    public const string whereRelation = 'whereRelation';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereRelation;
-
-    public const string orWhereRelation = 'orWhereRelation';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $orWhereRelation;
-
-    public const string whereDoesntHaveRelation = 'whereDoesntHaveRelation';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $whereDoesntHaveRelation;
-
-    public const string whereBelongsTo = 'whereBelongsTo';
-
-    /** @var array{0: string, 1?: string}|string|null */
-    #[Key, BelongsTo, Describe([Describe::nullable => true])]
-    public array|string|null $whereBelongsTo;
-
-    public const string has = 'has';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $has;
-
-    public const string doesntHave = 'doesntHave';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public mixed $doesntHave;
-
-    public const string with = 'with';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $with;
-
-    public const string without = 'without';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $without;
-
-    public const string withOnly = 'withOnly';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $withOnly;
-
-    public const string withCount = 'withCount';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $withCount;
-
-    public const string withMax = 'withMax';
-
-    /** @var array{0: string, 1: string}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $withMax;
-
-    public const string withMin = 'withMin';
-
-    /** @var array{0: string, 1: string}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $withMin;
-
-    public const string withSum = 'withSum';
-
-    /** @var array{0: string, 1: string}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $withSum;
-
-    public const string withAvg = 'withAvg';
-
-    /** @var array{0: string, 1: string}|null */
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public ?array $withAvg;
-
-    public const string withExists = 'withExists';
-
-    /** @var list<string>|string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public array|string|null $withExists;
-
-    public const string scopes = 'scopes';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public mixed $scopes;
-
-    public const string withoutGlobalScope = 'withoutGlobalScope';
-
-    /** @var class-string|null */
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public ?string $withoutGlobalScope;
-
-    public const string withoutGlobalScopes = 'withoutGlobalScopes';
-
-    #[Key, Flag, Describe([Describe::nullable => true])]
-    public mixed $withoutGlobalScopes;
-
-    public const string orderBy = 'orderBy';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $orderBy;
-
-    public const string orderByDesc = 'orderByDesc';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public ?string $orderByDesc;
-
-    public const string latest = 'latest';
-
-    #[Key, Flag, Describe([Describe::nullable => true])]
-    public string|bool|null $latest;
-
-    public const string oldest = 'oldest';
-
-    #[Key, Flag, Describe([Describe::nullable => true])]
-    public string|bool|null $oldest;
-
-    public const string inRandomOrder = 'inRandomOrder';
-
-    #[Key, Flag, Describe([Describe::nullable => true])]
-    public ?bool $inRandomOrder;
-
-    public const string groupBy = 'groupBy';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public mixed $groupBy;
-
-    public const string having = 'having';
-
-    #[Key, Spread, Describe([Describe::nullable => true])]
-    public mixed $having;
-
-    public const string limit = 'limit';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public ?int $limit;
-
-    public const string offset = 'offset';
-
-    #[Key, Clause, Describe([Describe::nullable => true])]
-    public ?int $offset;
-
-    // Terminal methods:
-    public const string paginate = 'paginate';
-
-    #[Key, Paginate, Describe([Describe::nullable => true])]
-    public mixed $paginate;
-
-    public const string simplePaginate = 'simplePaginate';
-
-    #[Key, Paginate, Describe([Describe::nullable => true])]
-    public mixed $simplePaginate;
-
-    public const string cursorPaginate = 'cursorPaginate';
-
-    #[Key, Paginate, Describe([Describe::nullable => true])]
-    public mixed $cursorPaginate;
-
-    public const string get = 'get';
-
-    #[Key, Fetch, Describe([Describe::nullable => true])]
-    public mixed $get;
-
-    public const string first = 'first';
-
-    #[Key, Fetch, Describe([Describe::nullable => true])]
-    public mixed $first;
-
-    public const string firstOrFail = 'firstOrFail';
-
-    #[Key, Fetch, Describe([Describe::nullable => true])]
-    public mixed $firstOrFail;
-
-    public const string sole = 'sole';
-
-    #[Key, Fetch, Describe([Describe::nullable => true])]
-    public mixed $sole;
-
-    public const string find = 'find';
-
-    #[Key, Find, Describe([Describe::nullable => true])]
-    public mixed $find;
-
-    public const string findOrFail = 'findOrFail';
-
-    #[Key, Find, Describe([Describe::nullable => true])]
-    public mixed $findOrFail;
-
-    public const string count = 'count';
-
-    #[Key, Count, Describe([Describe::nullable => true])]
-    public mixed $count;
-
-    public const string min = 'min';
-
-    #[Key, Terminal, Describe([Describe::nullable => true])]
-    public ?string $min;
-
-    public const string max = 'max';
-
-    #[Key, Terminal, Describe([Describe::nullable => true])]
-    public ?string $max;
-
-    public const string sum = 'sum';
-
-    #[Key, Terminal, Describe([Describe::nullable => true])]
-    public ?string $sum;
-
-    public const string avg = 'avg';
-
-    #[Key, Terminal, Describe([Describe::nullable => true])]
-    public ?string $avg;
-
-    public const string exists = 'exists';
-
-    #[Key, Exists, Describe([Describe::nullable => true])]
-    public ?bool $exists;
-
-    public const string doesntExist = 'doesntExist';
-
-    #[Key, Exists, Describe([Describe::nullable => true])]
-    public ?bool $doesntExist;
-
-    public const string pluck = 'pluck';
-
-    #[Key, Find, Describe([Describe::nullable => true])]
-    public mixed $pluck;
-
-    public const string value = 'value';
-
-    #[Key, Terminal, Describe([Describe::nullable => true])]
-    public ?string $value;
+    public const string model = 'model';
+
+    /** @var class-string<Model>|null */
+    #[Describe([Describe::nullable => true])]
+    public ?string $model;
+
+    public const string relation = 'relation';
+
+    /**
+     * Parameter-rooted relation string, e.g. "user.posts".
+     */
+    #[Describe([Describe::nullable => true])]
+    public ?string $relation;
 
     public const string clauses = 'clauses';
 
-    /** @var array<string, mixed> */
-    #[Describe([
-        Describe::assign => [self::class, 'extractClauses'],
-    ])]
+    /**
+     * Dynamic query method invocations in declared document order.
+     *
+     * @var array<string, mixed>
+     */
+    #[Describe([Describe::default => [], Describe::assign => [self::class, 'extractClauses']])]
     public array $clauses;
 
     /**
@@ -404,70 +52,63 @@ final readonly class Query
      */
     public static function extractClauses(mixed $val, array $context): array
     {
-        return array_diff_key($context, [self::name => true, self::from => true]);
+        return array_diff_key($context, [
+            self::name => true,
+            self::model => true,
+            self::relation => true,
+        ]);
     }
 
-    /** @param  array<string, mixed>  $parameters */
+    /**
+     * Executes the query against the resolved root.
+     *
+     * @param  array<string, mixed>  $parameters
+     *
+     * @throws BadMethodCallException
+     */
     public function run(array $parameters = []): mixed
     {
-        $builder = $this->resolveRoot($parameters);
-        $terminal = self::get;
-        $terminalArgs = ['*'];
+        $target = $this->resolveRoot($parameters);
+        $result = $target;
 
         foreach ($this->clauses as $method => $args) {
-            if (isset(self::terminals()[$method])) {
-                $terminal = $method;
-                $terminalArgs = $args;
+            $result = $this->dispatchMethod($target, $method, $args);
 
-                continue;
+            if ($result instanceof Builder || $result instanceof Relation) {
+                $target = $result;
             }
-
-            if (! isset(self::clauses()[$method])) {
-                continue;
-            }
-
-            self::clauses()[$method]->apply($builder, $method, $args, $parameters);
         }
 
-        return self::terminals()[$terminal]->execute($builder, $terminal, $terminalArgs);
+        // If no terminal was called and the builder is still unresolved, default to get()
+        if ($result instanceof Builder || $result instanceof Relation) {
+            return $result->get();
+        }
+
+        return $result;
     }
 
-    /** @return array<string, Clause> */
-    public static function clauses(): array
+    /**
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $target
+     */
+    private function dispatchMethod(Builder|Relation $target, string $method, mixed $args): mixed
     {
-        static $clauses = null;
-
-        if ($clauses !== null) {
-            return $clauses;
+        if ($args === true || $args === null) {
+            return $target->{$method}();
         }
 
-        $clauses = [];
-        foreach (new ReflectionClass(self::class)->getProperties() as $property) {
-            if ($attribute = $property->getAttributes(Clause::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
-                $clauses[$property->getName()] = $attribute->newInstance();
+        if (is_array($args)) {
+            if (array_is_list($args)) {
+                if (isset($args[0]) && is_array($args[0])) {
+                    return $target->{$method}($args);
+                }
+
+                return $target->{$method}(...$args);
             }
+
+            return $target->{$method}($args);
         }
 
-        return $clauses;
-    }
-
-    /** @return array<string, Terminal> */
-    public static function terminals(): array
-    {
-        static $terminals = null;
-
-        if ($terminals !== null) {
-            return $terminals;
-        }
-
-        $terminals = [];
-        foreach (new ReflectionClass(self::class)->getProperties() as $property) {
-            if ($attribute = $property->getAttributes(Terminal::class, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null) {
-                $terminals[$property->getName()] = $attribute->newInstance();
-            }
-        }
-
-        return $terminals;
+        return $target->{$method}($args);
     }
 
     /**
@@ -476,34 +117,52 @@ final readonly class Query
      */
     private function resolveRoot(array $parameters): Builder|Relation
     {
-        if (str_contains($this->from, '.')) {
-            [$param, $relation] = explode('.', $this->from, 2);
-            $model = $parameters[$param] ?? null;
-
-            if (! $model instanceof Model) {
+        if ($this->relation !== null) {
+            if (! str_contains($this->relation, '.')) {
                 throw new InvalidArgumentException(
-                    "Route parameter [$param] must be an instance of Illuminate\\Database\\Eloquent\\Model to query relation [$relation]."
+                    "Relation query must specify route parameter and relation in 'param.relation' format; '{$this->relation}' given."
                 );
             }
 
-            if (! method_exists($model, $relation)) {
-                throw new LogicException('Model ['.$model::class."] does not define relationship method [$relation].");
+            [$param, $relationMethod] = explode('.', $this->relation, 2);
+            $owner = $parameters[$param] ?? null;
+
+            if (! $owner instanceof Model) {
+                throw new InvalidArgumentException(
+                    "Route parameter [{$param}] must be an instance of Illuminate\\Database\\Eloquent\\Model to query relation [{$relationMethod}]."
+                );
             }
 
-            $root = $model->{$relation}();
-
-            if (! $root instanceof Relation && ! $root instanceof Builder) {
+            if (! method_exists($owner, $relationMethod)) {
                 throw new LogicException(
-                    "Method [$relation] on [".$model::class.'] must return an instance of Illuminate\\Database\\Eloquent\\Relations\\Relation or Illuminate\\Database\\Eloquent\\Builder.'
+                    'Model ['.$owner::class."] does not define relationship method [{$relationMethod}]."
                 );
             }
 
-            return $root;
+            $relation = $owner->{$relationMethod}();
+
+            if (! $relation instanceof Relation && ! $relation instanceof Builder) {
+                throw new LogicException(
+                    "Relationship method [{$relationMethod}] on [".$owner::class.'] must return an Eloquent Relation or Builder.'
+                );
+            }
+
+            return $relation;
         }
 
-        /** @var class-string<Model> $class */
-        $class = $this->from;
+        if ($this->model === null) {
+            throw new LogicException("Query [{$this->name}] must declare either 'model' or 'relation'.");
+        }
 
-        return $class::query();
+        /** @var class-string<Model> $modelClass */
+        $modelClass = $this->model;
+
+        if (! is_subclass_of($modelClass, Model::class)) {
+            throw new InvalidArgumentException(
+                "Declared query model [{$modelClass}] must be a subclass of Illuminate\\Database\\Eloquent\\Model."
+            );
+        }
+
+        return $modelClass::query();
     }
 }

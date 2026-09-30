@@ -10,11 +10,7 @@ use Illuminate\Support\Facades\Schema as SchemaFacade;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Schema;
 
-/**
- * Idempotently creates missing database tables declared in the manifest.
- *
- * @internal
- */
+/** @internal */
 class MigrateCommand extends Command
 {
     /** @var string */
@@ -24,7 +20,7 @@ class MigrateCommand extends Command
     protected $aliases = ['laravel-declaration:migrate'];
 
     /** @var string */
-    protected $description = 'Idempotently create missing database tables declared in the manifest';
+    protected $description = 'Execute declarative database schema actions declared in manifest';
 
     public function handle(Manifest $manifest): int
     {
