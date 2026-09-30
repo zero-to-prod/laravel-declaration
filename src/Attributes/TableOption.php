@@ -10,12 +10,12 @@ use Illuminate\Database\Schema\Blueprint;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class TableOption
 {
-    public function apply(Blueprint $blueprint, string $method, mixed $value): void
+    public function apply(Blueprint $Blueprint, string $method, mixed $value): void
     {
         if ($value === true || $value === null) {
-            $blueprint->{$method}();
+            $Blueprint->{$method}();
         } else {
-            $blueprint->{$method}($value);
+            $Blueprint->{$method}($value);
         }
     }
 }

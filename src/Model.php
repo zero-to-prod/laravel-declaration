@@ -152,7 +152,7 @@ final readonly class Model
     #[Key, Describe([Describe::nullable => true])]
     public ?string $getRouteKeyName;
 
-    /** @return array<string, mixed> The declared properties; an absent key keeps the class default. */
+    /** @return array<string, mixed> */
     public function properties(): array
     {
         return array_filter(

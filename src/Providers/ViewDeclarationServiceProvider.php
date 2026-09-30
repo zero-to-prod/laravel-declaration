@@ -19,33 +19,33 @@ class ViewDeclarationServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->callAfterResolving('view', function (Factory $factory) use ($Manifest): void {
+        $this->callAfterResolving('view', function (Factory $Factory) use ($Manifest): void {
             foreach ($Manifest->view->addLocation as $location) {
-                $factory->addLocation($this->absolute($location));
+                $Factory->addLocation($this->absolute($location));
             }
 
             foreach ($Manifest->view->prependLocation as $location) {
-                $factory->prependLocation($this->absolute($location));
+                $Factory->prependLocation($this->absolute($location));
             }
 
             foreach ($Manifest->view->addNamespace as $namespace => $hints) {
-                $factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+                $Factory->addNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
             foreach ($Manifest->view->prependNamespace as $namespace => $hints) {
-                $factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+                $Factory->prependNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
             foreach ($Manifest->view->replaceNamespace as $namespace => $hints) {
-                $factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
+                $Factory->replaceNamespace($namespace, array_map($this->absolute(...), (array) $hints));
             }
 
             foreach ($Manifest->view->addExtension as $extension => $engine) {
-                $factory->addExtension($extension, $engine);
+                $Factory->addExtension($extension, $engine);
             }
 
             if ($Manifest->view->share !== []) {
-                $factory->share($Manifest->view->share);
+                $Factory->share($Manifest->view->share);
             }
 
             foreach ($Manifest->view->composer as $views => $callback) {
@@ -53,7 +53,7 @@ class ViewDeclarationServiceProvider extends ServiceProvider
                     ? array_map(trim(...), explode(',', $views))
                     : $views;
 
-                $factory->composer($viewsList, $callback);
+                $Factory->composer($viewsList, $callback);
             }
 
             foreach ($Manifest->view->creator as $views => $callback) {
@@ -61,7 +61,7 @@ class ViewDeclarationServiceProvider extends ServiceProvider
                     ? array_map(trim(...), explode(',', $views))
                     : $views;
 
-                $factory->creator($viewsList, $callback);
+                $Factory->creator($viewsList, $callback);
             }
         });
     }

@@ -89,13 +89,13 @@ class DeclaredRequest extends FormRequest
         $this->resolve($this->declaration()->passedValidation);
     }
 
-    public function withValidator(Validator $validator): void
+    public function withValidator(Validator $Validator): void
     {
-        $this->resolve($this->declaration()->withValidator, ['validator' => $validator]);
+        $this->resolve($this->declaration()->withValidator, ['validator' => $Validator]);
     }
 
     /** @return list<Closure(Validator): mixed> */
-    public function after(?Validator $validator = null): array
+    public function after(?Validator $Validator = null): array
     {
         return array_map(
             fn (string $hook): Closure => fn (Validator $Validator): mixed => $this->resolve($hook, ['validator' => $Validator]),
@@ -103,12 +103,12 @@ class DeclaredRequest extends FormRequest
         );
     }
 
-    public function validator(ValidationFactory $factory): Validator
+    public function validator(ValidationFactory $ValidationFactory): Validator
     {
         /** @var Validator|null $validator */
-        $validator = $this->resolve($this->declaration()->validator, ['factory' => $factory]);
+        $validator = $this->resolve($this->declaration()->validator, ['factory' => $ValidationFactory]);
 
-        return $validator ?? $this->createDefaultValidator($factory);
+        return $validator ?? $this->createDefaultValidator($ValidationFactory);
     }
 
     /** @return array<string, mixed> */

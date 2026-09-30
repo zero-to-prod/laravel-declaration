@@ -28,39 +28,39 @@ class KernelDeclarationServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->callAfterResolving(KernelContract::class, function (KernelContract $kernel) use ($Manifest): void {
-            $this->registerKernel($Manifest->kernel, $kernel);
+        $this->callAfterResolving(KernelContract::class, function (KernelContract $KernelContract) use ($Manifest): void {
+            $this->registerKernel($Manifest->kernel, $KernelContract);
         });
     }
 
-    private function registerKernel(Kernel $Kernel, KernelContract $kernel): void
+    private function registerKernel(Kernel $Kernel, KernelContract $KernelContract): void
     {
-        if (! $kernel instanceof HttpKernel) {
+        if (! $KernelContract instanceof HttpKernel) {
             return;
         }
 
         foreach (Kernel::selected(Setter::class) as $method) {
             if ($Kernel->{$method} !== null) {
-                $kernel->{$method}($Kernel->{$method});
+                $KernelContract->{$method}($Kernel->{$method});
             }
         }
 
         foreach (Kernel::selected(Append::class) as $method) {
             foreach ($Kernel->{$method} as $middleware) {
-                $kernel->{$method}($middleware);
+                $KernelContract->{$method}($middleware);
             }
         }
 
         foreach (Kernel::selected(Prepend::class) as $method) {
             foreach (array_reverse($Kernel->{$method}) as $middleware) {
-                $kernel->{$method}($middleware);
+                $KernelContract->{$method}($middleware);
             }
         }
 
         foreach (Kernel::selected(AppendTo::class) as $method) {
             foreach ($Kernel->{$method} as $target => $middlewares) {
                 foreach ((array) $middlewares as $middleware) {
-                    $kernel->{$method}($target, $middleware);
+                    $KernelContract->{$method}($target, $middleware);
                 }
             }
         }
@@ -68,13 +68,13 @@ class KernelDeclarationServiceProvider extends ServiceProvider
         foreach (Kernel::selected(PrependTo::class) as $method) {
             foreach ($Kernel->{$method} as $target => $middlewares) {
                 foreach (array_reverse((array) $middlewares) as $middleware) {
-                    $kernel->{$method}($target, $middleware);
+                    $KernelContract->{$method}($target, $middleware);
                 }
             }
         }
 
         foreach ($Kernel->whenRequestLifecycleIsLongerThan as $threshold => $handler) {
-            $kernel->whenRequestLifecycleIsLongerThan(
+            $KernelContract->whenRequestLifecycleIsLongerThan(
                 is_numeric($threshold)
                     ? +$threshold
                     : (CarbonInterval::make($threshold) ?? throw new LogicException("The `kernel.whenRequestLifecycleIsLongerThan` threshold [{$threshold}] must be numeric or a parsable interval string.")),

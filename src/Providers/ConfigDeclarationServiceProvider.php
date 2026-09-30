@@ -15,8 +15,8 @@ class ConfigDeclarationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->callAfterResolving(Manifest::class, function (Manifest $manifest): void {
-            foreach ($manifest->config as $file => $values) {
+        $this->callAfterResolving(Manifest::class, function (Manifest $Manifest): void {
+            foreach ($Manifest->config as $file => $values) {
                 if (! is_array($values)) {
                     throw new LogicException("The `config.$file` entry must be a map of config keys.");
                 }

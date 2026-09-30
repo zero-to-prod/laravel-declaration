@@ -11,8 +11,8 @@ use Illuminate\Database\Schema\Blueprint;
 class ColumnType
 {
     /** @param list<mixed> $args */
-    public function apply(Blueprint $blueprint, string $method, array $args): mixed
+    public function apply(Blueprint $Blueprint, string $method, array $args): mixed
     {
-        return $blueprint->{$method}(...$args);
+        return $Blueprint->{$method}(...$args);
     }
 }

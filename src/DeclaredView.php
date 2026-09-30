@@ -44,11 +44,11 @@ class DeclaredView extends ViewController
 
         /** @var array<string, mixed> $data */
         $data = $args['data'];
-        $manifest = app(Manifest::class);
+        $Manifest = app(Manifest::class);
 
         $resolvedData = array_map(
-            static function (mixed $value) use ($parameters, $manifest): mixed {
-                if (is_string($value) && $manifest->queries->has($value)) {
+            static function (mixed $value) use ($parameters, $Manifest): mixed {
+                if (is_string($value) && $Manifest->queries->has($value)) {
                     return DeclaredQuery::run($value, $parameters);
                 }
 
@@ -63,7 +63,7 @@ class DeclaredView extends ViewController
 
         if (isset($args['template']) && is_string($args['template'])) {
             if ($routeName = $route->getName()) {
-                event("composing: {$routeName}", [$mergedData]);
+                event("composing: $routeName", [$mergedData]);
             }
 
             $deleteCachedView = ! isset($args['deleteCachedView']) || (bool) $args['deleteCachedView'];

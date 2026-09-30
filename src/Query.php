@@ -30,19 +30,12 @@ final readonly class Query
 
     public const string relation = 'relation';
 
-    /**
-     * Parameter-rooted relation string, e.g. "user.posts".
-     */
     #[Describe([Describe::nullable => true])]
     public ?string $relation;
 
     public const string clauses = 'clauses';
 
-    /**
-     * Dynamic query method invocations in declared document order.
-     *
-     * @var array<string, mixed>
-     */
+    /** @var array<string, mixed> */
     #[Describe([Describe::default => [], Describe::assign => [self::class, 'extractClauses']])]
     public array $clauses;
 
@@ -60,8 +53,6 @@ final readonly class Query
     }
 
     /**
-     * Executes the query against the resolved root.
-     *
      * @param  array<string, mixed>  $parameters
      *
      * @throws BadMethodCallException
@@ -79,7 +70,6 @@ final readonly class Query
             }
         }
 
-        // If no terminal was called and the builder is still unresolved, default to get()
         if ($result instanceof Builder || $result instanceof Relation) {
             return $result->get();
         }
@@ -87,9 +77,7 @@ final readonly class Query
         return $result;
     }
 
-    /**
-     * @param  Builder<Model>|Relation<Model, Model, mixed>  $target
-     */
+    /** @param  Builder<Model>|Relation<Model, Model, mixed>  $target */
     private function dispatchMethod(Builder|Relation $target, string $method, mixed $args): mixed
     {
         if ($args === true || $args === null) {
@@ -120,7 +108,7 @@ final readonly class Query
         if ($this->relation !== null) {
             if (! str_contains($this->relation, '.')) {
                 throw new InvalidArgumentException(
-                    "Relation query must specify route parameter and relation in 'param.relation' format; '{$this->relation}' given."
+                    "Relation query must specify route parameter and relation in 'param.relation' format; '$this->relation' given."
                 );
             }
 
@@ -129,13 +117,13 @@ final readonly class Query
 
             if (! $owner instanceof Model) {
                 throw new InvalidArgumentException(
-                    "Route parameter [{$param}] must be an instance of Illuminate\\Database\\Eloquent\\Model to query relation [{$relationMethod}]."
+                    "Route parameter [$param] must be an instance of Illuminate\\Database\\Eloquent\\Model to query relation [$relationMethod]."
                 );
             }
 
             if (! method_exists($owner, $relationMethod)) {
                 throw new LogicException(
-                    'Model ['.$owner::class."] does not define relationship method [{$relationMethod}]."
+                    'Model ['.$owner::class."] does not define relationship method [$relationMethod]."
                 );
             }
 
@@ -143,7 +131,7 @@ final readonly class Query
 
             if (! $relation instanceof Relation && ! $relation instanceof Builder) {
                 throw new LogicException(
-                    "Relationship method [{$relationMethod}] on [".$owner::class.'] must return an Eloquent Relation or Builder.'
+                    "Relationship method [$relationMethod] on [".$owner::class.'] must return an Eloquent Relation or Builder.'
                 );
             }
 
@@ -151,7 +139,7 @@ final readonly class Query
         }
 
         if ($this->model === null) {
-            throw new LogicException("Query [{$this->name}] must declare either 'model' or 'relation'.");
+            throw new LogicException("Query [$this->name] must declare either 'model' or 'relation'.");
         }
 
         /** @var class-string<Model> $modelClass */
@@ -159,7 +147,7 @@ final readonly class Query
 
         if (! is_subclass_of($modelClass, Model::class)) {
             throw new InvalidArgumentException(
-                "Declared query model [{$modelClass}] must be a subclass of Illuminate\\Database\\Eloquent\\Model."
+                "Declared query model [$modelClass] must be a subclass of Illuminate\\Database\\Eloquent\\Model."
             );
         }
 
