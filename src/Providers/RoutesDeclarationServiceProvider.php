@@ -62,7 +62,7 @@ class RoutesDeclarationServiceProvider extends ServiceProvider
     {
         $Route = $Router->{$method}(...$item->arguments());
 
-        assert($Route instanceof Route);
+        assert($Route instanceof Route); // @codeCoverageIgnore
 
         $this->applyBuilders($Route, $item->builders);
     }

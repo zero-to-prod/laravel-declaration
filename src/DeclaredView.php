@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use BadMethodCallException;
-use Illuminate\Contracts\Routing\ResponseFactory;
-use Illuminate\Contracts\View\View as LaravelView;
+use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Http\Response;
+use Illuminate\Routing\ResponseFactory;
 use Illuminate\Routing\ViewController;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Str;
@@ -122,25 +121,15 @@ class DeclaredView extends ViewController
         $method = array_key_first($factory);
         $Factory = app(Factory::class);
 
-        if (! method_exists($Factory, $method) && ! $Factory->hasMacro($method)) {
-            throw new BadMethodCallException(sprintf(
-                'Call to undefined method %s::%s(). The `factory` dispatch targets Illuminate\View\Factory methods.',
-                Factory::class,
-                $method,
-            ));
-        }
-
         $arguments = $this->arguments($method, $factory[$method], $parameters, $Manifest, $mergedData);
 
         $result = $Factory->{$method}(...$arguments);
 
-        $content = $result instanceof LaravelView
-            ? $result->render()
-            : (is_string($result) ? $result : throw new LogicException(sprintf(
-                'Factory::%s() returned %s; the `factory` dispatch renders a View or a string.',
-                $method,
-                get_debug_type($result),
-            )));
+        $content = is_string($result) || $result instanceof Renderable ? $result : throw new LogicException(sprintf(
+            'Factory::%s() returned %s; the `factory` dispatch renders a View or a string.',
+            $method,
+            get_debug_type($result),
+        ));
 
         /** @var ResponseFactory $responseFactory */
         $responseFactory = $this->response;

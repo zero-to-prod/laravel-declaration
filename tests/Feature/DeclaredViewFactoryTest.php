@@ -158,7 +158,7 @@ it('fails an unknown Factory method with BadMethodCallException', function (): v
 
     $this->withoutExceptionHandling();
     $this->get('/typo');
-})->throws(BadMethodCallException::class, 'Call to undefined method Illuminate\View\Factory::mak().');
+})->throws(BadMethodCallException::class, 'Method Illuminate\View\Factory::mak does not exist.');
 
 it('fails a bool-returning dispatch loudly instead of rendering nothing', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
