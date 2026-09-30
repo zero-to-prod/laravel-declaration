@@ -17,7 +17,6 @@ use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
 /** @internal */
 class LaravelDeclarationProvider extends ServiceProvider
 {
-
     public static function defaultProviders(): DefaultProviders
     {
         return new DefaultProviders;
