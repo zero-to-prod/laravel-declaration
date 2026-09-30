@@ -163,9 +163,9 @@ it('allows legacy LaravelDeclarationProvider to be used', function (): void {
 });
 
 it('allows replacing a concern provider in configuration using DefaultProviders replace', function (): void {
-    $providers = LaravelDeclarationProvider::defaultProviders()
-        ->replace([RouterDeclarationServiceProvider::class => CustomRouterServiceProvider::class])
-        ->toArray();
+    $defaultProviders = LaravelDeclarationProvider::defaultProviders()
+        ->replace([RouterDeclarationServiceProvider::class => CustomRouterServiceProvider::class]);
+    $providers = $defaultProviders->providers;
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/router.yml',
@@ -178,9 +178,9 @@ it('allows replacing a concern provider in configuration using DefaultProviders 
 });
 
 it('disables a concern by omitting its provider using DefaultProviders except', function (): void {
-    $providers = LaravelDeclarationProvider::defaultProviders()
-        ->except([RouterDeclarationServiceProvider::class])
-        ->toArray();
+    $defaultProviders = LaravelDeclarationProvider::defaultProviders()
+        ->except([RouterDeclarationServiceProvider::class]);
+    $providers = $defaultProviders->providers;
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/router.yml',
@@ -191,9 +191,9 @@ it('disables a concern by omitting its provider using DefaultProviders except', 
 });
 
 it('allows merging providers into DefaultProviders', function (): void {
-    $providers = LaravelDeclarationProvider::defaultProviders()
-        ->merge([SitemapServiceProvider::class, SitemapServiceProvider::class])
-        ->toArray();
+    $defaultProviders = LaravelDeclarationProvider::defaultProviders()
+        ->merge([SitemapServiceProvider::class, SitemapServiceProvider::class]);
+    $providers = $defaultProviders->providers;
 
     expect($providers)->toContain(SitemapServiceProvider::class);
 
@@ -210,10 +210,10 @@ it('allows merging providers into DefaultProviders', function (): void {
 
 it('handles DefaultProviders instantiation with explicit array and non-matching replacement', function (): void {
     $custom = new DefaultProviders([RouterDeclarationServiceProvider::class]);
-    expect($custom->toArray())->toBe([RouterDeclarationServiceProvider::class]);
+    expect($custom->providers)->toBe([RouterDeclarationServiceProvider::class]);
 
     $unchanged = $custom->replace(['NonExistentProvider' => CustomRouterServiceProvider::class]);
-    expect($unchanged->toArray())->toBe([RouterDeclarationServiceProvider::class]);
+    expect($unchanged->providers)->toBe([RouterDeclarationServiceProvider::class]);
 });
 
 it('falls back to defaultProviders when config providers key is null', function (): void {

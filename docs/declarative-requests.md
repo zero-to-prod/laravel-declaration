@@ -294,7 +294,7 @@ public function store(DeclaredRequest $request): RedirectResponse
 | `name` | — (reserved) | `string`, unique | — | required |
 | `authorize` | `authorize(): bool\|Response` | `bool` \| reference | `$request` | `true` (≙ no `authorize()`) |
 | `rules` | `rules(): array` | `map<field, string \| list<rule>>` \| reference | `$request` | `[]` |
-| `rules.<field>[]` | one rule | Laravel rule (`string`, `[name, ...params]`) \| reference (§2.2) | `$request` | — |
+| `rules.<field>[]` | one rule | Laravel rule (`string`, `[name, ...params]`) \| reference (§2.2) \| conditional entry keyed `when`/`unless` (declarative-validator.md §2.6) | `$request` | — |
 | `messages` | `messages(): array` | `map<'field.rule', string>` \| reference | `$request` | `[]` |
 | `attributes` | `attributes(): array` | `map<field, label>` \| reference | `$request` | `[]` |
 | `validationData` | `validationData(): array` | reference | `$request` | `$this->all()` |

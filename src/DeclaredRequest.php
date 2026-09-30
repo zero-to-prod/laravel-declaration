@@ -11,10 +11,19 @@ use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use LogicException;
 
 class DeclaredRequest extends FormRequest
 {
+    private const string when = 'when';
+
+    private const string unless = 'unless';
+
+    private const string condition = 'condition';
+
+    private const string defaultRules = 'defaultRules';
+
     public function validateResolved(): void
     {
         $this->configureDeclaration();
@@ -118,9 +127,9 @@ class DeclaredRequest extends FormRequest
         $rules = $this->resolve($this->declaration()->rules);
 
         return array_map(
-            fn (mixed $field_rules): mixed => is_array($field_rules)
-                ? array_map($this->rule(...), $field_rules)
-                : $field_rules,
+            fn (mixed $field_rules): mixed => is_array($field_rules) && array_is_list($field_rules)
+                ? array_map($this->rule(...), $field_rules)   // list of rule entries — one call per entry
+                : $this->rule($field_rules),                  // a conditional map IS the field value (Rule::when)
             $rules,
         );
     }
@@ -170,10 +179,47 @@ class DeclaredRequest extends FormRequest
 
     private function rule(mixed $rule): mixed
     {
+        if (is_array($rule) && (isset($rule[self::when]) || isset($rule[self::unless]))) {
+            return $this->conditionalRule($rule);
+        }
+
         if (! is_string($rule) || ! str_contains(Str::before($rule, ':'), '\\')) {
             return $rule;
         }
 
         return class_exists($rule) ? $this->container->make($rule) : $this->resolve($rule);
+    }
+
+    /** @param  array<mixed>  $rule */
+    private function conditionalRule(array $rule): mixed
+    {
+        if (isset($rule[self::when], $rule[self::unless])) {
+            throw new LogicException('A rule entry declares both `when` and `unless`; declare one.');
+        }
+
+        $method = isset($rule[self::when]) ? self::when : self::unless;
+        $declaration = $rule[$method];
+
+        if (! is_array($declaration) || ! array_key_exists(self::condition, $declaration)) {
+            throw new LogicException("The `$method` rule entry declares no `condition`.");
+        }
+
+        /** @var bool|callable $condition — the native `callable|bool` argument: a bool passes through, a reference returns bool or a Closure */
+        $condition = $this->resolve($declaration[self::condition]);
+
+        return Rule::{$method}(
+            $condition,
+            $this->conditionalRules($declaration['rules'] ?? []),
+            $this->conditionalRules($declaration[self::defaultRules] ?? []),
+        );
+    }
+
+    /** The native $rules/$defaultRules argument: a pipe string passes untouched, list entries resolve per rule.
+     *
+     * @return string|array<int, mixed>
+     */
+    private function conditionalRules(mixed $rules): mixed
+    {
+        return is_string($rules) ? $rules : array_map($this->rule(...), (array) $rules);
     }
 }

@@ -330,6 +330,10 @@ requests:
       role: [required, 'exists:App\Models\Role,name']   # `\` after the `:` -> Laravel param
       slug: [required, App\Rules\Slug]            # rule class -> make()
       email: [required, 'App\Rules\UniqueTenantEmail::forRequest']   # called -> returns the rule
+      discount:                                   # conditional rules ≙ Rule::when() / Rule::unless()
+        - unless:                                 # -> unless($condition, $rules): $rules apply when falsy
+            condition: App\Rules\IsAdmin          # bool | reference receiving $request
+            rules: [prohibited]
     messages:                                     # -> messages(); map | reference
       name.required: A name is required.
     attributes:                                   # -> attributes(); map | reference
@@ -356,6 +360,24 @@ routes:
     action: [App\Http\Controllers\UserController, store]
     metadata:
       request: user                               # -> Route::metadata(['request' => 'user'])
+```
+
+Factory-wide custom rules declare beside the requests, in the `validator` object
+(docs/declarative-validator.md):
+
+```yaml
+validator:                                      # every key is an Illuminate\Validation\Factory registry method
+  extend:                                       # -> extend($rule, $extension, $message = null)
+    uppercase: App\Validators\Uppercase@check  # Class@method | bare class-string (default method `validate`)
+    slug:
+      extension: App\Validators\Slug            # the optional $message via the native parameter names
+      message: 'The :attribute must be a slug.'
+  extendImplicit:                               # runs even when the field is absent/empty
+    phone: App\Validators\Phone
+  extendDependent:                              # parameters may reference other fields
+    guardedMin: App\Validators\GuardedMin@check
+  replacer:                                     # -> replacer($rule, $replacer); default method `replace`
+    uppercase: App\Validators\Uppercase@replace
 ```
 
 The action:

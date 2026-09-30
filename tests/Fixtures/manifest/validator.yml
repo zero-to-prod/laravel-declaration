@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
+validator:                                                # ——— Tier 1: Factory registry methods ———
+  extend:                                                 # -> extend($rule, $extension, $message = null)
+    uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@check'
+    slug:                                                 # the optional $message via the native parameter names
+      extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
+      message: 'The :attribute must be a slug.'
+  extendImplicit:                                         # runs even when the field is absent/empty
+    phone:
+      extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Phone'
+  extendDependent:                                        # parameters may reference other fields
+    guardedMin: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\GuardedMin@check'
+  replacer:                                               # -> replacer($rule, $replacer); default method `replace`
+    uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@replace'
+
+requests:
+  - name: profile
+    messages:
+      name.uppercase: The :attribute must be uppercase (min :min).   # the replacer fills :min
+    rules:                                                # ——— conditional rules (§2.6) ———
+      name: [required, string, uppercase:8]               # plain rule strings resolve through the factory
+      slug: [required, slug]
+      phone: phone                                        # implicit: fires even when `phone` is absent
+      secret: 'guardedMin:reveal,8'                       # dependent: $parameters reference other fields
+      email:
+        - when:                                           # ≙ Rule::when($condition, $rules, $defaultRules)
+            condition: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\IsTeamAdmin'
+            rules: [required, email]
+            defaultRules: [nullable, email]
+      coupon:
+        - nullable
+        - when:
+            condition: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\ProTier'   # returns a Closure
+            rules: 'in:pro,elite'                         # pipe string: passes through, exploded natively
+      discount:
+        - unless:                                         # ≙ Rule::unless(...) — $rules apply when falsy
+            condition: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\IsTeamAdmin'
+            rules: [prohibited]
+      handle:
+        - when:                                           # nested rule reference, container-made through rule()
+            condition: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\IsTeamAdmin'
+            rules: ['ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Requests\Rules\Slug']
+      notes:                                              # whole-field form: the field value IS Rule::when(...)
+        when:
+          condition: false                                # bool conditions pass through untouched
+          rules: [required, string]
+
+routes:
+  addRoute:
+    - uri: profile
+      methods: POST
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+      metadata:
+        request: profile

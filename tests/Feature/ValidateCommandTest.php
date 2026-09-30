@@ -56,6 +56,11 @@ test('laravel-declaration:validate accepts the schema block', function (): void 
         ->assertSuccessful();
 });
 
+test('laravel-declaration:validate accepts a validator manifest', function (): void {
+    $this->artisan('laravel-declaration:validate', ['--manifest' => __DIR__.'/../Fixtures/manifest/validator.yml'])
+        ->assertSuccessful();
+});
+
 test('laravel-declaration:validate accepts the end-to-end unified manifest', function (): void {
     $this->artisan('laravel-declaration:validate', ['--manifest' => __DIR__.'/../Fixtures/manifest/end-to-end.yml'])
         ->expectsOutputToContain('is valid')

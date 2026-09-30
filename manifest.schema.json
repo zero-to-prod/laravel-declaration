@@ -23,6 +23,9 @@
       "type": "array",
       "items": { "$ref": "#/definitions/request" }
     },
+    "validator": {
+      "$ref": "#/definitions/validator"
+    },
     "models": {
       "type": "array",
       "items": { "$ref": "#/definitions/model" }
@@ -635,6 +638,47 @@
           "type": "boolean"
         }
       }
+    },
+    "validator": {
+      "description": "Illuminate\\Validation\\Factory registry methods: every key is a method name, its value the registry content. Applied when Laravel first resolves `validator` (callAfterResolving, queued in boot()). An unknown key throws no error (DataModel drops it) but fails this schema.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "extend": {
+          "description": "-> extend($rule, $extension, $message = null), one call per entry: the key is the rule name, the value the extension reference string or a map of the native parameter names {extension, message}.",
+          "type": "object",
+          "additionalProperties": {"$ref": "#/definitions/extension"}
+        },
+        "extendImplicit": {
+          "description": "-> extendImplicit($rule, $extension, $message = null): the rule runs even when the field is absent or empty.",
+          "type": "object",
+          "additionalProperties": {"$ref": "#/definitions/extension"}
+        },
+        "extendDependent": {
+          "description": "-> extendDependent($rule, $extension, $message = null): the parsed rule lands in dependentRules, so its parameters may reference other fields.",
+          "type": "object",
+          "additionalProperties": {"$ref": "#/definitions/extension"}
+        },
+        "replacer": {
+          "description": "-> replacer($rule, $replacer), one call per entry: the value replaces message placeholders; a bare class-string resolves to its `replace` method.",
+          "type": "object",
+          "additionalProperties": {"$ref": "#/definitions/reference"}
+        }
+      }
+    },
+    "extension": {
+      "oneOf": [
+        {"$ref": "#/definitions/reference"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["extension"],
+          "properties": {
+            "extension": {"$ref": "#/definitions/reference"},
+            "message": {"type": "string", "description": "The factory-wide fallback message (Factory::$fallbackMessages)."}
+          }
+        }
+      ]
     },
     "columns": {
       "type": "array",

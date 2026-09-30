@@ -78,6 +78,11 @@ readonly class Manifest
     ])]
     public Collection $requests;
 
+    public const string validator = 'validator';
+
+    #[Describe([Describe::nullable => true])]
+    public ?Validator $validator;
+
     public const string models = 'models';
 
     /** @var Collection<string, Model> */

@@ -35,6 +35,7 @@ The complete request and schema lifecycle in dispatch order, mapping each stage 
 | 21 | Zero-PHP Dynamic Model Synthesis | `Illuminate\Database\Eloquent\Model` dynamic class loader | `models` | Forward Roadmap (Phase 2) |
 | 22 | Headless REST/API Response Seam | `Illuminate\Contracts\Routing\ResponseFactory::json()` | `routes.action` (`DeclaredJson`) | Forward Roadmap (Phase 4) |
 | 23 | Router Middleware Registry, Resource Globals & Matched Listeners | `Illuminate\Routing\Router` | `router.*` | Completed |
+| 24 | Validation Factory Extensions | `Illuminate\Validation\Factory` / `Rule::when()` | `validator` / `requests.rules.when` | Completed |
 
 The persistent schema catalog and database tables serve as the authoritative **system of record** for entity state, while `manifest/app.yml` serves as the declarative **data source**.
 

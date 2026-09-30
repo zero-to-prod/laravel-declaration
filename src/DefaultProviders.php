@@ -16,17 +16,14 @@ use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ResponseDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\Providers\ValidatorDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 
-/**
- * Manages the default ServiceProviders registered by the declarative package.
- *
- * @internal
- */
+/** @internal */
 final readonly class DefaultProviders
 {
     /** @var list<class-string<ServiceProvider>> */
-    private array $providers;
+    public array $providers;
 
     /** @param list<class-string<ServiceProvider>>|null $providers */
     public function __construct(?array $providers = null)
@@ -45,6 +42,7 @@ final readonly class DefaultProviders
             BladeDeclarationServiceProvider::class,
             ResponseDeclarationServiceProvider::class,
             PaginationDeclarationServiceProvider::class,
+            ValidatorDeclarationServiceProvider::class,
             DatabaseDeclarationServiceProvider::class,
             KernelDeclarationServiceProvider::class,
             ProvidersDeclarationServiceProvider::class,
@@ -85,11 +83,5 @@ final readonly class DefaultProviders
             ->diff($providers)
             ->values()
             ->all()));
-    }
-
-    /** @return list<class-string<ServiceProvider>> */
-    public function toArray(): array
-    {
-        return $this->providers;
     }
 }

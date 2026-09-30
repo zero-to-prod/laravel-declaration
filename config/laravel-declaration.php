@@ -29,7 +29,7 @@ return [
     |       ->toArray(),
     |
     */
-    'providers' => LaravelDeclarationProvider::defaultProviders()->toArray(),
+    'providers' => LaravelDeclarationProvider::defaultProviders()->providers,
 
     /*
     |--------------------------------------------------------------------------

@@ -29,35 +29,38 @@ per request: DeclaredRequest::validateResolved() (ValidatesWhenResolvedTrait)
   → getValidatorInstance() → validator() → createDefaultValidator()   (FormRequest.php:171)
   → ValidationFactory::make($data, $rules, $messages, $attributes)
       └─ addExtensions($validator): the factory copies its five registries into the
-         validator instance at make() time                    (Factory.php:171-189)
+         validator instance at make() time                    (Factory.php:171-185)
   → Validator::setRules → addRules → filterConditionalRules   (Validator.php:1315)
       └─ ConditionalRules resolve HERE, against the validator's data
-  → FormRequest::validateNoUnknownFields()                    (FormRequest.php:231)
-      └─ reads validationRules() — the DECLARED rules, not the custom validator
+  → FormRequest::validateNoUnknownFields(), queued as a validator `after` hook
+      (FormRequest.php:121-124) — re-reads `validationRules()` (FormRequest.php:205),
+      so `rules()` — and every condition reference inside it — runs twice per request
 ```
 
 Three timing facts drive the design:
 
-1. **The factory is a per-process singleton** (`'validator'`, `ValidationServiceProvider.php:29-45`). Extensions registered once are visible to every later `Factory::make()` — including every `DeclaredRequest`, every `$request->validate()` macro call, and every `Validator::make()` in application code. There is nothing per-request to re-register.
+1. **The factory is a per-process singleton** (`'validator'`, `ValidationServiceProvider.php:29-42`). Extensions registered once are visible to every later `Factory::make()` — including every `DeclaredRequest`, every `$request->validate()` macro call, and every `Validator::make()` in application code. There is nothing per-request to re-register.
 2. **`ValidationServiceProvider` is a `DeferrableProvider`** — nothing resolves `'validator'` during boot, so `callAfterResolving('validator', …)` registers the callback lazily and the factory is never constructed at boot unless the host asks for it. This is the exact lifecycle `ViewDeclarationServiceProvider` uses for `'view'` (`ViewDeclarationServiceProvider.php:16`), where the suite proves the factory stays unresolved until first use (`ViewRegistrationTest`, "applies the block when Laravel first resolves the view factory").
-3. **`callAfterResolving` fires the callback immediately if the factory was already resolved** (`Application::callAfterResolving`), so a host that builds validators mid-boot still gets the extensions. Both orderings are safe; the seam holds no state.
+3. **`callAfterResolving` fires the callback immediately if the factory was already resolved** (`ServiceProvider::callAfterResolving`, `Support/ServiceProvider.php:310`), so a host that builds validators mid-boot still gets the extensions. Both orderings are safe; the seam holds no state.
 
 ### 1.2 The four registry methods (native signatures, v13.33.0)
 
-| Native method | Signature | Registry it fills | Line |
+v13.33.0 declares **no native parameter or return types** on these methods — the signatures below add the docblock types; every method returns `void`.
+
+| Native method | Signature (docblock-typed) | Registry it fills | Line |
 |---|---|---|---|
-| `Factory::extend()` | `extend(string $rule, Closure\|string $extension, ?string $message = null): void` | `$extensions` | `Factory.php:195` |
-| `Factory::extendImplicit()` | `extendImplicit(string $rule, Closure\|string $extension, ?string $message = null): void` | `$implicitExtensions` | `Factory.php:212` |
-| `Factory::extendDependent()` | `extendDependent(string $rule, Closure\|string $extension, ?string $message = null): void` | `$dependentExtensions` | `Factory.php:229` |
-| `Factory::replacer()` | `replacer(string $rule, Closure\|string $replacer): void` | `$replacers` | `Factory.php:245` |
+| `Factory::extend()` | `extend($rule, $extension, $message = null)` — `string`, `Closure\|string`, `?string` | `$extensions` | `Factory.php:195` |
+| `Factory::extendImplicit()` | `extendImplicit($rule, $extension, $message = null)` — same types | `$implicitExtensions` | `Factory.php:212` |
+| `Factory::extendDependent()` | `extendDependent($rule, $extension, $message = null)` — same types | `$dependentExtensions` | `Factory.php:229` |
+| `Factory::replacer()` | `replacer($rule, $replacer)` — `string`, `Closure\|string` | `$replacers` | `Factory.php:245` |
 
-The `$message` argument of the three `extend*` methods is the **only** native path to factory-wide fallback messages: it writes `$this->fallbackMessages[Str::snake($rule)] = $message` (`Factory.php:202-206`), applied to every validator in `addExtensions()` via `setFallbackMessages()` (`Factory.php:187`). `Factory` exposes no other public setter for fallback messages.
+The `$message` argument of the three `extend*` methods is the **only** native path to factory-wide fallback messages: it writes `$this->fallbackMessages[Str::snake($rule)] = $message` (`Factory.php:199-201`), applied to every validator in `addExtensions()` via `setFallbackMessages()` (`Factory.php:184`). `Factory` exposes no other public setter for fallback messages.
 
-**Contract coverage.** `Illuminate\Contracts\Validation\Factory` declares `extend` (line 26), `extendImplicit` (line 36) and `replacer` (line 45) — but **not** `extendDependent`. The provider's callback therefore type-hints the concrete `Illuminate\Validation\Factory`, which is exactly what the `'validator'` alias resolves (`ValidationServiceProvider.php:33` constructs the concrete class; core container aliases map both `Illuminate\Validation\Factory` and `Illuminate\Contracts\Validation\Factory` to `'validator'`).
+**Contract coverage.** `Illuminate\Contracts\Validation\Factory` declares `extend` (line 26), `extendImplicit` (line 36) and `replacer` (line 45) — but **not** `extendDependent`. The provider's callback therefore type-hints the concrete `Illuminate\Validation\Factory`, which is exactly what the `'validator'` alias resolves (`ValidationServiceProvider.php:32` constructs the concrete class; `Application.php:1684` aliases both `Illuminate\Validation\Factory` and `Illuminate\Contracts\Validation\Factory` to `'validator'`).
 
 ### 1.3 How the extension string dispatches (all of it is Laravel's own code)
 
-**Registration → per-validator copy.** `Factory::make()` copies the five registries into each validator (`Factory.php:171-189`): `Validator::addExtensions()` snake-cases the keys (`Validator.php:1392-1399`), `addImplicitExtensions()` also appends `Str::studly($rule)` to `implicitRules` (`Validator.php:1409-1418`), `addDependentExtensions()` appends to `dependentRules` (`Validator.php:1424-1433`), `addReplacers()` snake-cases keys (`Validator.php:1479-1489`).
+**Registration → per-validator copy.** `Factory::make()` copies the five registries into each validator via `addExtensions()` (`Factory.php:171-185`): `Validator::addExtensions()` snake-cases the keys (`Validator.php:1392-1401`), `addImplicitExtensions()` also appends `Str::studly($rule)` to `implicitRules` (`Validator.php:1409-1416`), `addDependentExtensions()` appends to `dependentRules` (`Validator.php:1424-1431`), `addReplacers()` snake-cases keys (`Validator.php:1479-1488`).
 
 **Invocation.** `Validator::validateAttribute()` calls `$this->$method($attribute, $value, $parameters, $this)` — the four positional arguments every extension receives (`Validator.php:733`). The dynamic `validate*` name lands in `Validator::__call()`, which snake-cases the suffix and looks the registry up (`Validator.php:1784-1795`), then `callExtension()`:
 
@@ -94,7 +97,7 @@ So a **string reference passes through untouched** and Laravel resolves all thre
 
 **Replacers.** Message replacement runs in `FormatsMessages::makeReplacements()` (`FormatsMessages.php:249-267`), which consults `$this->replacers[Str::snake($rule)]` **before** the built-in `replace{Rule}` methods. `callReplacer()` invokes a `Closure` positionally with `($message, $attribute, $rule, $parameters, $validator)`; a string goes through `callClassBasedReplacer()` — `Str::parseCallback($callback, 'replace')`, so a bare class-string resolves to the **default** method `replace(...)` (`FormatsMessages.php:563-591`).
 
-**Rule-name normalization.** The parsed rule name is always `Str::studly()`'d upstream (`ValidationRuleParser.php:280,302`), registry keys are `Str::snake()`'d on both sides (`Validator.php:1442,1499`; `Factory.php:204`), and PHP method calls are case-insensitive — so YAML keys may be written snake_case or camelCase and match identically (verified empirically: rule string `phone`, extension key `phone`, registry key `phone`; rule string `requiredWhenRole`, registry key `required_when_role`).
+**Rule-name normalization.** The parsed rule name is always `Str::studly()`'d upstream (`ValidationRuleParser.php:280,302`), registry keys are `Str::snake()`'d on both sides (`Validator.php:1442,1499`; `Factory.php:200`), and PHP method calls are case-insensitive — so YAML keys may be written snake_case or camelCase and match identically (verified empirically: rule string `phone`, extension key `phone`, registry key `phone`; rule string `requiredWhenRole`, registry key `required_when_role`).
 
 **Message resolution order** for a failing custom rule: per-request custom messages (`field.rule`) → lang lines (`validation.custom.<attribute>.<rule>`, `validation.<rule>`) → the factory fallback message from `extend*`'s `$message` → otherwise the **raw lang key** is rendered as the message (verified: an extension with no declared message yields `validation.phone`). Declare `message:` (or per-request `messages:`) for user-facing text.
 
@@ -105,8 +108,8 @@ So a **string reference passes through untouched** and Laravel resolves all thre
 | `Illuminate\Validation\Rule::when()` | `when($condition, $rules, $defaultRules = []): ConditionalRules` (`callable\|bool $condition`) | `Rule.php:54` |
 | `Illuminate\Validation\Rule::unless()` | `unless($condition, $rules, $defaultRules = []): ConditionalRules` | `Rule.php:67` |
 | `Illuminate\Validation\ConditionalRules::__construct()` | `($condition, $rules, $defaultRules = [])` | `ConditionalRules.php:37` |
-| `ConditionalRules::passes($data)` | `callable` condition → `call_user_func($condition, new Fluent($data))`; `bool` → as-is | `ConditionalRules.php:50-61` |
-| `ConditionalRules::rules($data)` / `defaultRules($data)` | `string` → `explode('|', …)`; otherwise `value($this->rules, new Fluent($data))` | `ConditionalRules.php:63-88` |
+| `ConditionalRules::passes($data)` | `callable` condition → `call_user_func($condition, new Fluent($data))`; `bool` → as-is | `ConditionalRules.php:50-55` |
+| `ConditionalRules::rules($data)` / `defaultRules($data)` | `string` → `explode('|', …)`; otherwise `value($this->rules, new Fluent($data))` | `ConditionalRules.php:63-81` |
 
 Consumption happens at **validator construction**: `Validator::addRules()` wraps the rule array in `ValidationRuleParser::filterConditionalRules($rules, $this->data)` (`Validator.php:1315`), which replaces every `ConditionalRules` — as a whole field value **or** as an entry inside a field's rule list — with the resolved rule list (`ValidationRuleParser.php:350-372`). Two consequences:
 
@@ -343,7 +346,7 @@ public const string validator = 'validator';
 public ?Validator $validator;
 ```
 
-The provider applies the block when Laravel first resolves the shared factory — the `view:` lifecycle, `callAfterResolving`:
+The provider applies the block when Laravel first resolves the shared factory — the `view:` lifecycle, `callAfterResolving`. One loop dispatches dynamically: every property name **is** the native `Factory` method name (Rule 1), and the declared value **is** the native argument list (Rule 2) — `$Factory->{$method}(...)` is the entire seam:
 
 ```php
 <?php
@@ -360,13 +363,6 @@ use ZeroToProd\LaravelDeclaration\Validator;
 /** @internal */
 class ValidatorDeclarationServiceProvider extends ServiceProvider
 {
-    /** The three `Factory` extension methods share one native signature: ($rule, $extension, $message = null). */
-    private const array EXTENSIONS = [
-        Validator::extend,
-        Validator::extendImplicit,
-        Validator::extendDependent,
-    ];
-
     public function boot(?Manifest $Manifest = null): void
     {
         if (! $Manifest?->validator instanceof Validator) {
@@ -374,25 +370,20 @@ class ValidatorDeclarationServiceProvider extends ServiceProvider
         }
 
         $this->callAfterResolving('validator', function (Factory $Factory) use ($Manifest): void {
-            foreach (self::EXTENSIONS as $method) {
-                foreach ($Manifest->validator->{$method} as $rule => $extension) {
-                    [$callback, $message] = $this->callbackAndMessage($extension);
-
-                    $Factory->{$method}($rule, $callback, $message);   // native argument order
+            foreach ($Manifest->validator->toArray() as $method => $registry) {
+                foreach ($registry as $rule => $extension) {
+                    $Factory->{$method}($rule, ...$this->arguments($extension));   // native argument order
                 }
-            }
-
-            foreach ($Manifest->validator->replacer as $rule => $replacer) {
-                $Factory->replacer($rule, $replacer);
             }
         });
     }
 
-    /** The declared value is the native second argument, or a map of the native parameter names. */
-    private function callbackAndMessage(string|array $extension): array
+    /** The native second argument onward: a reference string, or the map form's {extension, message}.
+     *  `replacer()` takes no `$message`, so its values are always reference strings (§3.6 schema). */
+    private function arguments(string|array $extension): array
     {
         return is_string($extension)
-            ? [$extension, null]
+            ? [$extension]
             : [$extension[Validator::extension], $extension[Validator::message] ?? null];
     }
 }
@@ -412,7 +403,7 @@ class ValidatorDeclarationServiceProvider extends ServiceProvider
 | `rules` / `defaultRules` | pipe `string` → passes through (`ConditionalRules::rules()` explodes it natively); `list` → each entry resolves through `rule()` (class refs container-made; nested conditionals recurse) | the native `array\|string` arguments |
 | whole field value (`notes:` above) | the field value **is** the conditional map | `filterConditionalRules()` accepts a bare `ConditionalRules` as the field value |
 
-Ordering: `rules()` runs inside `validateResolved()` — after `prepareForValidation()` merges input — so a condition reference sees the same post-merge state the native `Fluent($data)` path sees (`validationData()` feeds the validator). A reference returning a `Closure` keeps the fully-native lazy semantics: `ConditionalRules::passes()` calls it with `new Fluent($data)` at validator construction.
+Ordering: `rules()` runs inside `validateResolved()` — after `prepareForValidation()` merges input — so a condition reference sees the same post-merge state the native `Fluent($data)` path sees (`validationData()` feeds the validator). A reference returning a `Closure` keeps the fully-native lazy semantics: `ConditionalRules::passes()` calls it with `new Fluent($data)` at validator construction. One repetition is native Laravel, not this seam: `validateNoUnknownFields()` re-reads `validationRules()` from its `after` hook (`FormRequest.php:121-124,205`), so a resolved condition reference is container-called **twice per request** — once to build the validator, once for the unknown-field check. Declared `bool` conditions are stable across both passes; a closure-returning reference must be pure (both passes return equivalent closures, and only the first is consumed by `ConditionalRules`).
 
 `DeclaredRequest` changes (§3.5) — the conditional branch dispatches dynamically on the entry's key, and `rules()` normalizes the whole-field form:
 
@@ -492,8 +483,8 @@ private const string defaultRules = 'defaultRules';
 - **No resolution layer.** Extension and replacer references pass through untouched; Laravel's `callClassBasedExtension` (default method `validate`), `callClassBasedReplacer` (default method `replace`) and the `is_callable` function branch do the dispatch. Failures are Laravel's own: a reference naming a missing method fails at the first failing message/validation with PHP's `Error`; a rule string with no registered extension throws `BadMethodCallException` (`Validator.php:1784-1795`).
 - **`extendDependent` is not `extendImplicit`.** Dependent extensions are validated like ordinary rules — an absent field is skipped (`isValidatable()` → `presentOrRuleIsImplicit()` consults only `implicitRules` for the presence bypass, verified empirically). `dependentRules`' native effect is `dependsOnOtherFields()` → dot-in-parameters rewriting for array-wildcard attributes (`Validator.php:744-757,697-706`). Declare `extendImplicit` when the rule must run even on absent/empty fields.
 - **Messages.** The `message:` map form feeds `Factory::$fallbackMessages` and wins whenever no lang line matches; with neither, the raw key (`validation.<snake-rule>`) renders as the message (verified). Per-request `messages:` still override, as anywhere in Laravel.
-- **Statelessness (Rule 4).** The manifest holds strings only; references resolve per validation call; extensions register once per process on the singleton. `route:cache`/`config:cache`/Octane-safe. The factory's registries are per-process application configuration — the same posture as `pagination:` presets.
-- **Unknown keys.** `DataModel` drops keys it has no property for (`validator: {bogus: …}` hydrates without them); the JSON schema keeps `additionalProperties: false` for the block.
+- **Statelessness (Rule 4).** The manifest holds strings only; references resolve per validation call; extensions register once per process on the singleton. `route:cache`/`config:cache`/Octane-safe. The factory's registries are per-process application configuration applied at first factory resolution — the same posture as `pagination:`, which writes its `Paginator` defaults in `boot()` (both are process-wide, resolved once).
+- **Unknown keys.** `DataModel` drops keys it has no property for (`validator: {bogus: …}` hydrates without them — verified empirically against `Pagination::from()`); the JSON schema keeps `additionalProperties: false` for the block. `replacer` values are schema-restricted to reference strings (`laravel-declaration:validate` rejects anything else), so the dynamic `$Factory->{$method}(...)` loop never passes a third argument to `replacer()`.
 - **Non-goals.** `Factory::includeUnvalidatedArrayKeys()` (a flag, not a registry — out of the §2.4 table), presence verifiers, `Validator::flushState()` (runtime plumbing), single-rule conditionals (`Rule::excludeIf`, `required_if:…` — already expressible as plain rule strings), and conditional rules on the `validator:` block itself (conditionals belong to rule arrays).
 
 ---
@@ -801,10 +792,10 @@ test('laravel-declaration:validate accepts a validator manifest', function (): v
 | Source line/branch | Covered by |
 |---|---|
 | `ValidatorDeclarationServiceProvider::boot()` guard early-return | "applies nothing without a validator block" |
-| `EXTENSIONS` loop + `callbackAndMessage()` string form | `uppercase` (string) |
-| `callbackAndMessage()` map form, `message` present | `slug` |
-| `callbackAndMessage()` map form, `message` absent | `phone` (`{extension: …}`) |
-| `replacer` loop | `uppercase` replacer test |
+| dynamic `$Factory->{$method}(...)` loop, string form of `arguments()` | `uppercase` (string), replacer `uppercase` |
+| `arguments()` map form, `message` present | `slug` |
+| `arguments()` map form, `message` absent | `phone` (`{extension: …}`) |
+| `replacer` registry entry (no third argument) | `uppercase` replacer test |
 | `rules()` list branch | existing `DeclaredRequestTest` cases |
 | `rules()` non-list branch (whole-field conditional) | "accepts a conditional map as the whole field value" |
 | `rule()` conditional branch, string untouched branch, class-ref branches | new + existing tests |
@@ -835,8 +826,8 @@ Run: `composer test`, then `composer check` (lint + rector-lint + phpstan + 100%
 
 | Claim | Source of truth | Verified |
 |---|---|---|
-| `extend`/`extendImplicit`/`extendDependent` signatures `(string, Closure|string, ?string = null)`; `replacer` `(string, Closure|string)` | `Factory.php:195,212,229,245` | read |
-| `$message` → `$fallbackMessages[Str::snake($rule)]`; no other factory-wide setter | `Factory.php:202-206` | read |
+| `extend`/`extendImplicit`/`extendDependent`/`replacer` declared untyped with docblock types `(string, Closure\|string, ?string = null)` / `(string, Closure\|string)`; no native return types | `Factory.php:195,212,229,245` | read |
+| `$message` → `$fallbackMessages[Str::snake($rule)]`; no other factory-wide setter | `Factory.php:199-201` | read |
 | Contract has `extend`/`extendImplicit`/`replacer`, not `extendDependent` | `Contracts/Validation/Factory.php:26,36,45` | read |
 | Extension invocation: four positional args; string → `parseCallback($callback, 'validate')` → `make()` | `Validator.php:733,1706-1730,1784-1795` | read + empirical run |
 | Replacer invocation: five positional args; string → `parseCallback($callback, 'replace')` → `make()` | `FormatsMessages.php:249-267,563-591` | read + empirical run |
@@ -844,16 +835,16 @@ Run: `composer test`, then `composer check` (lint + rector-lint + phpstan + 100%
 | `Str::parseCallback` default methods `validate`/`replace` | `Validator.php:1727`, `FormatsMessages.php:588` | read |
 | Implicit extensions fire on absent fields; dependent ones do not | `Validator.php:824-872`, `addImplicitExtensions` 1409 | empirical run (both directions) |
 | Rule names studly-normalized at parse; registry keys snaked | `ValidationRuleParser.php:280,302`, `Validator.php:1392-1449` | read + empirical run |
-| `Rule::unless` swaps rules/defaultRules internally | `Rule.php:67-70` | read + empirical run |
-| `ConditionalRules` resolve at `Validator::addRules` against `$this->data`; callable conditions receive `Fluent($data)` | `Validator.php:1315`, `ValidationRuleParser.php:350-372`, `ConditionalRules.php:50-61` | read + empirical run (bool, pipe-string, defaultRules, callable, whole-field) |
-| `callAfterResolving` applies lazily; `ValidationServiceProvider` is deferrable | `ValidationServiceProvider.php:4,29-45`, `ViewDeclarationServiceProvider.php:16` precedent | read |
+| `Rule::unless` swaps rules/defaultRules internally | `Rule.php:67-69` | read + empirical run |
+| `ConditionalRules` resolve at `Validator::addRules` against `$this->data`; callable conditions receive `Fluent($data)` | `Validator.php:1315`, `ValidationRuleParser.php:350-372`, `ConditionalRules.php:50-55` | read + empirical run (bool, pipe-string, defaultRules, callable, whole-field) |
+| `callAfterResolving` applies lazily (fires at once when already resolved); `ValidationServiceProvider` is deferrable | `Support/ServiceProvider.php:310`, `ValidationServiceProvider.php:4,29-42`, `ViewDeclarationServiceProvider.php:16` precedent | read |
 
 ### Sources
 
-- `vendor/laravel/framework/src/Illuminate/Validation/Factory.php` (`extend` 195, `extendImplicit` 212, `extendDependent` 229, `replacer` 245, `addExtensions` 171)
+- `vendor/laravel/framework/src/Illuminate/Validation/Factory.php` (`extend` 195, `extendImplicit` 212, `extendDependent` 229, `replacer` 245, `addExtensions` 171, fallback write 199-201, `setFallbackMessages` call 184)
 - `vendor/laravel/framework/src/Illuminate/Validation/Validator.php` (`addExtensions` 1392, `addImplicitExtensions` 1409, `addDependentExtensions` 1424, `addReplacers` 1479, `validateAttribute` 686/733, `dependsOnOtherFields` 744, `isValidatable` 824, `presentOrRuleIsImplicit` 844, `isImplicit` 860, `callExtension` 1706, `callClassBasedExtension` 1724, `__call` 1784)
-- `vendor/laravel/framework/src/Illuminate/Validation/Concerns/FormatsMessages.php` (`makeReplacements` 249, `callReplacer` 563, `callClassBasedReplacer` 585)
+- `vendor/laravel/framework/src/Illuminate/Validation/Concerns/FormatsMessages.php` (`makeReplacements` 249, replacers-before-builtin 260, `callReplacer` 563, `callClassBasedReplacer` 585)
 - `vendor/laravel/framework/src/Illuminate/Validation/Rule.php` (`when` 54, `unless` 67), `ConditionalRules.php` (`__construct` 37, `passes` 50, `rules` 63, `defaultRules` 76)
-- `vendor/laravel/framework/src/Illuminate/Validation/ValidationRuleParser.php` (`parseStringRule` 302, `filterConditionalRules` 350), `Validator.php:1315` (call site)
-- `vendor/laravel/framework/src/Illuminate/Validation/ValidationServiceProvider.php` (`registerValidationFactory` 29), `Contracts/Validation/Factory.php` (26/36/45), `Foundation/Http/FormRequest.php` (`getValidatorInstance` 93, `createDefaultValidator` 171, `validateNoUnknownFields` 231)
-- Empirical harnesses: extension/replacer/fallback-message/implicit/dependent run and the `ConditionalRules` run (both executed against `vendor/` autoload during the authoring session; expectations mirrored in §3.9)
+- `vendor/laravel/framework/src/Illuminate/Validation/ValidationRuleParser.php` (`parseArrayRule` 280, `parseStringRule` 302, `filterConditionalRules` 350), `Validator.php:1315` (call site)
+- `vendor/laravel/framework/src/Illuminate/Validation/ValidationServiceProvider.php` (`registerValidationFactory` 29-42, concrete class 32), `Contracts/Validation/Factory.php` (26/36/45), `Foundation/Application.php:1684` (both factory interfaces aliased to `'validator'`), `Support/ServiceProvider.php:310` (`callAfterResolving`), `Foundation/Http/FormRequest.php` (`getValidatorInstance` 93, unknown-fields hook 121-124, `createDefaultValidator` 171, `validationRules` 205, `validateNoUnknownFields` 231)
+- Empirical harnesses: extension/replacer/fallback-message/implicit/dependent run and the `ConditionalRules` run (executed against the vendor autoload and re-verified with fresh harnesses during this validation pass; expectations mirrored in §3.9)

@@ -31,8 +31,10 @@ class LaravelDeclarationProvider extends ServiceProvider
 
         $this->app->instance(Manifest::class, $manifest);
 
+        $defaultProviders = self::defaultProviders();
+
         /** @var list<class-string<ServiceProvider>> $providers */
-        $providers = Config::get('laravel-declaration.providers') ?? self::defaultProviders()->toArray();
+        $providers = Config::get('laravel-declaration.providers') ?? $defaultProviders->providers;
 
         foreach ($providers as $provider) {
             $this->app->register($provider);
