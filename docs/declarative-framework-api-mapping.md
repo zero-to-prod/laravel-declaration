@@ -48,30 +48,31 @@ Status designations:
 - `[ ] Missing / Left To Do (Tier 1 API Map)`: Native Laravel class/registry requiring direct 1:1 declarative mapping.
 
 ### Domain 1: Core Architecture, Container & Configuration
-- [x] **Service Container** (`Illuminate\Container\Container`, `Illuminate\Foundation\Application`) — `app:`
+- [/] **Service Container** (`Illuminate\Container\Container`, `Illuminate\Foundation\Application`) — `app:` (missing `tag`, `contextual`, `resolving`, `afterResolving`, and paths: `useBootstrapPath`, `useConfigPath`, `useEnvironmentPath`)
 - [x] **Configuration Repository** (`Illuminate\Config\Repository`) — `config:`
-- [x] **Service Providers** (`Illuminate\Support\ServiceProvider`) — `providers:`
+- [!] **Service Providers** (`Illuminate\Support\ServiceProvider`) — `providers:` (contains dead declarative keys `bindings`, `singletons`, `factories`, `name`, `description` ignored by provider registration)
 
 ### Domain 2: HTTP Kernel & Middleware Pipeline
 - [x] **HTTP Kernel & Middleware Pipeline** (`Illuminate\Foundation\Http\Kernel`, `Illuminate\Routing\Pipeline`) — `kernel:`
 - [ ] **CSRF Verification & Route Exclusions** (`Illuminate\Foundation\Http\Middleware\ValidateCsrfToken`) — `csrf:`
+- [ ] **HTTP Precognition** (`Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests`) — `precognition:`
 
 ### Domain 3: HTTP Routing, Pipeline, URLs & Throttling
-- [x] **Router Configuration & Binders** (`Illuminate\Routing\Router`) — `router:`
-- [/] **Route Registration** (`Illuminate\Routing\Router`, `Illuminate\Routing\Route`) — `routes:` (missing route groups, resource routes, fallbacks)
+- [/] **Router Configuration & Binders** (`Illuminate\Routing\Router`) — `router:` (`patterns` unmapped; missing `middlewareGroup`, `aliasMiddleware`, `singularResourceParameters`, `resourceParameters`)
+- [/] **Route Registration** (`Illuminate\Routing\Router`, `Illuminate\Routing\Route`) — `routes:` (uses invented noun `path` instead of `uri`, 16 static `#[Builder]` properties instead of dynamic dispatch, missing route groups, HTTP verb dynamic dispatch, resource routes, fallbacks, and constraint helpers: `whereAlpha`, `whereNumber`, `whereIn`, `secure`)
 - [ ] **Native Route Shortcuts (`view` / `redirect`)** (`Illuminate\Routing\Router::view()`, `Router::redirect()`) — `routes.view`, `routes.redirect`
 - [ ] **URL Generation & Signed URLs** (`Illuminate\Routing\UrlGenerator`) — `url:`
 - [ ] **Rate Limiter** (`Illuminate\Cache\RateLimiter`) — `rate_limiter:`
 
 ### Domain 4: View Layer, Blade Engine & Presentation
-- [x] **View Factory & Namespaces** (`Illuminate\View\Factory`, `Illuminate\View\FileViewFinder`) — `view:`
+- [/] **View Factory & Namespaces** (`Illuminate\View\Factory`, `Illuminate\View\FileViewFinder`) — `view:` (inverts native `composer`/`creator` argument order `$views, $callback` into `$callback => $views`; missing `exists`, `file`, `make`, `renderEach`, `flushFinderCache`)
 - [ ] **Blade Compiler & Directives** (`Illuminate\View\Compilers\BladeCompiler`) — `blade:`
 - [ ] **Anonymous Components & Namespaces** (`Illuminate\View\Compilers\BladeCompiler`, `Illuminate\View\Component`) — `blade.components:`
 - [ ] **Pagination View Resolvers & Styling** (`Illuminate\Pagination\Paginator`, `Illuminate\Pagination\LengthAwarePaginator`) — `pagination:`
 - [/] **View Dispatch Controller** (`Illuminate\Routing\ViewController`) — `DeclaredView` (lacks inline template dynamic dispatch and view composer event bridging)
 
 ### Domain 5: Request Lifecycle, Input Resolution & Validation
-- [x] **Form Request Declaration** (`Illuminate\Foundation\Http\FormRequest`) — `requests:`
+- [/] **Form Request Declaration** (`Illuminate\Foundation\Http\FormRequest`) — `requests:` (uses invented property `failOnUnknownFields` instead of native `shouldFailOnUnknownFields()`; lacks dynamic validation rule factory dispatch)
 - [ ] **Validation Factory & Custom Rules** (`Illuminate\Validation\Factory`, `Illuminate\Contracts\Validation\ValidationRule`) — `validator:`
 - [/] **Form Request Seam** (`Illuminate\Foundation\Http\FormRequest`) — `DeclaredRequest` (lacks policy-based authorization hooks)
 
@@ -85,21 +86,23 @@ Status designations:
 ### Domain 7: Database Connection, Query Builder, Transactions & Seeding
 - [ ] **Database Connection & Transactions** (`Illuminate\Database\DatabaseManager`, `Illuminate\Database\Connection`) — `db:`
 - [ ] **Database Query Builder (Table-Level Queries)** (`Illuminate\Database\Query\Builder`) — `db_queries:` / `queries.table`
-- [/] **Database Schema & Blueprint** (`Illuminate\Database\Schema\Builder`, `Illuminate\Database\Schema\Blueprint`) — `schema:` (missing alters, drops, composite indexes, foreign key constraints)
+- [/] **Database Schema & Blueprint** (`Illuminate\Database\Schema\Builder`, `Illuminate\Database\Schema\Blueprint`) — `schema:` (table options, indexes, and FK constraints mapped; missing table alters, renames, drops, and dynamic dispatch over hardcoded option/modifier whitelists)
 - [ ] **Database Seeding & Factories** (`Illuminate\Database\Seeder`, `Illuminate\Database\Eloquent\Factories\Factory`) — `seeds:`
 
 ### Domain 8: Eloquent ORM & Query Builder
-- [/] **Eloquent Model Configuration & Lifecycle** (`Illuminate\Database\Eloquent\Model`) — `models:` (missing relations, modern casts, and lifecycle hooks)
+- [/] **Eloquent Model Configuration & Lifecycle** (`Illuminate\Database\Eloquent\Model`) — `models:` (`dispatchesEvents`, connection, keyType, dateFormat, attributes, with, withCount, touches, refreshes, perPage, observables mapped; missing relations, modern `casts()` array method, local/global query scopes, accessors/mutators, and lifecycle hooks)
 - [ ] **Eloquent Relationships** (`Illuminate\Database\Eloquent\Relations\*`) — `models.relations:`
 - [ ] **Eloquent Attribute Casts & Mutators** (`Illuminate\Database\Eloquent\Casts\Attribute`, `Illuminate\Contracts\Database\Eloquent\CastsAttributes`) — `models.casts:`
-- [x] **Eloquent Query Builder (Model Queries)** (`Illuminate\Database\Eloquent\Builder`) — `queries:`
+- [!] **Eloquent Query Builder (Model Queries)** (`Illuminate\Database\Eloquent\Builder`) — `queries:` (deviates from dynamic dispatch via 11 synthetic attribute classes; silently drops unmapped methods with `continue;` violating Rule 3; invents noun `from` hijacking native `Builder::from($table)`; couples to HTTP route context in `BelongsTo` violating Rule 5)
 - [/] **Dynamic Model Synthesis** (`Illuminate\Database\Eloquent\Model`) — `DeclaredModel` (synthesizes isolated non-relational models)
+- [ ] **Full-Text Search (Scout)** (`Laravel\Scout\Searchable`) — `scout:`
 
 ### Domain 9: Security, Identity & Access Control
 - [ ] **Authorization Gates & Policies** (`Illuminate\Contracts\Auth\Access\Gate`, `Illuminate\Auth\Access\Gate`) — `gate:`
 - [ ] **Authentication Manager & Guards** (`Illuminate\Auth\AuthManager`) — `auth:`
 - [!] **Session Store & Flash Data** (`Illuminate\Session\SessionManager`, `Illuminate\Session\Store`) — `session:` (substituted by `FlashAction` glue)
 - [ ] **Hashing & Encryption** (`Illuminate\Hashing\HashManager`, `Illuminate\Encryption\Encrypter`) — `hashing:`, `encryption:`
+- [ ] **API Token Authentication (Sanctum)** (`Laravel\Sanctum\HasApiTokens`, `Laravel\Sanctum\Sanctum`) — `sanctum:`
 
 ### Domain 10: Events, Async & Realtime Systems
 - [ ] **Events & Dispatcher** (`Illuminate\Events\Dispatcher`) — `events:`
@@ -115,6 +118,7 @@ Status designations:
 - [ ] **Filesystem & Storage Disks** (`Illuminate\Filesystem\FilesystemManager`) — `storage:`
 - [ ] **Localization & Translation Loader** (`Illuminate\Translation\Translator`) — `lang:`
 - [ ] **Logging & Context Repository** (`Illuminate\Log\LogManager`, `Illuminate\Log\Context\Repository`) — `logging:`, `context:`
+- [ ] **Application Telemetry & Monitoring (Pulse)** (`Laravel\Pulse\Pulse`) — `pulse:`
 
 ### Domain 12: Processes, Concurrency & Extensibility
 - [ ] **Processes & Concurrency** (`Illuminate\Process\Factory`, `Illuminate\Concurrency\ConcurrencyManager`) — `process:`, `concurrency:`
@@ -208,6 +212,74 @@ When a native Laravel subsystem is omitted from **Tier 1 (API Map)**, downstream
   - Views rendering `$todos->links()` cannot declaratively select `useTailwind()`, `useBootstrapFive()`, or `defaultView()`.
 - **Pure Tier 1 Elimination**: Map `pagination:` in Tier 1 to configure pagination views and CSS presets during provider boot.
 
+### 1.9 The Eloquent Query Dynamic Dispatch Void & Synthetic Attribute Taxonomy (`src/Query.php`, `src/DeclaredQuery.php`)
+- **Glue Artifact**: `src/Query.php` and 11 synthetic attribute classes: `ZeroToProd\LaravelDeclaration\Attributes\Clause`, `Where`, `Spread`, `Flag`, `Count`, `Exists`, `Fetch`, `Find`, `Paginate`, `Terminal`, `BelongsTo`.
+- **Underlying Missing Mapping**: Dynamic dispatch on `Illuminate\Database\Eloquent\Builder`.
+- **Architectural Defects**:
+  - **No Dynamic Dispatch**: Instead of forwarding method invocations directly to Eloquent's `Builder` instance (`$builder->{$method}(...$arguments)`), `Query.php` enumerates every single method as a hardcoded typed property with a reflection-inspected attribute class.
+  - **Silent Failure (Violates Rule 3: Fail where Laravel fails)**: In `Query::run()`, the loop explicitly ignores any unmapped methods:
+    `if (! isset(self::clauses()[$method])) { continue; }`
+    `if (! isset(self::terminals()[$method])) { continue; }`
+    If a user declares a macro, a dynamic local scope, or an unlisted Eloquent method, it fails silently rather than throwing a native `BadMethodCallException`.
+  - **Invented Noun (`from`) Hijacks Native Eloquent Method**: In `src/Query.php`, `from` is a required string property representing either an Eloquent model class (`App\Models\Post`) or a dot-notated route relation (`user.posts`). `Query::extractClauses()` explicitly strips `from` from query execution. This completely prevents calling Laravel's native Query Builder method `from($table, $as = null)` for table aliasing or subquery roots.
+  - **Cross-Subsystem Context Bleed (Violates Rule 5: Zero cross-subsystem orchestration)**: In `src/Attributes/BelongsTo.php`, the attribute method `apply()` reaches directly into route parameters (`$parameters[$param]`), coupling Tier 1 query definition to HTTP route parameter resolution instead of keeping Tier 1 pure and delegating contextual argument binding to Tier 2 seams.
+- **Pure Tier 1 Elimination**: Eliminate the 11 synthetic attribute classes. Refactor `Query` and `DeclaredQuery` to dynamically dispatch method calls directly onto `Illuminate\Database\Eloquent\Builder`. Replace the hijacked `from` noun with `model` (for model-rooted queries) or allow native `from()` table selection, and separate route parameter binding resolution cleanly in Tier 2 (`DeclaredView` / `DeclaredQuery`).
+
+### 1.10 The Route Static Builder & Invented Noun Deviation (`src/Route.php`, `src/Providers/RoutesDeclarationServiceProvider.php`)
+- **Glue Artifact**: `src/Route.php` with static required properties (`methods`, `path`, `action`) and 16 hardcoded `#[Builder]` properties dispatched via custom procedural match in `RoutesDeclarationServiceProvider`.
+- **Underlying Missing Mapping**: Dynamic dispatch on `Illuminate\Routing\Router` and `Illuminate\Routing\Route`.
+- **Architectural Defects**:
+  - **Invented Noun (`path`)**: Laravel's router and route system of record universally use `uri` (`Illuminate\Routing\Route::$uri`, `Router::addRoute($methods, $uri, $action)`). `Route.php` invents the noun `path` instead.
+  - **No Dynamic HTTP Verb Registration**: In Laravel, routes are defined via fluent HTTP verb methods (`get`, `post`, `put`, `patch`, `delete`, `options`, `any`, `match`) or shortcuts (`view`, `redirect`). `Route.php` enforces rigid fixed keys (`methods: 'GET'`, `path: '/'`, `action: '...'`), preventing concise declarative verb syntax.
+  - **Static Builder Whitelist**: Instead of dynamic dispatch across `Route` fluent methods, `Route.php` annotates 16 properties with `#[Builder]` and procedures in `RoutesDeclarationServiceProvider`:
+    `match (true) { is_bool($value) => $route->{$method}(), ... }`
+    This omits native route constraint methods (`whereAlpha`, `whereAlphaNumeric`, `whereNumber`, `whereUlid`, `whereUuid`, `whereIn`), security methods (`secure()`, `httpOnly()`, `httpsOnly()`), scoped binding enforcers (`enforcesScopedBindings()`, `preventsScopedBindings()`), and field-level binding definitions (`bindingFields()`).
+  - **Missing Route Grouping**: No declarative mapping for `Router::group()`, forcing common prefixes, domains, and middleware to be duplicated across individual route items.
+- **Pure Tier 1 Elimination**: Rename `path` to `uri`. Implement dynamic dispatch from manifest route keys to `Route` methods. Map `Router::group()` and HTTP verb shortcuts natively in Tier 1.
+
+### 1.11 The Service Provider Dead Declarative Keys & Invented Nouns (`src/Provider.php`, `src/Providers/ProvidersDeclarationServiceProvider.php`)
+- **Glue Artifact**: `src/Provider.php` defining `name`, `description`, `bindings`, `singletons`, `factories`.
+- **Underlying Missing Mapping**: Native `Illuminate\Foundation\Application::register($provider)`.
+- **Architectural Defects**:
+  - **Dead Declarative Keys**: `ProvidersDeclarationServiceProvider::boot()` only invokes `$this->app->register($provider->class)`. The keys `name`, `description`, `bindings`, `singletons`, and `factories` are completely ignored and never dispatched to the Laravel application or provider instance.
+  - **Invented Noun (`factories`)**: Laravel's `ServiceProvider` has no concept of `factories`.
+  - **Conflated Responsibilities**: In Laravel, `$bindings` and `$singletons` are internal properties defined on custom `ServiceProvider` classes, not registration arguments passed to `Application::register()`. If declarative container bindings are needed, they belong under `app:` (`Domain 1`), not as dead keys under `providers:`.
+- **Pure Tier 1 Elimination**: Clean up `Provider` DataModel to map strictly to `Application::register()`. Delegate container bindings uniformly to `app:`.
+
+### 1.12 The View Composer Parameter Inversion (`src/View.php`, `src/Providers/ViewDeclarationServiceProvider.php`)
+- **Glue Artifact**: Custom dictionary keying in `src/View.php` and argument flipping in `src/Providers/ViewDeclarationServiceProvider.php`.
+- **Underlying Missing Mapping**: Dynamic dispatch on `Illuminate\View\Factory::composer()` and `creator()`.
+- **Architectural Defects**:
+  - **Inverted Parameter Signature (Violates Rule 2: Pass arguments untouched)**: Laravel's system of record defines `ViewFactory::composer($views, $callback = null)` and `creator($views, $callback = null)`, where `$views` (string|array) is the first argument and `$callback` is the second. In `src/View.php`, the dictionary is keyed by callback pointing to views (`$callback => $views`), which `ViewDeclarationServiceProvider` swaps procedurally:
+    `$factory->{$method}($views, $callback);`
+  - **Ad-hoc Procedural Loops**: Bypasses dynamic dispatch by writing five separate loops for `Location`, `ViewNamespace`, `addExtension`, `share`, and `Composer`.
+  - **Missing Native View Methods**: Omits `exists()`, `file()`, `make()`, `renderEach()`, and `flushFinderCache()`.
+- **Pure Tier 1 Elimination**: Invert the manifest schema to match Laravel's native signature (`views: callback`), and replace procedural loops with uniform dynamic dispatch on `Illuminate\View\Factory`.
+
+### 1.13 The Form Request Naming Deviation (`src/Request.php`, `src/DeclaredRequest.php`)
+- **Glue Artifact**: `src/Request.php` defining property `failOnUnknownFields`.
+- **Underlying Missing Mapping**: `Illuminate\Foundation\Http\FormRequest::shouldFailOnUnknownFields()`.
+- **Architectural Defects**:
+  - **Invented Noun / Property Name (Violates Rule 1: Key = method name)**: In Laravel `FormRequest`, the method is `shouldFailOnUnknownFields()` and the class attribute is `#[FailOnUnknownFields]`. Defining a manifest key and property named `failOnUnknownFields` deviates from the native method contract.
+  - **Dynamic Rule Objects Missing**: Lacks Tier 1 mapping for registering custom `ValidationRule` implementations or invoking `Illuminate\Validation\Factory::extend()`.
+- **Pure Tier 1 Elimination**: Align naming with native method `shouldFailOnUnknownFields`, and map `validator:` in Tier 1.
+
+### 1.14 The Schema Whitelist & Missing Alteration/Drop Dispatch (`src/TableDefinition.php`, `src/ColumnDefinitionModel.php`, `src/Internal/Commands/MigrateCommand.php`)
+- **Glue Artifact**: Hardcoded PHP arrays `$tableOptions`, `$tableConstraints`, `$fkModifiers`, and `$colModifiers` in `TableDefinition.php` and `ColumnDefinitionModel.php`.
+- **Underlying Missing Mapping**: Dynamic dispatch on `Illuminate\Database\Schema\Blueprint` and `Illuminate\Database\Schema\ColumnDefinition`.
+- **Architectural Defects**:
+  - **Rigid Whitelists**: Rather than dispatching dynamically onto `Blueprint` or `ColumnDefinition`, the classes check against static arrays. Any valid method added by Laravel or third-party database drivers (or Blueprint macros) throws `LogicException("Unknown column modifier or option...")`.
+  - **Zero Alteration / Drop Dispatch**: `MigrateCommand` only inspects `if (! $schemaBuilder->hasTable($tableName))` and creates new tables. There is zero declarative support for altering existing tables, dropping tables (`dropTable`, `dropTableIfExists`), renaming columns, dropping columns (`dropColumn`), or dropping indexes (`dropIndex`, `dropForeign`).
+- **Pure Tier 1 Elimination**: Replace static modifier whitelists with dynamic dispatch using `method_exists()` or `__call()` on `Blueprint` and `ColumnDefinition`. Expand `schema:` to include declarative migration actions (`alter`, `drop`, `rename`).
+
+### 1.15 The Container & Application Unmapped Methods (`src/App.php`, `src/Providers/AppDeclarationServiceProvider.php`)
+- **Glue Artifact**: Missing Container methods falsely documented as mapped.
+- **Underlying Missing Mapping**: `Illuminate\Container\Container` and `Illuminate\Foundation\Application`.
+- **Architectural Defects**:
+  - **Documentation Audit Mismatch**: The framework mapping document claimed `tag`, `contextual`, `resolving`, and `afterResolving` were mapped in `src/App.php`. In reality, none of these methods exist in `src/App.php` or `AppDeclarationServiceProvider`.
+  - **Missing Application Path Setters**: Native methods `useBootstrapPath()`, `useConfigPath()`, and `useEnvironmentPath()` are present on `Illuminate\Foundation\Application` but absent from `src/App.php`.
+- **Pure Tier 1 Elimination**: Map `tag`, `contextual`, `resolving`, `afterResolving`, and the missing application path setters directly into Tier 1 `app:` via dynamic dispatch.
+
 ---
 
 ## 2. Comprehensive Laravel Framework API Mapping (12 Architectural Domains)
@@ -220,9 +292,9 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **Service Container**<br>`docs/repos/laravel/docs/container.md` | `Illuminate\Container\Container`<br>`Illuminate\Foundation\Application` | Tier 1 | **Implemented** | `app:` (`src/App.php`) | **Mapped**: `bind`, `singleton`, `scoped`, `instance`, `alias`, `tag`, `contextual`, `extend`, `terminating`, `resolving`, `afterResolving`.<br>**Gap**: None. | None. Adheres strictly to Rules 1–5. |
+| **Service Container**<br>`docs/repos/laravel/docs/container.md` | `Illuminate\Container\Container`<br>`Illuminate\Foundation\Application` | Tier 1 | **Partially Mapped** | `app:` (`src/App.php`) | **Mapped**: `bind`, `bindIf`, `singleton`, `singletonIf`, `scoped`, `scopedIf`, `instance`, `alias`, `extend`, `useAppPath`, `useDatabasePath`, `useLangPath`, `usePublicPath`, `useStoragePath`, `setLocale`, `setFallbackLocale`, `registered`, `booting`, `booted`, `terminating`.<br>**Gap**: `tag()`, `contextual()` (`when()->needs()->give()`), `resolving()`, `afterResolving()`, `useBootstrapPath()`, `useConfigPath()`, `useEnvironmentPath()`. | Advanced container configurations cannot be expressed declaratively; previously falsely audited as fully mapped. |
 | **Configuration**<br>`docs/repos/laravel/docs/configuration.md` | `Illuminate\Config\Repository` | Tier 1 | **Implemented** | `config:` (`ConfigDeclarationServiceProvider`) | **Mapped**: `set($key, $value)`.<br>**Gap**: None. | None. Directly mutates configuration repository. |
-| **Service Providers**<br>`docs/repos/laravel/docs/providers.md` | `Illuminate\Support\ServiceProvider` | Tier 1 | **Implemented** | `providers:` (`src/Provider.php`) | **Mapped**: `Application::register($provider)`.<br>**Gap**: Deferred provider boot arguments. | None. Registers native package providers cleanly. |
+| **Service Providers**<br>`docs/repos/laravel/docs/providers.md` | `Illuminate\Support\ServiceProvider` | Tier 1 | **Indirectly Mapped / Dead Verbs** | `providers:` (`src/Provider.php`) | **Mapped**: `Application::register($provider)`.<br>**Gap**: `bindings`, `singletons`, `factories`, `name`, `description` are dead declarative keys defined on `Provider.php` but discarded during provider registration; deferred provider boot arguments. | Developers declare bindings or factories on providers expecting them to register, but they are silently ignored. |
 
 ---
 
@@ -230,8 +302,9 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **HTTP Kernel & Middleware**<br>`docs/repos/laravel/docs/middleware.md` | `Illuminate\Foundation\Http\Kernel`<br>`Illuminate\Routing\Pipeline` | Tier 1 | **Implemented** | `kernel:` (`src/Kernel.php`) | **Mapped**: `middleware`, `middlewareGroups`, `middlewareAliases`, `middlewarePriority`, `whenRequestLifecycleIsLongerThan`.<br>**Gap**: None. | None. Pipeline executes via native HTTP kernel. |
+| **HTTP Kernel & Middleware**<br>`docs/repos/laravel/docs/middleware.md` | `Illuminate\Foundation\Http\Kernel`<br>`Illuminate\Routing\Pipeline` | Tier 1 | **Implemented** | `kernel:` (`src/Kernel.php`) | **Mapped**: `pushMiddleware`, `prependMiddleware`, `setGlobalMiddleware`, `appendMiddlewareToGroup`, `prependMiddlewareToGroup`, `setMiddlewareGroups`, `setMiddlewareAliases`, `setMiddlewarePriority`, `prependToMiddlewarePriority`, `appendToMiddlewarePriority`, `addToMiddlewarePriorityBefore`, `addToMiddlewarePriorityAfter`, `whenRequestLifecycleIsLongerThan`.<br>**Gap**: None. | None. Pipeline executes via native HTTP kernel. |
 | **CSRF Protection**<br>`docs/repos/laravel/docs/csrf.md` | `Illuminate\Foundation\Http\Middleware\ValidateCsrfToken` | Tier 1 | **Missing / Left To Do** | `csrf:` / `kernel.csrf` | **Mapped**: None.<br>**Gap**: URI exclusions (`except: ['api/*', 'stripe/*']`). | Forces manual PHP editing of CSRF middleware exclusions for external webhooks. |
+| **HTTP Precognition**<br>`docs/repos/laravel/docs/precognition.md` | `Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests` | Tier 1 | **Missing / Left To Do** | `precognition:` | **Mapped**: None.<br>**Gap**: Precognitive validation headers and route middleware binding. | Precognitive live frontend validation cannot be configured declaratively. |
 
 ---
 
@@ -239,8 +312,8 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **Router Configuration**<br>`docs/repos/laravel/docs/routing.md` | `Illuminate\Routing\Router` | Tier 1 | **Implemented** | `router:` (`src/Router.php`) | **Mapped**: `pattern`, `patterns`, `model`, `bind`.<br>**Gap**: Global group prefixes/domains outside individual route items. | None. Global binders and route parameters bind natively. |
-| **Route Registration**<br>`docs/repos/laravel/docs/routing.md` | `Illuminate\Routing\Router`<br>`Illuminate\Routing\Route` | Tier 1 | **Partially Mapped** | `routes:` (`src/Route.php`) | **Mapped**: `addRoute`, `name`, `prefix`, `domain`, `middleware`, `withoutMiddleware`, `can`, `where`, `setDefaults`, `missing`, `fallback`, `scopeBindings`, `withoutScopedBindings`, `withTrashed`, `block`, `withoutBlocking`, `metadata`.<br>**Gap**: Native `Router::redirect()`, `Router::view()`, `Router::group()`, `Router::resource()`, `Router::apiResource()`. | Static views and simple redirects are routed through heavy custom seam controllers (`DeclaredView`, `DeclaredAction`). |
+| **Router Configuration**<br>`docs/repos/laravel/docs/routing.md` | `Illuminate\Routing\Router` | Tier 1 | **Partially Mapped** | `router:` (`src/Router.php`) | **Mapped**: `pattern`, `model`, `bind`.<br>**Gap**: `patterns()`, `middlewareGroup()`, `aliasMiddleware()`, `singularResourceParameters()`, `resourceParameters()`. | Advanced router parameter patterns and global group definitions must be configured imperatively. |
+| **Route Registration**<br>`docs/repos/laravel/docs/routing.md` | `Illuminate\Routing\Router`<br>`Illuminate\Routing\Route` | Tier 1 | **Partially Mapped (Invented Noun & Static Builders)** | `routes:` (`src/Route.php`) | **Mapped**: `addRoute`, `name`, `prefix`, `domain`, `middleware`, `withoutMiddleware`, `can`, `where`, `setDefaults`, `missing`, `fallback`, `scopeBindings`, `withoutScopedBindings`, `withTrashed`, `block`, `withoutBlocking`, `metadata`.<br>**Gap**: Uses invented noun `path` instead of native `uri`; lacks dynamic dispatch to fluent HTTP verbs (`get`, `post`, `match`, etc.); uses static list of 16 builders omitting native constraints (`whereAlpha`, `whereNumber`, `whereIn`), protocol restrictions (`secure()`, `httpOnly()`), parameter binding maps (`bindingFields()`), and route groups (`Router::group()`). | Routes cannot be declared using idiomatic HTTP verb keys; static content is routed through heavy seam controllers. |
 | **Native Route Shortcuts**<br>`docs/repos/laravel/docs/routing.md` | `Illuminate\Routing\Router::view()`<br>`Illuminate\Routing\Router::redirect()` | Tier 1 | **Missing / Left To Do** | `routes:` (`view`, `redirect`) | **Mapped**: None.<br>**Gap**: Invoking native `Router::view()` and `Router::redirect()` directly when routes require no dynamic queries or actions. | Forces static views and simple redirects through heavy custom controllers (`DeclaredView`, `DeclaredAction`). |
 | **URL Generation**<br>`docs/repos/laravel/docs/urls.md` | `Illuminate\Routing\UrlGenerator` | Tier 1 | **Missing / Left To Do** | `url:` | **Mapped**: None.<br>**Gap**: `signedRoute()`, `temporarySignedRoute()`, `forceScheme()`, `forceRootUrl()`, `defaults()`. | Forces URL signing and default scheme logic into bespoke middleware or closures. |
 | **Rate Limiter**<br>`docs/repos/laravel/docs/rate-limiting.md` | `Illuminate\Cache\RateLimiter` | Tier 1 | **Missing / Left To Do** | `rate_limiter:` | **Mapped**: None.<br>**Gap**: `RateLimiter::for($name, Closure)`, `attempt()`. | Limits declarative routes to standard throttle strings without custom keyed rate limiters. |
@@ -251,7 +324,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **View Factory**<br>`docs/repos/laravel/docs/views.md` | `Illuminate\View\Factory`<br>`Illuminate\View\FileViewFinder` | Tier 1 | **Implemented** | `view:` (`src/View.php`) | **Mapped**: `addLocation`, `prependLocation`, `addNamespace`, `prependNamespace`, `replaceNamespace`, `addExtension`, `share`, `composer`, `creator`.<br>**Gap**: Virtual view registration (`registerView()`). | View lookup and shared data are fully native. |
+| **View Factory**<br>`docs/repos/laravel/docs/views.md` | `Illuminate\View\Factory`<br>`Illuminate\View\FileViewFinder` | Tier 1 | **Partially Mapped (Inverted Signatures)** | `view:` (`src/View.php`) | **Mapped**: `addLocation`, `prependLocation`, `addNamespace`, `prependNamespace`, `replaceNamespace`, `addExtension`, `share`, `composer`, `creator`.<br>**Gap**: Manifest inverts native `composer($views, $callback)` parameter signature into `$callback => $views`; missing `exists()`, `file()`, `make()`, `renderEach()`, and `flushFinderCache()`. | Inverted manifest parameter signature violates Rule 2 (pass arguments untouched); unmapped factory methods require PHP extensions. |
 | **Blade Compiler**<br>`docs/repos/laravel/docs/blade.md` | `Illuminate\View\Compilers\BladeCompiler`<br>`Illuminate\View\Component` | Tier 1 | **Missing / Left To Do** | `blade:` | **Mapped**: None.<br>**Gap**: `directive()`, `if()`, `component()`, `components()`, `anonymousComponentPath()`, `anonymousComponentNamespace()`, `stringable()`, `precompiler()`, `withoutDoubleEncoding()`. | **Critical Shortcut**: Inline templates in `DeclaredView` cannot resolve anonymous components (`<x-layout>`) or custom directives (`@datetime`), forcing template rendering into an isolated component sandbox. |
 | **Pagination Engine**<br>`docs/repos/laravel/docs/pagination.md` | `Illuminate\Pagination\Paginator`<br>`Illuminate\Pagination\LengthAwarePaginator` | Tier 1 | **Missing / Left To Do** | `pagination:` | **Mapped**: None.<br>**Gap**: `defaultView()`, `defaultSimpleView()`, `useTailwind()`, `useBootstrapFive()`. | Paginated query results rendered in views cannot declare standard framework styling declaratively. |
 | **View Dispatch Controller**<br>`docs/repos/laravel/docs/views.md` | `Illuminate\Routing\ViewController` | Tier 2 | **Partially Mapped** | `DeclaredView` (`src/DeclaredView.php`) | **Mapped**: Extends `ViewController::__invoke()`, merges query results and route parameters into `$args['data']`.<br>**Gap**: Dynamic dispatch to `BladeCompiler::render()`, view composer event bridging. | Does not support inline templates yet. |
@@ -262,7 +335,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **Form Request Declaration**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 1 | **Implemented** | `requests:` (`src/Request.php`) | **Mapped**: `rules`, `messages`, `attributes`, `stopOnFirstFailure`, `redirect`, `redirectRoute`, `errorBag`.<br>**Gap**: Dynamic conditional rules (`sometimes`). | Request definitions map 1:1 onto `FormRequest` properties and methods. |
+| **Form Request Declaration**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 1 | **Partially Mapped (Invented Noun)** | `requests:` (`src/Request.php`) | **Mapped**: `rules`, `messages`, `attributes`, `stopOnFirstFailure`, `redirect`, `redirectRoute`, `redirectAction`, `errorBag`, `validationData`, `prepareForValidation`, `passedValidation`, `withValidator`, `after`, `validator`, `failedValidation`, `failedAuthorization`, `authorize`.<br>**Gap**: Property `failOnUnknownFields` uses invented noun instead of native method `shouldFailOnUnknownFields()`; lacks dynamic validation rule factory dispatch (`validator.extend()`, `validator.replacer()`); missing dynamic conditional rules (`sometimes`). | Request definitions map broadly onto `FormRequest`, but custom validation rules require manual PHP service provider registration. |
 | **Validation Factory**<br>`docs/repos/laravel/docs/validation.md` | `Illuminate\Validation\Factory`<br>`Illuminate\Contracts\Validation\ValidationRule` | Tier 1 | **Missing / Left To Do** | `validator:` | **Mapped**: None.<br>**Gap**: `extend()`, `extendImplicit()`, `extendDependent()`, `replacer()`, custom `Rule` object bindings. | Prevents declaring custom validation rules directly in YAML; forces PHP service providers. |
 | **Form Request Seam**<br>`docs/repos/laravel/docs/requests.md` | `Illuminate\Foundation\Http\FormRequest` | Tier 2 | **Partially Mapped** | `DeclaredRequest` (`src/DeclaredRequest.php`) | **Mapped**: Validates resolved inbound request against manifest definition; fails with standard `ValidationException`.<br>**Gap**: Policy-based authorization hooks. | Integrates declarative validation cleanly into route pipeline. |
 
@@ -286,7 +359,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 |---|---|---|---|---|---|---|
 | **Database Connection & Transactions**<br>`docs/repos/laravel/docs/database.md` | `Illuminate\Database\DatabaseManager`<br>`Illuminate\Database\Connection` | Tier 1 | **Missing / Left To Do** | `db:` | **Mapped**: None.<br>**Gap**: `transaction()`, `statement()`, `unprepared()`, `listen()`, `beforeExecuting()`. | **Critical Shortcut**: `DeclaredAction` executes model mutations without database transaction boundaries. If post-write logic fails, partial writes persist. |
 | **Database Query Builder**<br>`docs/repos/laravel/docs/queries.md` | `Illuminate\Database\Query\Builder` | Tier 1 | **Missing / Left To Do** | `db_queries:` / `queries.table` | **Mapped**: None.<br>**Gap**: Table-level direct queries (`DB::table(...)`) bypassing Eloquent models. | `queries:` is forced to bind strictly to Eloquent classes, preventing lightweight raw table reads. |
-| **Database Schema & Blueprint**<br>`docs/repos/laravel/docs/migrations.md` | `Illuminate\Database\Schema\Builder`<br>`Illuminate\Database\Schema\Blueprint` | Tier 1 | **Partially Mapped** | `schema:` (`src/Schema.php`, `TableDefinition.php`) | **Mapped**: `id`, `string`, `text`, `boolean`, `integer`, `foreignId`, `timestamps`, basic modifiers (`nullable`, `default`, `unique`).<br>**Gap**: Table alters, drops (`dropIfExists`), composite indexes, foreign key constraints (`constrained()`, `cascadeOnDelete()`), table options (engine, collation). | Complex schema mutations require manual migrations. |
+| **Database Schema & Blueprint**<br>`docs/repos/laravel/docs/migrations.md` | `Illuminate\Database\Schema\Builder`<br>`Illuminate\Database\Schema\Blueprint` | Tier 1 | **Partially Mapped** | `schema:` (`src/Schema.php`, `TableDefinition.php`) | **Mapped**: `id`, `string`, `text`, `boolean`, `integer`, `foreignId`, `timestamps`, table options (`engine`, `charset`, `collation`, `temporary`, `comment`), column modifiers (`nullable`, `default`, `unique`, `index`, `primary`, etc.), table constraints (`primary`, `unique`, `index`, `fullText`, `spatialIndex`, `vectorIndex`), foreign key modifiers (`constrained`, `cascadeOnDelete`, `cascadeOnUpdate`, etc.).<br>**Gap**: Table alters, renames, drops (`dropTable`, `dropTableIfExists`, `dropColumn`, `renameColumn`, `dropIndex`, `dropForeign`), and dynamic dispatch on `Blueprint`/`ColumnDefinition` (currently restricted by hardcoded static whitelists in `TableDefinition.php` and `ColumnDefinitionModel.php`). | Complex schema mutations, table drops, and driver-specific column types cannot be declared dynamically. |
 | **Database Seeding & Factories**<br>`docs/repos/laravel/docs/seeding.md` | `Illuminate\Database\Seeder`<br>`Illuminate\Database\Eloquent\Factories\Factory` | Tier 1 | **Missing / Left To Do** | `seeds:` | **Mapped**: None.<br>**Gap**: Declarative table record insertion or factory sequence definitions. | Declarative applications have no native way to seed baseline database state. |
 
 ---
@@ -295,12 +368,13 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped Methods vs. Unmapped Gaps | Shortcut Risk / Impact on Glue Code |
 |---|---|---|---|---|---|---|
-| **Eloquent Model Configuration**<br>`docs/repos/laravel/docs/eloquent.md` | `Illuminate\Database\Eloquent\Model` | Tier 1 | **Partially Mapped** | `models:` (`src/Model.php`) | **Mapped**: `table`, `primaryKey`, `incrementing`, `timestamps`, `casts`, `fillable`, `guarded`, `hidden`, `visible`, `appends`, `observe`, `addGlobalScope`, `getRouteKeyName`.<br>**Gap**: Relationships, modern `casts()` array methods, custom Cast classes, lifecycle event bindings (`dispatchesEvents`). | Model property defaults map 1:1, but models cannot declare relations or modern casts. |
+| **Eloquent Model Configuration**<br>`docs/repos/laravel/docs/eloquent.md` | `Illuminate\Database\Eloquent\Model` | Tier 1 | **Partially Mapped** | `models:` (`src/Model.php`) | **Mapped**: `table`, `primaryKey`, `incrementing`, `timestamps`, `casts`, `fillable`, `guarded`, `hidden`, `visible`, `appends`, `observe`, `addGlobalScope`, `getRouteKeyName`, `connection`, `keyType`, `dateFormat`, `attributes`, `with`, `withCount`, `touches`, `refreshes`, `perPage`, `dispatchesEvents`, `observables`.<br>**Gap**: Relationships, modern `casts()` array methods, custom Cast classes, local query scopes (`scopeActive`), mutators/accessors (`Attribute::make`), lifecycle hooks (`booted`, `booting`), pruning (`prunable`). | Model property defaults map 1:1, but models cannot declare relations, modern cast methods, or local scopes. |
 | **Eloquent Relationships**<br>`docs/repos/laravel/docs/eloquent-relationships.md` | `Illuminate\Database\Eloquent\Relations\*` | Tier 1 | **Missing / Left To Do** | `models.relations:` | **Mapped**: None.<br>**Gap**: `hasOne`, `hasMany`, `belongsTo`, `belongsToMany`, `hasManyThrough`, `morphTo`, `morphMany`. | **Critical Blocker**: Dynamic model synthesis cannot create relational models without relationship mappings. |
 | **Eloquent Attribute Casts & Mutators**<br>`docs/repos/laravel/docs/eloquent-mutators.md` | `Illuminate\Database\Eloquent\Casts\Attribute`<br>`Illuminate\Contracts\Database\Eloquent\CastsAttributes` | Tier 1 | **Missing / Left To Do** | `models.casts:` | **Mapped**: Property string casts.<br>**Gap**: Modern `casts()` method array definitions, custom Cast classes, and accessor/mutator callables. | Model attribute conversions are limited to primitive scalar types. |
-| **Eloquent Query Builder**<br>`docs/repos/laravel/docs/queries.md` | `Illuminate\Database\Eloquent\Builder` | Tier 1 | **Implemented** | `queries:` (`src/Query.php`) | **Mapped**: 40+ methods (`where`, `with`, `latest`, `limit`, `paginate`, `get`, `first`, etc.).<br>**Gap**: Subquery closures, raw SQL expressions (`whereRaw`, `selectRaw`). | Adheres strictly to Rule 1 (`Key = method name`). |
+| **Eloquent Query Builder**<br>`docs/repos/laravel/docs/queries.md` | `Illuminate\Database\Eloquent\Builder` | Tier 1 | **Indirectly Mapped / Synthetic Attribute Shortcut** | `queries:` (`src/Query.php`) | **Mapped**: 40+ methods mapped via 11 synthetic attribute classes (`Clause`, `Where`, `Spread`, `Flag`, `Count`, `Exists`, `Fetch`, `Find`, `Paginate`, `Terminal`, `BelongsTo`).<br>**Gap**: Dynamic dispatch on `Builder`; unmapped methods and macros silently ignored (`continue;`) violating Rule 3; invented noun `from` hijacks native `Builder::from($table, $as)` for model/relation identification; route parameter bleed in `BelongsTo` violates Rule 5; subquery closures, raw SQL expressions (`whereRaw`, `selectRaw`). | Silently swallows unsupported or misspelled methods; breaks native table aliasing via `from()`; tightly couples Tier 1 query evaluation with HTTP route parameters. |
 | **Dynamic Query Seam**<br>`docs/declarative-query.md` | `Illuminate\Database\Eloquent\Builder` | Tier 2 | **Implemented** | `DeclaredQuery` (`src/DeclaredQuery.php`) | **Mapped**: Evaluates query definition, binds request parameters, and executes query against model. | Connects route requests to Eloquent execution cleanly. |
 | **Dynamic Model Synthesis**<br>`docs/declarative-model.md` | `Illuminate\Database\Eloquent\Model` | Tier 2 | **Partially Mapped** | `DeclaredModel` (`src/DeclaredModel.php`) | **Mapped**: Synthesizes runtime classes extending `Model`.<br>**Gap**: Synthesizing relational methods (`belongsTo()`, `hasMany()`). | Relies on Tier 1 relationship mapping to support relational models. |
+| **Full-Text Search (Scout)**<br>`docs/repos/laravel/docs/scout.md` | `Laravel\Scout\Searchable` | Tier 1 | **Missing / Left To Do** | `scout:` | **Mapped**: None.<br>**Gap**: `search()`, search index configuration, searchable array definitions. | Full-text search and Algolia/Meilisearch indexing cannot be declared in YAML. |
 
 ---
 
@@ -312,6 +386,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 | **Authentication Guards**<br>`docs/repos/laravel/docs/authentication.md` | `Illuminate\Auth\AuthManager` | Tier 1 | **Missing / Left To Do** | `auth:` | **Mapped**: None.<br>**Gap**: `guard()`, `provider()`, `shouldUse()`, default driver selection. | Authentication guard definitions must be configured via PHP config files. |
 | **Session Manager & Store**<br>`docs/repos/laravel/docs/session.md` | `Illuminate\Session\SessionManager`<br>`Illuminate\Session\Store` | Tier 1 | **Missing / Left To Do** | `session:` | **Mapped**: None.<br>**Gap**: `flash()`, `now()`, `reflash()`, `keep()`, `put()`, `get()`. | `DeclaredAction` created bespoke `FlashAction` attribute instead of using `Session::flash()`. |
 | **Hashing & Encryption**<br>`docs/repos/laravel/docs/hashing.md`<br>`encryption.md` | `Illuminate\Hashing\HashManager`<br>`Illuminate\Encryption\Encrypter` | Tier 1 | **Missing / Left To Do** | `hashing:`, `encryption:` | **Mapped**: None.<br>**Gap**: `make()`, `encrypt()`, `decrypt()`. | Driver choices and key configurations cannot be set via YAML. |
+| **API Token Authentication (Sanctum)**<br>`docs/repos/laravel/docs/sanctum.md` | `Laravel\Sanctum\HasApiTokens`<br>`Laravel\Sanctum\Sanctum` | Tier 1 | **Missing / Left To Do** | `sanctum:` | **Mapped**: None.<br>**Gap**: Token abilities, expiration configuration, stateful domain bindings. | API routes requiring token-based authentication must be wired manually in PHP. |
 
 ---
 
@@ -336,6 +411,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 | **Filesystem & Storage**<br>`docs/repos/laravel/docs/filesystem.md` | `Illuminate\Filesystem\FilesystemManager` | Tier 1 | **Missing / Left To Do** | `storage:` | **Mapped**: None.<br>**Gap**: `disk()`, `build()`, disk driver configuration. | File upload destinations must be configured in PHP config files. |
 | **Localization & Translation**<br>`docs/repos/laravel/docs/localization.md` | `Illuminate\Translation\Translator` | Tier 1 | **Missing / Left To Do** | `lang:` | **Mapped**: None.<br>**Gap**: `addLines()`, `addJsonPath()`, `setLocale()`. | View translations rely on physical language files. |
 | **Logging & Context**<br>`docs/repos/laravel/docs/logging.md`<br>`context.md` | `Illuminate\Log\LogManager`<br>`Illuminate\Log\Context\Repository` | Tier 1 | **Missing / Left To Do** | `logging:`, `context:` | **Mapped**: None.<br>**Gap**: `channel()`, `Context::add()`. | Trace IDs and contextual metadata cannot be bound declaratively. |
+| **Application Telemetry & Monitoring (Pulse)**<br>`docs/repos/laravel/docs/pulse.md` | `Laravel\Pulse\Pulse` | Tier 1 | **Missing / Left To Do** | `pulse:` | **Mapped**: None.<br>**Gap**: Recorders configuration, slow query thresholds, user resolvers. | Performance monitoring and slow query detection cannot be configured via manifest. |
 
 ---
 
@@ -569,6 +645,10 @@ To maintain clean separation between the Laravel API map and glue code, all futu
 | Phase | Category | Subsystem / Component | System of Record | Deliverables |
 |---|---|---|---|---|
 | **Phase 6** | Tier 1 API Map & Tier 2 Seam | **Declarative Schema (`schema:`)** | `Illuminate\Database\Schema\Builder` | Schema DataModel, `MigrateCommand`, SQLite/MySQL table creation. |
+| **Phase 6.1** | Tier 1 API Map | **Schema Dynamic Dispatch, Alters & Drops (`schema:`)** | `Illuminate\Database\Schema\Builder`<br>`Illuminate\Database\Schema\Blueprint` | Eliminate static modifier whitelists via dynamic dispatch; declarative table alterations, column drops, renames, and drops (`dropIfExists`). |
+| **Phase 6.2** | Tier 1 API Map | **Route URI & Verb Dynamic Dispatch (`routes:`)** | `Illuminate\Routing\Router`<br>`Illuminate\Routing\Route` | Replace invented noun `path` with native `uri`; replace 16 static `#[Builder]` properties with dynamic dispatch; support HTTP verb keys and `Router::group()`. |
+| **Phase 6.3** | Tier 1 API Map | **Query Dynamic Dispatch & Attribute Elimination (`queries:`)** | `Illuminate\Database\Eloquent\Builder` | Eliminate 11 synthetic attribute classes (`Clause`, `Where`, `Spread`, `Flag`, etc.); dynamic dispatch on `Builder`; eliminate silent skips; replace hijacked `from` noun; decouple route parameters. |
+| **Phase 6.4** | Tier 1 API Map | **Provider & View Factory Normalization (`providers:`, `view:`)** | `Illuminate\Foundation\Application`<br>`Illuminate\View\Factory` | Remove dead keys (`bindings`, `singletons`, `factories`, `name`, `description`) from `Provider.php`; align `composer`/`creator` manifest signature to native `$views => $callback`. |
 | **Phase 6.5** | Tier 1 API Map | **Database Transactions (`db:`)** | `Illuminate\Database\DatabaseManager` | `db.transaction` mapping for atomic state execution. |
 | **Phase 6.6** | Tier 1 API Map | **Redirector & Redirect Responses (`redirect:`)** | `Illuminate\Routing\Redirector` | Native parameter replacement and redirect responses. |
 | **Phase 7** | Tier 2 Glue Code | **Declarative Action (`DeclaredAction`)** | `Illuminate\Routing\Controller` | Decoupled state mutation seam utilizing `DB::transaction()` and native `RedirectResponse`. |
