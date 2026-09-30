@@ -30,9 +30,10 @@
 | `useLangPath` | `lang_path()` contract | AT-20 |
 | `usePublicPath` | `public_path()` contract | AT-21 |
 | `useStoragePath` | `storage_path()` contract | AT-22 |
-| `registered` | application's registered behavior | AT-23 |
-| `booting` | after all `register()` calls, just before `boot()` | AT-24 |
-| declared bindings | available to every provider's `boot()` (register-then-boot) | AT-25 |
+| `useConfigPath` | `config_path()` contract | AT-23 |
+| `registered` | application's registered behavior | AT-24 |
+| `booting` | after all `register()` calls, just before `boot()` | AT-25 |
+| declared bindings | available to every provider's `boot()` (register-then-boot) | AT-26 |
 | `alias`, `booted`, `terminating`, `afterResolving`, `useBootstrapPath`, `useEnvironmentPath` | not documented in the vendored docs | §7 gaps |
 
 ---
@@ -147,11 +148,11 @@ Sources: [container.md — Extending Bindings](repos/laravel/docs/container.md#e
 
 **Doc says:** "After registering the `Report` implementations, you can assign them a tag using the `tag` method: `$this->app->tag([CpuReport::class, MemoryReport::class], 'reports');` … Once the services have been tagged, you may easily resolve them all via the container's `tagged` method."
 
-- **Given** `app.bind` registers the report implementations and `app.tag: {reports: [App\Reports\CpuReport, App\Reports\MemoryReport]}`.
+- **Given** `app.bind` registers the report implementations and `app.tag: {App\Reports\CpuReport: reports, App\Reports\MemoryReport: reports}` (the manifest map is `abstract => tag`; one `tag()` call per entry).
 - **When** `tagged('reports')` is resolved.
 - **Then** it yields one instance of each tagged implementation.
 
-Sources: [container.md — Tagging](repos/laravel/docs/container.md#tagging).
+Sources: [container.md — Tagging](repos/laravel/docs/container.md#tagging). *Supplement (source-derived):* the manifest key is the abstract and the value the tag(s), so the docs' one-call form `tag([CpuReport::class, MemoryReport::class], 'reports')` is not expressible; the per-entry calls build the same `tags['reports']` group that `tagged('reports')` resolves.
 
 ### AT-12 — contextual binding injects a different implementation into each class
 
@@ -167,11 +168,11 @@ Sources: [container.md — Contextual Binding](repos/laravel/docs/container.md#c
 
 **Doc says:** "a class that receives some injected classes, but also needs an injected primitive value such as an integer. You may easily use contextual binding to inject any value your class may need: `->needs('$variableName')->give($value)`."
 
-- **Given** `app.when: {App\Http\Controllers\UserController: {needs: '$userId', give: 7}}`.
+- **Given** `app.when: {App\Http\Controllers\UserController: {needs: '$userId', give: app/bindings/user-id.php}}` where the file returns `function (): int { return 7; }`.
 - **When** `UserController` is resolved.
 - **Then** its constructor primitive `$userId` is `7`.
 
-Sources: [container.md — Binding Primitives](repos/laravel/docs/container.md#binding-primitives).
+Sources: [container.md — Binding Primitives](repos/laravel/docs/container.md#binding-primitives). *Supplement (source-derived):* the provider passes a `give` value through only when it is a string, an array or a Closure — a bare integer is silently dropped — so the integer is delivered through a `.php` reference returning a Closure, which the container unwraps for primitives and injects its return value ([declarative-application.md](declarative-application.md) §2.2 for the reference mechanics).
 
 ### AT-14 — contextual binding of typed variadics from an array of class names
 
@@ -221,7 +222,7 @@ Sources: [localization.md — Configuring the Locale](repos/laravel/docs/localiz
 
 ## 5. Paths ([helpers.md](repos/laravel/docs/helpers.md), [structure.md](repos/laravel/docs/structure.md))
 
-Common shape for AT-18 … AT-22: the declared `use*Path` moves the directory the documented helper points at. The helpers' contract is what the docs document; the `use*Path` setters themselves are not documented in the vendored docs (§7 gap G-5).
+Common shape for AT-18 … AT-23: the declared `use*Path` moves the directory the documented helper points at. The helpers' contract is what the docs document; the `use*Path` setters themselves are not documented in the vendored docs (§7 gap G-5).
 
 ### AT-18 — `useAppPath` moves the `app` directory
 
@@ -231,7 +232,7 @@ Common shape for AT-18 … AT-22: the declared `use*Path` moves the directory th
 - **When** `app_path()` and `app_path('Models/User.php')` are called.
 - **Then** the former returns the fully qualified path to the declared `src` directory and the latter resolves `Models/User.php` relative to it.
 
-Sources: [helpers.md — `app_path()`](repos/laravel/docs/helpers.md#method-app-path); [structure.md — The App Directory](repos/laravel/docs/structure.md#the-root-app-directory).
+Sources: [helpers.md — `app_path()`](repos/laravel/docs/helpers.md#method-app-path); [structure.md — The App Directory](repos/laravel/docs/structure.md#the-app-directory).
 
 ### AT-19 — `useDatabasePath` moves the `database` directory
 
@@ -265,7 +266,7 @@ Sources: [helpers.md — `public_path()`](repos/laravel/docs/helpers.md#method-p
 
 ### AT-22 — `useStoragePath` moves the `storage` directory
 
-**Doc says:** "The `storage_path` function returns the fully qualified path to your application's `storage` directory. You may also use the `storage_path` function to generate a fully qualified path to a given file within the [storage] directory."
+**Doc says:** "The `storage_path` function returns the fully qualified path to your application's `storage` directory. You may also use the `storage_path` function to generate a fully qualified path to a given file within the storage directory."
 
 - **Given** `app.useStoragePath: storage`.
 - **When** `storage_path()` and `storage_path('app/file.txt')` are called.
@@ -273,11 +274,21 @@ Sources: [helpers.md — `public_path()`](repos/laravel/docs/helpers.md#method-p
 
 Sources: [helpers.md — `storage_path()`](repos/laravel/docs/helpers.md#method-storage-path); [structure.md — The Storage Directory](repos/laravel/docs/structure.md#the-storage-directory).
 
+### AT-23 — `useConfigPath` moves the `config` directory
+
+**Doc says:** "The `config_path` function returns the fully qualified path to your application's `config` directory. You may also use the `config_path` function to generate a fully qualified path to a given file within the application's configuration directory."
+
+- **Given** `app.useConfigPath: config`.
+- **When** `config_path()` and `config_path('app.php')` are called.
+- **Then** both resolve under the declared directory.
+
+Sources: [helpers.md — `config_path()`](repos/laravel/docs/helpers.md#method-config-path); [structure.md — The Config Directory](repos/laravel/docs/structure.md#the-config-directory).
+
 ---
 
 ## 6. Lifecycle hooks ([lifecycle.md](repos/laravel/docs/lifecycle.md), [providers.md](repos/laravel/docs/providers.md), [cache.md](repos/laravel/docs/cache.md), [http-client.md](repos/laravel/docs/http-client.md))
 
-### AT-23 — `registered` applies the application's registered behavior
+### AT-24 — `registered` applies the application's registered behavior
 
 **Doc says:** "To customize or disable this behavior you may utilize the `truncateAt` and `dontTruncate` methods when configuring your application's registered behavior in your `bootstrap/app.php` file: `->registered(function (): void { RequestException::truncateAt(240); … })`."
 
@@ -287,7 +298,7 @@ Sources: [helpers.md — `storage_path()`](repos/laravel/docs/helpers.md#method-
 
 Sources: [http-client.md — Error Handling / Throwing Exceptions](repos/laravel/docs/http-client.md#throwing-exceptions). *Gap note:* the vendored docs do not pin the callback's exact position within registration; the source-derived position (after every eager provider's `register()`, before `boot()`) is [declarative-application.md](declarative-application.md) §1.1 — verify, don't assert, any stricter ordering against the docs alone.
 
-### AT-24 — `booting` runs after all `register()` calls and just before `boot()`
+### AT-25 — `booting` runs after all `register()` calls and just before `boot()`
 
 **Doc says:** "we will register our custom driver within a `booting` callback. By using the `booting` callback, we can ensure that the custom driver is registered just before the `boot` method is called on our application's service providers but after the `register` method is called on all of the service providers."
 
@@ -297,7 +308,7 @@ Sources: [http-client.md — Error Handling / Throwing Exceptions](repos/laravel
 
 Sources: [cache.md — Registering the Driver](repos/laravel/docs/cache.md#registering-the-driver).
 
-### AT-25 — declared bindings are available to every provider's `boot()`
+### AT-26 — declared bindings are available to every provider's `boot()`
 
 **Doc says:** "After instantiating the providers, the `register` method will be called on all of the providers. Then, once all of the providers have been registered, the `boot` method will be called on each provider. This is so service providers may depend on every container binding being registered and available by the time their `boot` method is executed." / "This method [`boot`] is called after all other service providers have been registered, meaning you have access to all other services that have been registered by the framework."
 
@@ -316,7 +327,7 @@ No acceptance test can be written from `docs/repos/laravel/docs/` for the follow
 | # | Declared surface | Why no doc-backed test |
 |---|---|---|
 | G-1 | `alias` | The container's `alias()` is absent from [container.md](repos/laravel/docs/container.md); the only `alias` matches ([middleware.md — Registering Middleware](repos/laravel/docs/middleware.md#registering-middleware), [sanctum.md — Configuration](repos/laravel/docs/sanctum.md#configuration)) are `$middleware->alias()` — a different API. Source-derived basis: [declarative-application.md](declarative-application.md) §1.3 (`alias($abstract, $alias)`, abstract first, `LogicException` when identical). |
-| G-2 | `booted` | The application's `booted()` hook is undocumented; the `booted` matches ([eloquent.md](repos/laravel/docs/eloquent.md#global-scopes), [billing.md](repos/laravel/docs/billing.md#quickstart)) are Eloquent model lifecycle methods. Boot-phase ordering is documented (§6 AT-25) but the hook is not. |
+| G-2 | `booted` | The application's `booted()` hook is undocumented; the `booted` matches ([eloquent.md](repos/laravel/docs/eloquent.md#global-scopes), [billing.md](repos/laravel/docs/billing.md#quickstart)) are Eloquent model lifecycle methods. Boot-phase ordering is documented (§6 AT-26) but the hook is not. |
 | G-3 | `terminating` | Not documented anywhere in the vendored docs; [lifecycle.md — Finishing Up](repos/laravel/docs/lifecycle.md#finishing-up) describes the response being sent without mentioning termination callbacks. |
 | G-4 | `afterResolving` | Not documented; only `resolving` is ([container.md — Container Events](repos/laravel/docs/container.md#container-events)). |
 | G-5 | `useBootstrapPath` | `bootstrap_path()` is absent from [helpers.md](repos/laravel/docs/helpers.md); [structure.md — The Bootstrap Directory](repos/laravel/docs/structure.md#the-bootstrap-directory) documents the directory's role, not the setter. Also consumed during bootstrap, before providers register ([declarative-application.md](declarative-application.md) §2.6). |
@@ -333,12 +344,12 @@ No acceptance test can be written from `docs/repos/laravel/docs/` for the follow
 Vendored docs (system of record, relative to `docs/repos/laravel/docs/`) with upstream equivalents:
 
 1. [container.md](repos/laravel/docs/container.md) — https://laravel.com/docs/container — bindings (§2), extend/tag/contextual/events (§3).
-2. [providers.md](repos/laravel/docs/providers.md) — https://laravel.com/docs/providers — register/boot phases (AT-01, AT-25).
-3. [lifecycle.md](repos/laravel/docs/lifecycle.md) — https://laravel.com/docs/lifecycle — register-then-boot ordering (AT-25).
-4. [cache.md](repos/laravel/docs/cache.md) — https://laravel.com/docs/cache — `booting` callback timing (AT-24).
-5. [http-client.md](repos/laravel/docs/http-client.md) — https://laravel.com/docs/http-client — `registered` behavior (AT-23).
+2. [providers.md](repos/laravel/docs/providers.md) — https://laravel.com/docs/providers — register/boot phases (AT-01, AT-26).
+3. [lifecycle.md](repos/laravel/docs/lifecycle.md) — https://laravel.com/docs/lifecycle — register-then-boot ordering (AT-26).
+4. [cache.md](repos/laravel/docs/cache.md) — https://laravel.com/docs/cache — `booting` callback timing (AT-25).
+5. [http-client.md](repos/laravel/docs/http-client.md) — https://laravel.com/docs/http-client — `registered` behavior (AT-24).
 6. [localization.md](repos/laravel/docs/localization.md) — https://laravel.com/docs/localization — locale, fallback, `lang` directory (AT-16, AT-17, AT-20).
-7. [helpers.md](repos/laravel/docs/helpers.md) — https://laravel.com/docs/helpers — path helper contracts (AT-18 … AT-22).
-8. [structure.md](repos/laravel/docs/structure.md) — https://laravel.com/docs/structure — directory roles (AT-18 … AT-22).
+7. [helpers.md](repos/laravel/docs/helpers.md) — https://laravel.com/docs/helpers — path helper contracts (AT-18 … AT-23).
+8. [structure.md](repos/laravel/docs/structure.md) — https://laravel.com/docs/structure — directory roles (AT-18 … AT-23).
 9. [configuration.md](repos/laravel/docs/configuration.md) — https://laravel.com/docs/configuration — environment-file location (gap G-6).
 10. [declarative-application.md](declarative-application.md) — in-repo design doc; source-derived supplements only, flagged per test (AT-07, AT-09, §7).

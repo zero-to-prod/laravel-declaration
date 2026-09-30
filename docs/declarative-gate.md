@@ -16,18 +16,18 @@ Goal: close the seam's narrower remainder — **policy-based authorization hooks
 
 | Claim | Package source | Vendor source | Verdict |
 |---|---|---|---|
-| `authorize` string refs resolve through `Container::call` | `src/DeclaredRequest.php:173` — `resolve()` calls `$this->container->call($value, ['request' => $this, ...$parameters])` for every string | `Container/Container.php:788` → `BoundMethod::call()` (`Container/BoundMethod.php:33`): a bare class-string with `__invoke` gets `$defaultMethod = '__invoke'` (line 36); `Class@method` via `isCallableWithAtSign()` (line 191); `Class::method` static via `getCallReflector()` splitting `::` (line 97); namespaced functions via `ReflectionFunction`; named parameters matched by name first (`addDependencyForCallParameter`, line 126) | **True** |
+| `authorize` string refs resolve through `Container::call` | `src/DeclaredRequest.php:173` — `resolve()` calls `$this->container->call($value, ['request' => $this, ...$parameters])` for every string | `Container/Container.php:788` → `BoundMethod::call()` (`Container/BoundMethod.php:25`): a bare class-string with `__invoke` gets `$defaultMethod = '__invoke'` (line 28); `Class@method` via `isCallableWithAtSign()` (line 216); `Class::method` static via `getCallReflector()` splitting `::` (line 141); namespaced functions via `ReflectionFunction`; named parameters matched by name first (`addDependencyForCallParameter`, line 165) | **True** |
 | A bool `authorize` passes through | `src/DeclaredRequest.php:54` — `resolve()` returns non-strings untouched | `FormRequest::passesAuthorization()` (`Foundation/Http/FormRequest.php:344`) consumes `bool\|Response` | **True** |
-| A returned `Response` is `->authorize()`d natively (throws when denied) | `src/DeclaredRequest.php:54` returns `Response` untouched | `FormRequest.php:352` — `$result instanceof Response ? $result->authorize() : $result`; `Auth/Access/Response.php:148` throws `AuthorizationException($message, $code)` | **True** |
-| `false` → `failedAuthorization()`; absent → `true` | `src/DeclaredRequest.php:115` (`failedAuthorization(): never` runs the declared ref, then throws) | `ValidatesWhenResolvedTrait::validateResolved()` — `! passesAuthorization()` → `failedAuthorization()`; `authorize === null` → `true` | **True** |
+| A returned `Response` is `->authorize()`d natively (throws when denied) | `src/DeclaredRequest.php:54` returns `Response` untouched | `FormRequest.php:349` — `$result instanceof Response ? $result->authorize() : $result`; `Auth/Access/Response.php:148-155` throws `AuthorizationException($message, $code)` | **True** |
+| `false` → `failedAuthorization()`; absent → `true` | `src/DeclaredRequest.php:151` (`failedAuthorization(): never` runs the declared ref, then throws) | `ValidatesWhenResolvedTrait::validateResolved():17-22` — `! passesAuthorization()` → `failedAuthorization()`; `authorize === null` → `true` | **True** |
 
-The existing suite already proves all four paths (`tests/Feature/DeclaredRequestTest.php`: `denied`, `forbidden`, `granted`, and every request without `authorize`).
+The existing suite already proves all four paths (`tests/Feature/DeclaredRequestTest.php`: `answers with the failedAuthorization reference`, `throws the default authorization exception`, `authorizes through an access response`, and every request without `authorize`).
 
 ### 1.2 The narrower remainder (what this plan closes)
 
 - `src/Request.php:22` — `$authorize` is `bool|string|null`: the hook can say **a bool** or **"call this PHP"**. A policy check is expressible only by hand-writing PHP (`$request->user()->can('update', $post)` inside a reference class).
 - No `gate` block exists anywhere: `src/Manifest.php` (no `gate` property), `manifest.schema.json` (no `gate` definition), `src/DefaultProviders.php` (no `GateDeclarationServiceProvider`).
-- Vendor fact that makes this a *seam* gap and not a lint: `Container::call('App\Policies\PostPolicy@update', ['request' => $this])` cannot serve policy methods — `update(User $user, Post $post)` has no `$request` parameter, and `BoundMethod` would container-`make()` a `User` (`BindingResolutionException`) or inject the wrong value. Policy checks need the **Gate**, whose native inspection API is the missing declarative surface.
+- Vendor fact that makes this a *seam* gap and not a lint: `Container::call('App\Policies\PostPolicy@update', ['request' => $this])` cannot serve policy methods — `update(User $user, Post $post)` has no `$request` parameter, and `BoundMethod` would container-`make()` the unmatched `User` — a **concrete** class auto-resolves to a fresh, unauthenticated instance (the wrong value, verified against `Container/BoundMethod.php:165`); an interface or abstract throws `BindingResolutionException: Target [I] is not instantiable`. Policy checks need the **Gate**, whose native inspection API is the missing declarative surface.
 
 ### 1.3 Native `Gate` surface (v13.33.0, verified signatures)
 
@@ -43,20 +43,22 @@ The existing suite already proves all four paths (`tests/Feature/DeclaredRequest
 | `inspect` | `inspect($ability, $arguments = []): Response` | line 402 — never throws; returns `Response::allow()` / `Response::deny()` |
 | `raw` | `raw($ability, $arguments = [])` | line 428 — `Arr::wrap($arguments)`, runs before/after callbacks, dispatches `GateEvaluated` |
 | `allows` / `denies` | `allows($ability, $arguments = [])` / `denies(...)` | lines 326/338 — bool aliases of `check` |
-| `forUser` | `forUser($user): static` | line 872 — copies `$abilities`, `$policies`, `$beforeCallbacks`, `$afterCallbacks` into the new instance — declared policies **apply** through it |
+| `forUser` | `forUser($user): static` | line 872 — copies `$abilities`, `$policies`, `$beforeCallbacks`, `$afterCallbacks`, `guessPolicyNamesUsingCallback` and `defaultDenialResponse` into the new instance — declared policies **apply** through it |
 | `before` / `after` / `resource` | out of scope (§2.4) | lines 299/312/226 |
 
 Policy resolution for an argument (`getPolicyFor`, `Gate.php:653-698`), in order: the explicit `policies[$class]` map → the `#[UsePolicy]` class attribute on the model (`getPolicyFromAttribute`, line 699) → guessed conventional names (`guessPolicyName`, line 724: `<dir>\Policies\{Model}Policy` candidates, first `class_exists` wins) → `policies` entries where the model `is_subclass_of` the key → the attribute on parents. `resolvePolicy($class)` = `$this->container->make($class)` (line 767). The explicit binding is the only one of these paths that is *declarable* — it is the missing native method the inventory names.
+
+Policy-vs-ability resolution for a `check` (`resolveAuthCallback`, `Gate.php:621-645`), in order: a policy resolved from **`$arguments[0]`** (a non-string or unknown class-string makes `getPolicyFor()` return null) → the `define`d string callback (`stringCallbacks[$ability]`) → the `define`d closure — otherwise a null-resulting closure. Consequence, verified against source: a **route parameter name** argument (`post` → its bound value `'1'`) can only reach a policy method when the route binds a model; without a binding it must pair with a `gate.define`d string callback, which bypasses `getPolicyFor()`.
 
 Native precedents the design reuses verbatim:
 
 1. **`Illuminate\Auth\Middleware\Authorize`** (`Auth/Middleware/Authorize.php:55-115`) — Laravel's own declarative gate argument contract (`can:update,post`): `handle()` calls `$this->gate->authorize($ability, $this->getGateArguments($request, $models))`; `getGateArguments()` maps each model; `getModel()` (line 87): a class name (`str_contains($value, '\\')`, `isClassName()` line 103) passes through as the class-string, a route parameter name resolves to `$request->route($model, null)`, a quoted literal unquotes.
 2. **`Authorizable::can()`** (`Foundation/Auth/Access/Authorizable.php:16-19`) — `$user->can($abilities, $arguments)` = `app(Gate::class)->forUser($this)->check($abilities, $arguments)` — the request-user seam idiom.
 3. **`Gate::define` string callbacks** (`buildAbilityCallback`, `Gate.php:250-283`) — `Class@method` resolves the class and calls the method named by the ability (or `@method`); a bare class-string is called as an invokable.
-4. **`ServiceProvider::callAfterResolving`** (`Support/ServiceProvider.php:310-315`) — registers `afterResolving` and runs immediately only `if ($this->app->resolved($name))` — the shipped `validator:` lifecycle (`Providers/ValidatorDeclarationServiceProvider.php:19`).
+4. **`ServiceProvider::callAfterResolving`** (`Support/ServiceProvider.php:310-317`) — registers `afterResolving` and runs immediately only `if ($this->app->resolved($name))` — the shipped `validator:` lifecycle (`Providers/ValidatorDeclarationServiceProvider.php:21`).
 5. **The `Rule::when()` conditional-rule precedent** ([declarative-validator.md](declarative-validator.md) §2.6, implemented in `DeclaredRequest::conditionalRule()`) — an entry keyed by a native factory method name whose value is a map of that method's **native parameter names** (`condition`, `rules`, `defaultRules`).
 
-Lifecycle (verified): `AuthServiceProvider::registerAccessGate()` (`Auth/AuthServiceProvider.php:57-63`) binds `GateContract::class` as a **singleton** in `register()` with user resolver `fn () => $app['auth']->userResolver()` — bound at declaration-provider boot, resolved lazily, so `callAfterResolving(GateContract::class, ...)` queues and runs on first `make()`, before any `check()` runs on that instance.
+Lifecycle (verified): `AuthServiceProvider::registerAccessGate()` (`Auth/AuthServiceProvider.php:57-63`) binds `GateContract::class` as a **singleton** in `register()` (line 24) with user resolver `fn () => call_user_func($app['auth']->userResolver())` — bound at declaration-provider boot, resolved lazily, so `callAfterResolving(GateContract::class, ...)` queues and runs on first `make()`, before any `check()` runs on that instance.
 
 ---
 
@@ -65,7 +67,7 @@ Lifecycle (verified): `AuthServiceProvider::registerAccessGate()` (`Auth/AuthSer
 ### 2.1 Two artifacts, one row
 
 1. **The `gate:` Tier 1 block (prerequisite slice)** — `src/Gate.php` (DataModel) + `Providers/GateDeclarationServiceProvider.php`. Every block key is a native `Gate` registry-method name (Rule 1); each map is one call per entry with the key as the first argument (Rule 2); reference strings pass through untouched (Rule 3 — `Gate::policy` takes class-strings, `Gate::define` takes `Class@method` natively). Applied once when the shared Gate first resolves.
-2. **The seam's `authorize` map form (Tier 2)** — `Request::$authorize` widens to `bool|string|array`; `DeclaredRequest::authorize()` gains one branch that dispatches dynamically onto the native contract methods for the request user: `$this->container->call([$Gate, $method], $parameters)` — `BoundMethod` matches `ability`/`abilities`/`arguments` by **native parameter name**, so the implementation holds zero signature knowledge and no per-method code (dynamic dispatch; unknown method names and mismatched parameter names fail with Laravel's own exceptions — Rule 7).
+2. **The seam's `authorize` map form (Tier 2)** — `Request::$authorize` widens to `bool|string|array`; `DeclaredRequest::authorize()` gains one branch that dispatches dynamically onto the native contract methods for the request user: `$this->container->call([$Gate, $method], $parameters)` — `BoundMethod` matches `ability`/`abilities`/`arguments` by **native parameter name**, so the implementation holds zero signature knowledge and no per-method code (dynamic dispatch; unknown method names fail with PHP's own `Error: Call to undefined method`, mismatched parameter names with `BindingResolutionException` — Laravel's own failures, Rule 7).
 
 ### 2.2 Value contract for `authorize`
 
@@ -84,18 +86,20 @@ The map declares **one** Gate call: more than one key throws `LogicException` �
 | `ability` | `$ability` of `allows`/`denies`/`authorize`/`inspect`/`raw` | passes through (a value) |
 | `abilities` | `$abilities` of `check`/`any`/`none` — a string or a list | passes through per entry |
 | `arguments` | `$arguments` (native default `[]`) | the native `Authorize::getGateArguments()` contract (§2.4) |
-| *(any other key)* | — | unmatched parameter → `BindingResolutionException: Unable to resolve dependency [$abilities]` on first use — Laravel's own failure, Rule 7 |
+| *(any other key)* | — | two native outcomes, both verified against `BoundMethod::addDependencyForCallParameter()` (line 165): if the key displaces a **required** parameter (`ability` declared but the method names it `abilities`) → `BindingResolutionException: Unable to resolve dependency [Parameter #0 [ <required> $abilities ]] in class …` on first use — Laravel's own failure (Rule 7); if it displaces nothing (all required parameters already matched), the leftover key is appended as an extra positional argument and silently ignored — PHP's own call semantics |
 
 ### 2.4 `arguments` = the native `Authorize::getGateArguments()` contract
 
 `arguments: post` in the manifest means exactly what `can:update,post` means on a route (§1.3 precedent 1): a class-string (contains `\`) passes through as the Gate argument; a route parameter name resolves to its bound value via the FormRequest's own accessor `$this->route($argument, null)` (the `Authorize::getModel()` call, with route-bound models already substituted by `SubstituteBindings` middleware); a quoted literal unquotes. A list resolves per entry (Rule 2); a non-string (e.g. an integer literal) passes through.
+
+Native pairing rule (§1.3 `resolveAuthCallback`): the Gate resolves a **policy** only from `$arguments[0]`, so `arguments: <model class-string>` (or a route that binds the model) drives `gate.policy` methods, while a route-parameter-name argument without a model binding pairs with a `gate.define`d string callback — the `update-post`/`publish-post` fixture scenarios (§5.2).
 
 ### 2.5 Denied semantics (native, unchanged)
 
 | Declared method | Denied result | Declared `failedAuthorization` hook |
 |---|---|---|
 | `check` / `any` / `none` / `allows` / `denies` | `false` → `failedAuthorization()` → declared ref runs, then `AuthorizationException` | runs |
-| `inspect` / `raw` | `Response` returned → `passesAuthorization()` calls `$result->authorize()` → `AuthorizationException($message)` thrown inside the check | **does not run** — native `FormRequest.php:352` behavior for any `Response` |
+| `inspect` / `raw` | `Response` returned → `passesAuthorization()` calls `$result->authorize()` → `AuthorizationException($message)` thrown inside the check | **does not run** — native `FormRequest.php:349` behavior for any `Response` |
 | `authorize` | `Gate::authorize()` throws `AuthorizationException` directly | does not run |
 
 `inspect` (Response with a message) and `check` (bool feeding the declared failure hook) are the recommended forms; all contract methods stay reachable through the single dynamic dispatch.
@@ -218,7 +222,7 @@ use ZeroToProd\LaravelDeclaration\Providers\GateDeclarationServiceProvider;
 
 ### 3.6 `src/DeclaredRequest.php` — the seam dispatch
 
-Add the import and constants, replace `authorize()`, and append three private methods:
+Add the import and constant, replace `authorize()`, and append two private methods:
 
 ```php
 use Illuminate\Contracts\Auth\Access\Gate as GateContract;
@@ -229,16 +233,12 @@ use Illuminate\Contracts\Auth\Access\Gate as GateContract;
     {
         $authorize = $this->declaration()->authorize;
 
-        if ($authorize === null) {
-            return true;
-        }
-
-        if (is_array($authorize)) {
-            return $this->gateCall($authorize);
-        }
-
-        /** @var bool|string $authorize — a bool value or a reference (§2.2) */
-        return $this->resolve($authorize);
+        /** @var bool|string $authorize — bool: value; string: a reference (§2.2); array: one native Gate call */
+        return match (true) {
+            $authorize === null => true,
+            is_array($authorize) => $this->gateCall($authorize),
+            default => $this->resolve($authorize),
+        };
     }
 
     /** The map form: the key is a native Gate contract method name (Rule 1) — check, any, none, allows,
@@ -254,35 +254,24 @@ use Illuminate\Contracts\Auth\Access\Gate as GateContract;
             throw new LogicException('The `authorize` map declares '.count($authorize).' Gate methods; declare one.');
         }
 
-        /** @var string $method */
+        /** @var string $method — unknown names fail with `Error: Call to undefined method` (Rule 7) */
         $method = (string) array_key_first($authorize);
+
+        $parameters = $authorize[$method];
+
+        if (array_key_exists(self::arguments, $parameters)) {
+            $arguments = $parameters[self::arguments];
+
+            $parameters[self::arguments] = is_array($arguments)
+                ? array_map($this->gateArgument(...), $arguments)   // one resolution per entry (Rule 2)
+                : $this->gateArgument($arguments);
+        }
 
         /** @var GateContract $Gate — the shared singleton, so `gate:`-declared policies and abilities apply */
         $Gate = $this->container->make(GateContract::class)->forUser($this->user());
 
-        /** @var bool|Response — unknown method names and mismatched parameter names fail with Laravel's own exceptions */
-        return $this->container->call([$Gate, $method], $this->gateParameters($authorize[$method]));
-    }
-
-    /** The native parameter map. `ability`/`abilities` pass through; `arguments` follows the native
-     *  Illuminate\Auth\Middleware\Authorize::getGateArguments() contract (§2.4).
-     *
-     * @param  array<string, mixed>  $parameters
-     * @return array<string, mixed>
-     */
-    private function gateParameters(array $parameters): array
-    {
-        if (! array_key_exists(self::arguments, $parameters)) {
-            return $parameters;
-        }
-
-        $arguments = $parameters[self::arguments];
-
-        $parameters[self::arguments] = is_array($arguments)
-            ? array_map($this->gateArgument(...), $arguments)   // one resolution per entry (Rule 2)
-            : $this->gateArgument($arguments);
-
-        return $parameters;
+        /** @var bool|Response — mismatched parameter names fail with `BindingResolutionException` (Rule 7) */
+        return $this->container->call([$Gate, $method], $parameters);
     }
 
     /** ≙ Authorize::getModel(): a class-string is the argument itself; a route parameter name is its
@@ -299,7 +288,7 @@ use Illuminate\Contracts\Auth\Access\Gate as GateContract;
     }
 ```
 
-Notes: the `count($authorize) !== 1` guard also catches a YAML *list* (`authorize: [a, b]` hydrates to a 2-entry array). Outside a route (`route() === null`), `$this->route($argument, null)` fails with PHP's own error at the same place every other seam member fails (declarative-requests.md §2.5). If phpstan level 9 objects to the dynamic callable `[$Gate, $method]`, annotate the line `/** @phpstan-ignore argument.type (the method name is manifest-declared; unknown names fail with Laravel's own exceptions) */`.
+Notes: the `count($authorize) !== 1` guard also catches a YAML *list* (`authorize: [a, b]` hydrates to a 2-entry array). The arguments resolution lives inline in `gateCall` — the only consumer — leaving `gateArgument` as the sole port of `Authorize::getModel()` (§2.4). `Request::route($param, $default)` itself returns null cleanly when no route is bound (the `is_null($route)` short-circuit, `Illuminate/Http/Request.php:687`); in the shipped pipeline the dispatch is unreachable route-less anyway — `declaration()` fails first, at the same place every other seam member fails (declarative-requests.md §2.5). If phpstan level 9 objects to the dynamic callable `[$Gate, $method]`, annotate the line `/** @phpstan-ignore argument.type (the method name is manifest-declared; unknown names fail with Laravel's own exceptions) */`.
 
 ### 3.7 `manifest.schema.json`
 
@@ -365,7 +354,7 @@ gate:
 
 requests:
   - name: post
-    authorize:                                       # ≙ Gate::inspect('update', <route-bound {post}>)
+    authorize:                                       # ≙ Gate::inspect('update', <route-bound {post}>), §2.4 pairing
       inspect:
         ability: update
         arguments: post                              # the route-bound model — native can:update,post semantics
@@ -416,7 +405,7 @@ class PostPolicy
 
     public function attach(User $user, mixed $post = null): bool
     {
-        return $post === null || $post === '5';
+        return $post === null || in_array($post, ['5', 5], true);
     }
 }
 ```
@@ -449,12 +438,22 @@ gate:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy
   define:
     publish: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PublishGate@publish
+    update: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@update   # string callback — no model binding on the route (§2.4)
+    attach: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@attach
 
 requests:
   - name: listed
     authorize:
       check:
-        abilities: viewAny                       # no `arguments` — the gateParameters early return
+        abilities: viewAny
+        arguments: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Post   # policy path — getPolicyFor($arguments[0]) (§1.3)
+    rules:
+      title: [required, string]
+
+  - name: attached
+    authorize:
+      check:
+        abilities: attach                        # no `arguments` — the array_key_exists early return
     rules:
       title: [required, string]
 
@@ -470,7 +469,7 @@ requests:
     authorize:
       inspect:
         ability: update
-        arguments: post                          # route parameter name → its bound value
+        arguments: post                          # route parameter name → its bound value ('1')
     rules:
       title: [required, string]
 
@@ -478,8 +477,7 @@ requests:
     authorize:
       inspect:
         ability: publish
-        arguments: post                          # a `gate.define`d ability
-    rules:
+        arguments: post                          # a `gate.define`d ability    rules:
       title: [required, string]
 
   - name: ghost-argument
@@ -523,6 +521,13 @@ routes:
       middleware: [web]
       metadata:
         request: listed
+
+    - uri: attached
+      methods: GET
+      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+      middleware: [web]
+      metadata:
+        request: attached
 
     - uri: denied-listed
       methods: GET
@@ -590,7 +595,14 @@ it('binds the declared policy and grants the check for the request user', functi
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
     $this->actingAs(new User(['id' => 1]));
 
-    $this->getJson('/listed?title=ok')->assertOk()->assertJson(['title' => 'ok']);
+    $this->getJson('/listed?title=ok')->assertOk()->assertJson(['title' => 'ok']);   // viewAny(User) via gate.policy
+});
+
+it('reaches a defined ability with no arguments declared', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+    $this->actingAs(new User(['id' => 1]));
+
+    $this->getJson('/attached?title=ok')->assertOk();                // attach($user) → null default
 });
 
 it('returns the policy Response denial through the native seam', function () use ($manifest): void {
@@ -662,12 +674,12 @@ it('rejects an authorize map that declares more than one Gate method', function 
 | New line(s) | Covered by |
 |---|---|
 | `GateDeclarationServiceProvider::boot` guard | every existing test boots a manifest without `gate:` (same as the other provider guards) |
-| `callAfterResolving` + both `foreach` loops | tests 1–4 (Gate resolves during the request, policies/abilities land first) |
+| `callAfterResolving` + both `foreach` loops | every `gate.yml` request test (Gate resolves during the request, policies/abilities land first) |
 | `Request::$authorize` union hydration | gate.yml entries |
 | `authorize()` `null → true` / bool / ref paths | unchanged — existing `DeclaredRequestTest` coverage |
-| `authorize()` `is_array` branch + `gateCall` (count guard, `make`+`forUser`, `Container::call`) | tests 1–4, 9 |
-| `gateParameters` early return / scalar / list | test 1 (early), 2–4 (scalar); list covered by the `arguments: [a, b]` variant if added — otherwise the list branch needs one more test: add `attach` with `arguments: [ghost, "'5'"]` asserting ok |
-| `gateArgument` branches | non-string (test 8), class-string (test 5 via `check('viewAny', Post::class)` + test 2), route param (test 3), unknown → null (test 6), quoted literal (test 7) |
+| `authorize()` `is_array` arm + `gateCall` (count guard, `make`+`forUser`, `Container::call`) | tests 1–5, 10 |
+| `arguments` `array_key_exists` early return / scalar / list | test 2 (early), 3–5 and 7–9 (scalar); list covered by the `arguments: [a, b]` variant if added — otherwise the list branch needs one more test: add `attach` with `arguments: [ghost, "'5'"]` asserting ok |
+| `gateArgument` branches | non-string (test 9), class-string (test 6 via `check('viewAny', Post::class)` + test 3), route param (test 4), unknown → null (test 7), quoted literal (test 8) |
 
 ---
 
