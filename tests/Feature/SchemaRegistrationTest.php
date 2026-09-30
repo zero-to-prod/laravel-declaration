@@ -14,33 +14,67 @@ use ZeroToProd\LaravelDeclaration\Attributes\TableConstraint;
 use ZeroToProd\LaravelDeclaration\Attributes\TableOption;
 use ZeroToProd\LaravelDeclaration\ColumnDefinitionModel;
 use ZeroToProd\LaravelDeclaration\Manifest;
-use ZeroToProd\LaravelDeclaration\Providers\SchemaDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Schema;
 use ZeroToProd\LaravelDeclaration\TableDefinition;
 
-test('it creates declared tables, columns, indexes, and constraints on boot', function (): void {
+test('it creates declared tables, columns, indexes, and constraints via declaration:migrate', function (): void {
+    SchemaFacade::dropIfExists('users');
+    SchemaFacade::dropIfExists('todos');
+    SchemaFacade::dropIfExists('tags');
+
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
     ]);
 
+    expect(SchemaFacade::hasTable('users'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('todos'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('tags'))->toBeFalse();
+
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Created')
+        ->expectsOutputToContain('Schema migration complete. [3] table(s) created.')
+        ->assertSuccessful();
+
     expect(SchemaFacade::hasTable('users'))->toBeTrue()
         ->and(SchemaFacade::hasTable('todos'))->toBeTrue()
-        ->and(SchemaFacade::hasTable('tags'))->toBeTrue();
+        ->and(SchemaFacade::hasTable('tags'))->toBeTrue()
+        ->and(
+            SchemaFacade::hasColumns('users', [
+                'id',
+                'name',
+                'email',
+                'email_verified_at',
+                'password',
+                'remember_token',
+                'created_at',
+                'updated_at',
+            ])
+        )->toBeTrue()
+        ->and(
+            SchemaFacade::hasColumns('todos', [
+                'id',
+                'user_id',
+                'title',
+                'description',
+                'completed',
+                'created_at',
+                'updated_at',
+            ])
+        )->toBeTrue()
+        ->and(
+            SchemaFacade::hasColumns('tags', [
+                'id',
+                'name',
+                'created_at',
+                'updated_at',
+            ])
+        )->toBeTrue();
 
     // Verify columns on users
-    expect(SchemaFacade::hasColumns('users', [
-        'id', 'name', 'email', 'email_verified_at', 'password', 'remember_token', 'created_at', 'updated_at',
-    ]))->toBeTrue();
 
     // Verify columns on todos
-    expect(SchemaFacade::hasColumns('todos', [
-        'id', 'user_id', 'title', 'description', 'completed', 'created_at', 'updated_at',
-    ]))->toBeTrue();
 
     // Verify columns on tags
-    expect(SchemaFacade::hasColumns('tags', [
-        'id', 'name', 'created_at', 'updated_at',
-    ]))->toBeTrue();
 
     // Verify unique index on users.email
     $userIndexes = SchemaFacade::getIndexes('users');
@@ -63,9 +97,15 @@ test('it creates declared tables, columns, indexes, and constraints on boot', fu
 });
 
 test('it applies schema idempotently without destroying existing data', function (): void {
+    SchemaFacade::dropIfExists('users');
+    SchemaFacade::dropIfExists('todos');
+    SchemaFacade::dropIfExists('tags');
+
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
     ]);
+
+    $this->artisan('declaration:migrate')->assertSuccessful();
 
     DB::table('users')->insert([
         'id' => 1,
@@ -76,52 +116,32 @@ test('it applies schema idempotently without destroying existing data', function
 
     expect(DB::table('users')->count())->toBe(1);
 
-    /** @var Manifest $manifest */
-    $manifest = app(Manifest::class);
-    $provider = new SchemaDeclarationServiceProvider(app());
-    $provider->applySchema($manifest->schema);
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Already exists')
+        ->expectsOutputToContain('Schema migration complete. [0] table(s) created.')
+        ->assertSuccessful();
 
     expect(DB::table('users')->count())->toBe(1)
         ->and(DB::table('users')->where('id', 1)->value('name'))->toBe('Jane Doe');
 });
 
-test('it skips table creation during boot when auto_migrate is false and creates tables via declaration:migrate', function (): void {
+test('declaration:migrate works via laravel-declaration:migrate alias', function (): void {
     SchemaFacade::dropIfExists('users');
     SchemaFacade::dropIfExists('todos');
     SchemaFacade::dropIfExists('tags');
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
-        'laravel-declaration.schema.auto_migrate' => false,
     ]);
 
-    expect(SchemaFacade::hasTable('users'))->toBeFalse()
-        ->and(SchemaFacade::hasTable('todos'))->toBeFalse()
-        ->and(SchemaFacade::hasTable('tags'))->toBeFalse();
-
-    $this->artisan('declaration:migrate')
+    $this->artisan('laravel-declaration:migrate')
         ->expectsOutputToContain('Created')
         ->expectsOutputToContain('Schema migration complete. [3] table(s) created.')
         ->assertSuccessful();
 
-    expect(SchemaFacade::hasTable('users'))->toBeTrue()
-        ->and(SchemaFacade::hasTable('todos'))->toBeTrue()
-        ->and(SchemaFacade::hasTable('tags'))->toBeTrue();
-
-    // Re-running reports tables already exist
-    $this->artisan('declaration:migrate')
-        ->expectsOutputToContain('Already exists')
-        ->expectsOutputToContain('Schema migration complete. [0] table(s) created.')
-        ->assertSuccessful();
-});
-
-test('declaration:migrate works via laravel-declaration:migrate alias', function (): void {
-    $this->withConfig([
-        'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
-    ]);
-
     $this->artisan('laravel-declaration:migrate')
         ->expectsOutputToContain('Already exists')
+        ->expectsOutputToContain('Schema migration complete. [0] table(s) created.')
         ->assertSuccessful();
 });
 

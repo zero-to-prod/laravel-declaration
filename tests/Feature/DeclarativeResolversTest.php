@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Router;
+use ZeroToProd\LaravelDeclaration\DefaultProviders;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
@@ -149,4 +150,68 @@ it('rejects a .php duration reference that does not return a Closure', function 
 it('allows legacy LaravelDeclarationProvider to be used', function (): void {
     $legacyProvider = new LaravelDeclarationProvider(app());
     expect($legacyProvider)->toBeInstanceOf(LaravelDeclarationProvider::class);
+});
+
+it('allows replacing a concern provider in configuration using DefaultProviders replace', function (): void {
+    $providers = LaravelDeclarationProvider::defaultProviders()
+        ->replace([RouterDeclarationServiceProvider::class => CustomRouterServiceProvider::class])
+        ->toArray();
+
+    $this->withConfig([
+        'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/router.yml',
+        'laravel-declaration.providers' => $providers,
+    ]);
+
+    $router = app(Router::class);
+    expect($router->getPatterns())->toHaveKey('custom_id', '[0-9]{4}')
+        ->and($router->getPatterns())->not->toHaveKey('id');
+});
+
+it('disables a concern by omitting its provider using DefaultProviders except', function (): void {
+    $providers = LaravelDeclarationProvider::defaultProviders()
+        ->except([RouterDeclarationServiceProvider::class])
+        ->toArray();
+
+    $this->withConfig([
+        'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/router.yml',
+        'laravel-declaration.providers' => $providers,
+    ]);
+
+    expect(app(Router::class)->getPatterns())->toBeEmpty();
+});
+
+it('allows merging providers into DefaultProviders', function (): void {
+    $providers = LaravelDeclarationProvider::defaultProviders()
+        ->merge([SitemapServiceProvider::class, SitemapServiceProvider::class])
+        ->toArray();
+
+    expect($providers)->toContain(SitemapServiceProvider::class);
+
+    $this->withConfig([
+        'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/extra.yml',
+        'laravel-declaration.providers' => $providers,
+    ]);
+
+    $this->get('/sitemap.xml')
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/xml')
+        ->assertSee('<urlset></urlset>', false);
+});
+
+it('handles DefaultProviders instantiation with explicit array and non-matching replacement', function (): void {
+    $custom = new DefaultProviders([RouterDeclarationServiceProvider::class]);
+    expect($custom->toArray())->toBe([RouterDeclarationServiceProvider::class]);
+
+    $unchanged = $custom->replace(['NonExistentProvider' => CustomRouterServiceProvider::class]);
+    expect($unchanged->toArray())->toBe([RouterDeclarationServiceProvider::class]);
+});
+
+it('falls back to defaultProviders when config providers key is null', function (): void {
+    $this->withConfig([
+        'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/router.yml',
+        'laravel-declaration.providers' => null,
+    ]);
+
+    $router = app(Router::class);
+    expect($router->getPatterns())->toHaveKey('id', '[0-9]+');
 });

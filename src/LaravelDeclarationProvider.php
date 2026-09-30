@@ -13,29 +13,15 @@ use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\MigrateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\ValidateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
-use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ConfigDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\SchemaDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
 
 /** @internal */
 class LaravelDeclarationProvider extends ServiceProvider
 {
-    /** @var list<class-string<ServiceProvider>> */
-    protected array $providers = [
-        ConfigDeclarationServiceProvider::class,
-        AppDeclarationServiceProvider::class,
-        RouterDeclarationServiceProvider::class,
-        ViewDeclarationServiceProvider::class,
-        KernelDeclarationServiceProvider::class,
-        ProvidersDeclarationServiceProvider::class,
-        RoutesDeclarationServiceProvider::class,
-        SchemaDeclarationServiceProvider::class,
-    ];
+
+    public static function defaultProviders(): DefaultProviders
+    {
+        return new DefaultProviders;
+    }
 
     #[Override]
     public function register(): void
@@ -47,7 +33,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         $this->app->instance(Manifest::class, $manifest);
 
         /** @var list<class-string<ServiceProvider>> $providers */
-        $providers = Config::get('laravel-declaration.providers', $this->providers);
+        $providers = Config::get('laravel-declaration.providers') ?? self::defaultProviders()->toArray();
 
         foreach ($providers as $provider) {
             $this->app->register($provider);

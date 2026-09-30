@@ -2,17 +2,19 @@
 
 declare(strict_types=1);
 
-use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ConfigDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ProvidersDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\RouterDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\RoutesDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\SchemaDeclarationServiceProvider;
-use ZeroToProd\LaravelDeclaration\Providers\ViewDeclarationServiceProvider;
+use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Manifest Path
+    |--------------------------------------------------------------------------
+    |
+    | The file path to the YAML manifest defining your application's
+    | declarative infrastructure, routes, schema, and models.
+    |
+    */
     'manifest' => 'manifest/app.yml',
 
     /*
@@ -20,35 +22,14 @@ return [
     | Providers
     |--------------------------------------------------------------------------
     |
-    | Each declaration is handled by a plain ServiceProvider.
-    | To disable, remove it from this list.
-    | To replace, substitute your custom ServiceProvider.
+    | Example:
+    |   LaravelDeclarationProvider::defaultProviders()
+    |       ->replace([RouterDeclarationServiceProvider::class => CustomRouter::class])
+    |       ->except([KernelDeclarationServiceProvider::class])
+    |       ->toArray(),
     |
     */
-    'providers' => [
-        ConfigDeclarationServiceProvider::class,
-        AppDeclarationServiceProvider::class,
-        RouterDeclarationServiceProvider::class,
-        ViewDeclarationServiceProvider::class,
-        KernelDeclarationServiceProvider::class,
-        ProvidersDeclarationServiceProvider::class,
-        RoutesDeclarationServiceProvider::class,
-        SchemaDeclarationServiceProvider::class,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Schema
-    |--------------------------------------------------------------------------
-    |
-    | Missing tables declared in the manifest are created automatically during
-    | boot by default. Set auto_migrate to false to disable this and create
-    | tables solely via `php artisan declaration:migrate`.
-    |
-    */
-    'schema' => [
-        'auto_migrate' => true,
-    ],
+    'providers' => LaravelDeclarationProvider::defaultProviders()->toArray(),
 
     /*
     |--------------------------------------------------------------------------
@@ -65,7 +46,6 @@ return [
     | argument to `mcp:start` and the name your agent refers to it by.
     |
     */
-
     'mcp' => [
         'enabled' => true,
         'handle' => 'laravel-declaration',

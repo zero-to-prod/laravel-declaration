@@ -4,7 +4,7 @@ Source of truth: `vendor/laravel/framework/src/Illuminate/Database/Schema/Builde
 
 Grounding documentation: `docs/declarative-request-to-view-roadmap.md` §1 Stage 5, §3 Phase 6.
 
-Goal: a `schema:` block in `manifest/app.yml` whose **entries declare database schema definitions without hand-written migration files**. The `tables:` map keys table names to column, constraint, index, and table option definitions. The database schema catalog and grammar serve as the **system of record** for schema state, with `manifest/app.yml` acting as the declarative **data source**. **Every column key is an `Illuminate\Database\Schema\Blueprint` method name, and its value is that method's argument(s) and chained `ColumnDefinition` modifiers.** The package ships `SchemaDeclarationServiceProvider`, the `Schema` DataModel, and leverages **dynamic dispatch** to invoke `Blueprint` column factory methods, `ColumnDefinition` fluent modifiers, and `ForeignKeyDefinition` actions without monolithic conditional branching or hardcoded switch statements. Table creation executes idempotently during application boot or via `php artisan declaration:migrate`, guarded by `Schema::hasTable($table)` (§1.1).
+Goal: a `schema:` block in `manifest/app.yml` whose **entries declare database schema definitions without hand-written migration files**. The `tables:` map keys table names to column, constraint, index, and table option definitions. The database schema catalog and grammar serve as the **system of record** for schema state, with `manifest/app.yml` acting as the declarative **data source**. **Every column key is an `Illuminate\Database\Schema\Blueprint` method name, and its value is that method's argument(s) and chained `ColumnDefinition` modifiers.** The package ships the `Schema` DataModel, and leverages **dynamic dispatch** to invoke `Blueprint` column factory methods, `ColumnDefinition` fluent modifiers, and `ForeignKeyDefinition` actions without monolithic conditional branching or hardcoded switch statements. Table creation executes idempotently via `php artisan declaration:migrate`, guarded by `Schema::hasTable($table)` (§1.1).
 
 ---
 
@@ -665,11 +665,9 @@ class SchemaDeclarationServiceProvider extends ServiceProvider
 - Add `public const string schema = 'schema';`
 - Add property `public ?Schema $schema;` with `#[Describe([Describe::nullable => true])]`.
 
-### 3.5 `src/Providers/SchemaDeclarationServiceProvider.php`
-- Register `SchemaDeclarationServiceProvider` in `LaravelDeclarationProvider::$providers`.
-- Implement `boot()` with `callAfterResolving('db')`.
-- Guard boot-time automatic creation with configuration check (`config('laravel-declaration.schema.auto_migrate', true)`).
-- Add `php artisan declaration:migrate` command in `src/Internal/Commands/MigrateCommand.php`.
+### 3.5 Schema Migration Command
+- Add `php artisan declaration:migrate` command in `src/Internal/Commands/MigrateCommand.php` (aliased as `laravel-declaration:migrate`).
+- Table migration is executed exclusively via CLI command; boot-time auto-migration is completely removed.
 - Add `"illuminate/database": "^13.0"` to `composer.json` suggestions/requirements and update `composer-require-checker.json` whitelist.
 
 ### 3.6 `manifest.schema.json`
