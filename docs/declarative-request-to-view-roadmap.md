@@ -56,7 +56,7 @@ State mutations in standard Laravel web applications follow the **Post-Redirect-
 1. `POST`, `PATCH`, or `DELETE` requests enter the pipeline.
 2. Route middleware runs `SubstituteBindings` to bind route parameters (`{todo}` → `App\Models\Todo`).
 3. `metadata.request` triggers `DeclaredRequest` to authorize and validate the input.
-4. An invokable action seam, `DeclaredAction`, invokes the requested model or builder mutation (`create`, `update`, `delete`, `toggle`) passing validated attributes.
+4. An invokable action seam, `DeclaredAction`, invokes the requested model or builder mutation (`create`, `update`, `delete`, `touch`, `restore`) within `DB::transaction()` passing validated attributes.
 5. `DeclaredAction` dispatches a redirect response via `Illuminate\Routing\Redirector` (`route()`, `back()`, `to()`) and flashes optional status data via `RedirectResponse::with()`.
 
 ### 1.4 Why stage 5 requires declarative `Blueprint` schema mapping
@@ -188,7 +188,7 @@ routes:
 |---|---|---|
 | `model` | Model class-string | Class root (`App\Models\Todo`) |
 | `target` | Parameter name | Bound route instance (`todo` from `{todo}`) |
-| `call` | Method name | `create()`, `update()`, `delete()`, `toggle()` |
+| `call` | Method name | `create()`, `update()`, `delete()`, `touch()`, `restore()` |
 | `redirect` | Path or route name | `Redirector::to()` or `Redirector::route()` |
 | `back` | Boolean | `Redirector::back()` |
 | `status` | HTTP status code | `RedirectResponse` status code (default 302) |
@@ -414,7 +414,7 @@ To fulfill the expanded scope of building a complete Todo application entirely i
 1. **Phase 6 — Declarative Schema (`schema:`)**:
    - Implement `src/Schema.php` DataModel and `SchemaDeclarationServiceProvider` mapping YAML table definitions to `Blueprint` column calls.
 2. **Phase 7 — Declarative Action & Redirects (`DeclaredAction`)**:
-   - Implement `src/DeclaredAction.php` extending `Illuminate\Routing\Controller` to execute state-changing mutations (`create`, `update`, `delete`, `toggle`) and return `RedirectResponse` instances with session flash.
+   - Grounded in prerequisite Tier 1 mappings for `db:` (`DatabaseManager::transaction()`) and `redirect:` (`Redirector`), implement `src/DeclaredAction.php` extending `Illuminate\Routing\Controller` to execute state-changing mutations (`create`, `update`, `delete`, `touch`, `restore`) inside `DB::transaction()` and return native `RedirectResponse` instances with session flash. Zero synthetic attribute classes.
 3. **Phase 8 — Inline Template Rendering in `DeclaredView`**:
    - Add `template:` evaluation in `src/DeclaredView.php` via `Illuminate\Support\Facades\Blade::render()`.
 4. **Phase 9 — Zero-PHP Dynamic Model Synthesis**:

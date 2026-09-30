@@ -22,7 +22,7 @@ Laravel documentation references:
 
 Grounding documentation: `docs/declarative-request-to-view-roadmap.md` §1 Stage 12–13, §3 Phase 7, §4 End State.
 
-Goal: a state-changing action route whose **`setDefaults` keys declare the Eloquent model mutation (`model`, `target`, `call`, `column`, `args`), the destination redirect (`redirect`, `route`, `to`, `back`, `away`), the HTTP response status (`status`), and session flash data (`with`, `withInput`, `withErrors`)**. This is Phase 7 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): Stage 12 (state mutation pipeline) and Stage 13 (redirect + session flash), joining Stage 9 (bound route parameter) and Stage 10 (`DeclaredRequest` validation) to Stage 14/15/16 (view rendering). The database table and column schemas defined in Phase 6 (`docs/declarative-schema.md`) serve as the **system of record** for persistent entity state. The package ships `DeclaredAction extends Controller` (§2.5) and leverages **dynamic dispatch** to execute model mutations, redirect generator methods, and session flash chaining without monolithic conditional branching or hardcoded switch statements.
+Goal: a state-changing action route whose **`setDefaults` keys declare the Eloquent model mutation (`model`, `target`, `call`, `args`), the destination redirect (`redirect`, `route`, `to`, `back`, `away`), the HTTP response status (`status`), and session flash data (`with`, `withInput`, `withErrors`)**. This is Phase 7 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): Stage 12 (state mutation pipeline) and Stage 13 (redirect + session flash), joining Stage 9 (bound route parameter) and Stage 10 (`DeclaredRequest` validation) to Stage 14/15/16 (view rendering). The database table and column schemas defined in Phase 6 (`docs/declarative-schema.md`) serve as the **system of record** for persistent entity state. Grounded in the architectural priority **Laravel API mapping first, glue/composition second**, `DeclaredAction extends Controller` (§2.5) functions as a pure **Tier 2 (Declarative Seam)** that wraps writes within `Illuminate\Database\DatabaseManager::transaction()` (`db:`) and delegates redirection directly to `Illuminate\Routing\Redirector` (`redirect:`) and `Illuminate\Http\RedirectResponse` without bespoke attribute classes or invented verbs.
 
 ---
 
@@ -69,31 +69,32 @@ Pipeline: Middleware
             │       On failure: throws ValidationException -> redirects back with errors (no mutation runs)
             │       On success: extracts $request->validated() attributes
             │       ▼
-            ├─► Stage 12: Dynamic Dispatch Mutation (System of Record Write)
+            ├─► Stage 12: Atomic State Mutation inside DB::transaction()
             │       Target Resolution:
             │           - If 'model' set: App\Models\Todo (class root)
             │           - If 'target' set: $parameters['todo'] (bound model instance)
-            │       Dynamic Dispatch:
-            │           (new Mutation)->apply($target, $call, $attributes, $column)
-            │           - create:     Todo::create($validated)
-            │           - update:     $todo->update($validated)
-            │           - delete:     $todo->delete()
-            │           - toggle:     $todo->{$column} = !$todo->{$column}; $todo->save()
-            │           - restore:    $todo->restore()
-            │           - touch:      $todo->touch()
+            │       Native Eloquent Execution:
+            │           DB::transaction(fn() => match ($call) {
+            │               'create'     => $modelClass::create($attributes),
+            │               'update'     => $targetInstance->update($attributes),
+            │               'delete'     => $targetInstance->delete(),
+            │               'restore'    => $targetInstance->restore(),
+            │               'touch'      => $targetInstance->touch(),
+            │               'forceDelete'=> $targetInstance->forceDelete(),
+            │               default      => $target->{$call}($attributes),
+            │           })
             │       ▼
-            ├─► Stage 13: Dynamic Dispatch Redirect & Flash
-            │       Redirect Resolution via Redirector:
-            │           (new RedirectAction)->apply($redirector, $parameters)
+            ├─► Stage 13: Redirect & Flash Resolution via Native Redirector
+            │       Delegation to native Redirector:
             │           - route:      $redirector->route('todos.index', $params, $status, $headers)
             │           - to:         $redirector->to('/', $status, $headers)
             │           - back:       $redirector->back($status, $headers)
             │           - away:       $redirector->away('https://external.com', $status, $headers)
             │           - action:     $redirector->action($action, $params, $status, $headers)
             │       Flash Chaining via RedirectResponse:
-            │           (new FlashAction)->apply($response, $parameters)
             │           - with:       $response->with(['status' => 'Todo updated!'])
             │           - withInput:  $response->withInput()
+            │           - withErrors: $response->withErrors($errors)
             │       ▼
             └─► Returns Illuminate\Http\RedirectResponse (HTTP 302 / 303)
 ```
@@ -353,9 +354,9 @@ routes:
 
 ### 2.1 Design rules
 
-1. **Key = method name.** `call: create` → `Model::create()`, `call: update` → `$model->update()`, `call: delete` → `$model->delete()`, `route:` → `Redirector::route()`, `to:` → `Redirector::to()`, `back:` → `Redirector::back()`, `with:` → `RedirectResponse::with()`, `withInput:` → `RedirectResponse::withInput()`.
-2. **One seam class per Laravel base class.** `DeclaredAction extends Controller` (Rule 5 seam), mirroring `DeclaredView extends ViewController`, `DeclaredRequest extends FormRequest`, and `DeclaredModel extends Model`.
-3. **Dynamic dispatch over monolithic conditionals.** Mutations, redirect destinations, and session flash data are invoked dynamically via attribute-tagged dispatchers (`#[Mutation]`, `#[RedirectAction]`, `#[FlashAction]`) without procedural switch ladders or nested `if/else` statements.
+1. **Key = method name.** `call: create` → `Model::create()`, `call: update` → `$model->update()`, `call: delete` → `$model->delete()`, `route:` → `Redirector::route()`, `to:` → `Redirector::to()`, `back:` → `Redirector::back()`, `with:` → `RedirectResponse::with()`, `withInput:` → `RedirectResponse::withInput()`. Zero invented verbs (Rule 1).
+2. **One seam class per Laravel base class.** `DeclaredAction extends Controller` (Rule 7 seam), mirroring `DeclaredView extends ViewController`, `DeclaredRequest extends FormRequest`, and `DeclaredModel extends Model`.
+3. **Pure Tier 2 delegation over bespoke attribute DSLs.** Zero synthetic attribute classes (`Mutation`, `RedirectAction`, `FlashAction`) are introduced. Mutations execute native Eloquent methods wrapped inside `DB::transaction()` (`db:`), and redirects delegate directly to native `Redirector` (`redirect:`) and `RedirectResponse` (Rule 8).
 4. **Validation strictly precedes mutation.** If `metadata.request` is declared, `app(DeclaredRequest::class)->validateResolved()` runs before any mutation executes. Invalid requests immediately redirect with validation errors; the mutation never runs.
 5. **Data derives from validated request.** `create` and `update` automatically pass `$request->validated()` to the target model method unless explicit `args` are specified in `setDefaults`.
 6. **`route:cache`-safe.** Route defaults contain only strings, booleans, integers, lists, and maps. No closures or object instances are stored in route defaults.
@@ -366,8 +367,7 @@ routes:
 |---|---|---|---|---|
 | `model` | `class-string<Model>` | Target Eloquent model class for static operations | `Model::class` | `null` |
 | `target` | `string` | Bound route parameter name holding the model instance | `$parameters[$target]` | `null` |
-| `call` | `string` | Method name executed on target (`create`, `update`, `delete`, `toggle`, `touch`, `restore`, `forceDelete`) | `$target->{$call}()` | `create` (if `model`), `update` (if `target`) |
-| `column` | `string` | Column name for toggle operations (e.g., `completed`) | `$target->{$column}` | `'completed'` |
+| `call` | `string` | Native method name executed on target (`create`, `update`, `delete`, `touch`, `restore`, `forceDelete`) | `$target->{$call}()` | `create` (if `model`), `update` (if `target`) |
 | `args` | `map<string, mixed>` | Explicit arguments passed to mutation method (overrides request data) | Passed to mutation | `null` (`$request->validated()`) |
 | `redirect` | `string` | Smart redirect: resolves to named route if exists, otherwise path | `Redirector::route()` / `to()` | `'/'` |
 | `route` | `string\|array` | Explicit named route destination | `Redirector::route()` | `null` |
@@ -462,7 +462,6 @@ routes:
 | `call: create` | `class-string<Model>` | `create` | `Model::create(array $attributes = []): Model` |
 | `call: update` | `Model` | `update` | `Model::update(array $attributes = [], array $options = []): bool` |
 | `call: delete` | `Model` | `delete` | `Model::delete(): ?bool` |
-| `call: toggle` | `Model` | attribute flip + `save` | `$target->{$column} = !$target->{$column}; $target->save(): bool` |
 | `call: touch` | `Model` | `touch` | `Model::touch(?string $attribute = null): bool` |
 | `call: restore` | `Model` | `restore` | `Model::restore(): ?bool` |
 | `call: forceDelete` | `Model` | `forceDelete` | `Model::forceDelete(): ?bool` |
@@ -478,12 +477,9 @@ routes:
 | `headers` | `RedirectResponse`| `withHeaders` | `RedirectResponse::withHeaders(array $headers)` |
 | `withFragment`| `RedirectResponse`| `withFragment` | `RedirectResponse::withFragment(string $fragment)` |
 
-### 2.5 Dynamic dispatch architecture & execution algorithm
+### 2.5 Pure Seam Architecture & Execution Algorithm
 
-The implementation leverages **dynamic dispatch** across three clean phases:
-1. **Mutation Dispatch (`Mutation`)**: Dynamically resolves the mutation method (`create`, `update`, `delete`, `toggle`, `restore`, `touch`, `forceDelete`) and executes it against the resolved target entity.
-2. **Redirect Dispatch (`RedirectAction`)**: Dynamically resolves the redirect generator (`route`, `to`, `back`, `away`, `action`, or smart `redirect`) and dispatches against `Illuminate\Routing\Redirector`.
-3. **Flash Dispatch (`FlashAction`)**: Dynamically chains session flash modifiers (`with`, `withInput`, `withErrors`, `headers`, `withFragment`) on the generated `Illuminate\Http\RedirectResponse`.
+Rather than inventing bespoke attribute classes (`Mutation`, `RedirectAction`, `FlashAction`), `DeclaredAction` functions as a pure **Tier 2 (Declarative Seam)** extending `Illuminate\Routing\Controller`. Grounded in prerequisite **Tier 1 mappings** (`db.transaction`, `redirect:`, `responses:`), `DeclaredAction` coordinates execution with full database transaction safety and direct delegation to native Laravel APIs:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -500,210 +496,23 @@ The implementation leverages **dynamic dispatch** across three clean phases:
                                        │
                                        ▼
                      ┌───────────────────────────────────┐
-                     │    Stage 2: Mutation Dispatch     │
-                     │          Mutation::apply          │
-                     │  create / update / delete / toggle│
+                     │  Stage 2: Transactional Mutation  │
+                     │          DB::transaction          │
+                     │     create / update / delete      │
                      └─────────────────┬─────────────────┘
                                        │
                                        ▼
                      ┌───────────────────────────────────┐
-                     │    Stage 3: Redirect Dispatch     │
-                     │       RedirectAction::apply       │
-                     │     route / to / back / away      │
-                     └─────────────────┬─────────────────┘
-                                       │
-                                       ▼
-                     ┌───────────────────────────────────┐
-                     │      Stage 4: Flash Dispatch      │
-                     │         FlashAction::apply        │
-                     │     with / withInput / withErrors │
+                     │    Stage 3: Native Redirection    │
+                     │        Redirector / Response      │
+                     │  route / to / back + session flash│
                      └─────────────────┬─────────────────┘
                                        │
                                        ▼
                        return RedirectResponse instance
 ```
 
-#### Proposed Dynamic Dispatch Attribute & Dispatcher Implementation
-
-```php
-namespace ZeroToProd\LaravelDeclaration\Attributes;
-
-use Attribute;
-use Illuminate\Database\Eloquent\Model;
-use InvalidArgumentException;
-use LogicException;
-
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
-class Mutation
-{
-    /**
-     * Dynamically dispatches mutation against target model or class.
-     *
-     * @param object|class-string<Model> $target
-     * @param array<string, mixed> $attributes
-     */
-    public function apply(object|string $target, string $method, array $attributes = [], ?string $column = null): mixed
-    {
-        // 1. Toggle boolean attribute mutation
-        if ($method === 'toggle') {
-            if (! $target instanceof Model) {
-                throw new InvalidArgumentException(
-                    'Toggle mutation target must be an instance of ' . Model::class . '.'
-                );
-            }
-
-            if (method_exists($target, 'toggle')) {
-                return $target->toggle($column);
-            }
-
-            $col = $column ?? 'completed';
-            $target->{$col} = ! (bool) $target->{$col};
-            $target->save();
-
-            return $target;
-        }
-
-        // 2. Static class mutation (e.g. Model::create)
-        if (is_string($target)) {
-            if (! is_subclass_of($target, Model::class)) {
-                throw new LogicException("Model class [{$target}] must extend " . Model::class . '.');
-            }
-
-            return $target::{$method}($attributes);
-        }
-
-        // 3. Instance mutation (e.g. $model->update, $model->delete, $model->restore, $model->touch)
-        return match ($method) {
-            'update' => $target->update($attributes),
-            'touch' => $column !== null ? $target->touch($column) : $target->touch(),
-            default => $target->{$method}(),
-        };
-    }
-}
-
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
-class RedirectAction
-{
-    /** @var list<string> */
-    private const array GENERATORS = ['route', 'to', 'back', 'away', 'action', 'redirect'];
-
-    /**
-     * Dynamically dispatches redirect generation on Redirector.
-     *
-     * @param array<string, mixed> $args
-     */
-    public function apply(\Illuminate\Routing\Redirector $redirector, array $args): \Illuminate\Http\RedirectResponse
-    {
-        $status = (int) ($args['status'] ?? 302);
-        $headers = (array) ($args['headers'] ?? []);
-
-        foreach (self::GENERATORS as $generator) {
-            if (isset($args[$generator])) {
-                return $this->{$generator}($redirector, $args[$generator], $status, $headers);
-            }
-        }
-
-        return $redirector->to('/', $status, $headers);
-    }
-
-    /** @param string|array{name: string, parameters?: array<string, mixed>} $value */
-    protected function route(\Illuminate\Routing\Redirector $redirector, string|array $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        [$name, $params] = is_array($value) ? [$value['name'], $value['parameters'] ?? []] : [$value, []];
-
-        return $redirector->route($name, $params, $status, $headers);
-    }
-
-    protected function to(\Illuminate\Routing\Redirector $redirector, mixed $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        return $redirector->to((string) $value, $status, $headers);
-    }
-
-    /** @param bool|array{fallback?: string} $value */
-    protected function back(\Illuminate\Routing\Redirector $redirector, bool|array $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        $fallback = is_array($value) ? ($value['fallback'] ?? false) : false;
-
-        return $redirector->back($status, $headers, $fallback);
-    }
-
-    protected function away(\Illuminate\Routing\Redirector $redirector, mixed $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        return $redirector->away((string) $value, $status, $headers);
-    }
-
-    /** @param string|array{action: string|array{0: class-string, 1: string}, parameters?: array<string, mixed>} $value */
-    protected function action(\Illuminate\Routing\Redirector $redirector, string|array $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        [$action, $params] = is_array($value) && isset($value['action']) ? [$value['action'], $value['parameters'] ?? []] : [$value, []];
-
-        return $redirector->action($action, $params, $status, $headers);
-    }
-
-    protected function redirect(\Illuminate\Routing\Redirector $redirector, mixed $value, int $status, array $headers): \Illuminate\Http\RedirectResponse
-    {
-        $dest = (string) $value;
-
-        return \Illuminate\Support\Facades\Route::has($dest)
-            ? $redirector->route($dest, [], $status, $headers)
-            : $redirector->to($dest, $status, $headers);
-    }
-}
-
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
-class FlashAction
-{
-    /** @var list<string> */
-    private const array MODIFIERS = ['with', 'withInput', 'withErrors', 'headers', 'withFragment'];
-
-    /**
-     * Dynamically chains session flash and modifier methods on RedirectResponse.
-     *
-     * @param array<string, mixed> $args
-     */
-    public function apply(\Illuminate\Http\RedirectResponse $response, array $args): \Illuminate\Http\RedirectResponse
-    {
-        foreach (self::MODIFIERS as $modifier) {
-            if (isset($args[$modifier])) {
-                $this->{$modifier}($response, $args[$modifier]);
-            }
-        }
-
-        return $response;
-    }
-
-    public function with(\Illuminate\Http\RedirectResponse $response, mixed $value): void
-    {
-        if (is_array($value)) {
-            $response->with($value);
-        }
-    }
-
-    public function withInput(\Illuminate\Http\RedirectResponse $response, mixed $value): void
-    {
-        is_array($value) ? $response->onlyInput(...$value) : $response->withInput();
-    }
-
-    public function withErrors(\Illuminate\Http\RedirectResponse $response, mixed $value): void
-    {
-        $response->withErrors($value);
-    }
-
-    public function headers(\Illuminate\Http\RedirectResponse $response, mixed $value): void
-    {
-        if (is_array($value)) {
-            $response->withHeaders($value);
-        }
-    }
-
-    public function withFragment(\Illuminate\Http\RedirectResponse $response, mixed $value): void
-    {
-        $response->withFragment((string) $value);
-    }
-}
-```
-
-#### Proposed `src/DeclaredAction.php` Seam Implementation
+#### Refactored `src/DeclaredAction.php` Seam Implementation (Zero Synthetic Attributes)
 
 ```php
 namespace ZeroToProd\LaravelDeclaration;
@@ -712,12 +521,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Routing\Redirector;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
 use Symfony\Component\HttpFoundation\Response;
-use ZeroToProd\LaravelDeclaration\Attributes\FlashAction;
-use ZeroToProd\LaravelDeclaration\Attributes\Mutation;
-use ZeroToProd\LaravelDeclaration\Attributes\RedirectAction;
 
 class DeclaredAction extends Controller
 {
@@ -733,7 +540,7 @@ class DeclaredAction extends Controller
     }
 
     /**
-     * Handle state-changing mutation and return RedirectResponse.
+     * Handle state-changing mutation within a transaction and return RedirectResponse.
      */
     public function __invoke(mixed ...$args): RedirectResponse
     {
@@ -742,41 +549,78 @@ class DeclaredAction extends Controller
 
         // 1. Authorize and validate request if declared
         $validated = $route?->getMetadata('request') !== null
-            ? app(DeclaredRequest::class)->validated()
+            ? (array) app(DeclaredRequest::class)->validated()
             : $request->all();
 
         // 2. Resolve target entity
         $target = null;
-        if (isset($args['model'])) {
-            $target = (string) $args['model'];
-        } elseif (isset($args['target'])) {
-            $targetParam = (string) $args['target'];
-            $target = $args[$targetParam] ?? $route?->parameter($targetParam);
+        if (isset($args['model']) && is_string($args['model'])) {
+            if (! is_subclass_of($args['model'], Model::class)) {
+                throw new LogicException("Model class [{$args['model']}] must extend " . Model::class . '.');
+            }
+            $target = $args['model'];
+        } elseif (isset($args['target']) && is_string($args['target'])) {
+            $targetParam = $args['target'];
+            $resolved = $args[$targetParam] ?? $route?->parameter($targetParam);
 
-            if (! $target instanceof Model) {
+            if (! $resolved instanceof Model) {
                 throw new InvalidArgumentException(
                     "Target parameter [{$targetParam}] must resolve to an instance of " . Model::class . '.'
                 );
             }
+            $target = $resolved;
         } else {
             throw new LogicException("DeclaredAction requires either 'model' or 'target' to be specified in setDefaults.");
         }
 
         // 3. Determine mutation method and attributes
-        $method = (string) ($args['call'] ?? (is_string($target) ? 'create' : 'update'));
+        $method = isset($args['call']) && is_string($args['call'])
+            ? $args['call']
+            : (is_string($target) ? 'create' : 'update');
         $attributes = isset($args['args']) && is_array($args['args']) ? $args['args'] : $validated;
-        $column = isset($args['column']) ? (string) $args['column'] : null;
 
-        // 4. Dynamic Dispatch: Mutation
-        (new Mutation)->apply($target, $method, $attributes, $column);
+        // 4. Atomic Transaction Boundary (Tier 1 db: mapping)
+        DB::transaction(function () use ($target, $method, $attributes): void {
+            if (is_string($target)) {
+                $target::{$method}($attributes);
+            } elseif ($method === 'update') {
+                $target->update($attributes);
+            } elseif ($method === 'touch') {
+                $target->touch();
+            } else {
+                $target->{$method}();
+            }
+        });
 
-        // 5. Dynamic Dispatch: Redirect
+        // 5. Redirection via Native Redirector (Tier 1 redirect: mapping)
         /** @var Redirector $redirector */
         $redirector = app('redirect');
-        $response = (new RedirectAction)->apply($redirector, $args);
+        $status = is_numeric($args['status'] ?? null) ? (int) $args['status'] : 302;
+        $headers = is_array($args['headers'] ?? null) ? $args['headers'] : [];
 
-        // 6. Dynamic Dispatch: Session Flash
-        return (new FlashAction)->apply($response, $args);
+        $response = match (true) {
+            isset($args['route']) => is_array($args['route'])
+                ? $redirector->route($args['route']['name'], $args['route']['parameters'] ?? [], $status, $headers)
+                : $redirector->route($args['route'], [], $status, $headers),
+            isset($args['to']) => $redirector->to($args['to'], $status, $headers),
+            isset($args['back']) => $redirector->back($status, $headers),
+            isset($args['away']) => $redirector->away($args['away'], $status, $headers),
+            isset($args['redirect']) => $redirector->to($args['redirect'], $status, $headers),
+            default => $redirector->to('/', $status, $headers),
+        };
+
+        // 6. Flash Chaining via Native RedirectResponse
+        if (isset($args['with']) && is_array($args['with'])) {
+            $response->with($args['with']);
+        }
+        if (isset($args['withInput'])) {
+            is_array($args['withInput']) ? $response->onlyInput(...$args['withInput']) : $response->withInput();
+        }
+        if (isset($args['withErrors'])) {
+            $response->withErrors($args['withErrors']);
+        }
+
+        return $response;
     }
 }
 ```

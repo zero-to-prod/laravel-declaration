@@ -27,7 +27,7 @@ Grounding documentation:
 - `docs/declarative-action.md`
 - `docs/declarative-schema.md`
 
-Goal: a declarative view route whose **`setDefaults` keys declare an inline Blade template string (`template`) or view name (`view`), view data bindings (`data`), HTTP response status (`status`), response headers (`headers`), and temporary cache file cleanup (`deleteCachedView`)**. This is Phase 8 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): Stage 16 (inline template rendering), joining Stage 5/6 (database schema & Eloquent models as persistent **systems of record**), Stage 9 (bound route parameter), Stage 10 (`DeclaredRequest` validation), and Stage 11 (`DeclaredQuery` execution) to outgoing HTTP response generation. The database table and column schemas defined in Phase 6 (`docs/declarative-schema.md`) and migration definitions (`docs/repos/laravel/docs/migrations.md`) serve as the **system of record** for persistent entity state. The package extends `DeclaredView` and introduces **dynamic dispatch** via `RenderAction` (§2.5) to polymorphically dispatch rendering to inline Blade templates (`template`) or view files (`view`) without procedural branching or hardcoded switch statements.
+Goal: a declarative view route whose **`setDefaults` keys declare an inline Blade template string (`template`) or view name (`view`), view data bindings (`data`), HTTP response status (`status`), response headers (`headers`), and temporary cache file cleanup (`deleteCachedView`)**. This is Phase 8 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): Stage 16 (inline template rendering), joining Stage 5/6 (database schema & Eloquent models as persistent **systems of record**), Stage 9 (bound route parameter), Stage 10 (`DeclaredRequest` validation), and Stage 11 (`DeclaredQuery` execution) to outgoing HTTP response generation. The database table and column schemas defined in Phase 6 (`docs/declarative-schema.md`) and migration definitions (`docs/repos/laravel/docs/migrations.md`) serve as the **system of record** for persistent entity state. The package extends `DeclaredView` (§2.5) to render inline Blade templates (`template`) via `Illuminate\View\Compilers\BladeCompiler::render()` or external view files (`view`) via `ResponseFactory::view()` without bespoke attribute classes or procedural branching, strictly adhering to **Tier 1 (Laravel API Map)** prerequisites (`blade:`, `responses:`, `pagination:`).
 
 ---
 
@@ -81,8 +81,7 @@ Pipeline: Middleware
             │           - Else: literal scalar or array passed untouched
             │       Route parameters merged: URL route parameters win over defaults
             │       ▼
-            ├─► Stage 16: Dynamic Dispatch Rendering via RenderAction
-            │       (new RenderAction)->apply($responseFactory, $args, $mergedData)
+            ├─► Stage 16: Inline Template & View Dispatch in DeclaredView
             │       │
             │       ├─► Target: 'template' (Precedence: template wins over view)
             │       │       Blade::render($template, $mergedData, deleteCachedView: true)
@@ -107,7 +106,7 @@ Consequences, each verified against v13.33.0 with Testbench:
 3. **Route parameter binding precedes rendering.** `SubstituteBindings` runs in the middleware pipeline prior to controller dispatch. Route parameters bound via `Router::model()` or `Router::bind()` (Phase 1) are already hydrated into Eloquent model instances and merged into the Blade view data array.
 4. **`route:cache`-safe.** The `template` string, `data` map, `status` code, and `headers` list declared in `setDefaults` are primitive PHP types (strings, integers, arrays). No closures or objects reside in `Route::$defaults`, guaranteeing full compatibility with `php artisan route:cache`.
 5. **Temporary compiled file management.** `Blade::render($template, $data, deleteCachedView: true)` automatically unlinks the generated PHP file in `storage/framework/views` after rendering, preventing filesystem bloat in serverless or read-only container environments.
-6. **Precedence rules.** `template` takes explicit precedence over `view`. When both `template` and `view` are present in `setDefaults`, `RenderAction` dynamically dispatches to the inline template renderer, ignoring the external view file. When `template` is omitted, `DeclaredView` transparently delegates to `ResponseFactory::view()`, preserving backwards compatibility with Phase 3 view routes.
+6. **Precedence rules.** `template` takes explicit precedence over `view`. When both `template` and `view` are present in `setDefaults`, `DeclaredView` dynamically renders the inline template via `BladeCompiler::render()`, ignoring the external view file. When `template` is omitted, `DeclaredView` transparently delegates to `parent::__invoke()` / `ResponseFactory::view()`, preserving backwards compatibility with Phase 3 view routes.
 
 ### 1.2 Properties
 
@@ -222,12 +221,20 @@ $resolvedData = [
 ];
 $mergedData = array_merge($resolvedData, $routeParameters);
 
-// 6. Dynamic Dispatch via RenderAction (RenderAction.php:28)
-$response = (new RenderAction)->apply($this->response, $args, $mergedData);
+// 6. Direct Template & View Dispatch in DeclaredView::__invoke()
+if (isset($args['template']) && is_string($args['template'])) {
+    if ($routeName = $route?->getName()) {
+        event("composing: {$routeName}", [$mergedData]);
+    }
+    $deleteCachedView = ! isset($args['deleteCachedView']) || (bool) $args['deleteCachedView'];
+    $content = Blade::render($args['template'], $mergedData, deleteCachedView: $deleteCachedView);
+    return $this->response->make($content, (int) $args['status'], (array) $args['headers']);
+}
 
-// 7. RenderAction::template() (RenderAction.php:48)
-$content = Blade::render($args['template'], $mergedData, deleteCachedView: true);
-return $responseFactory->make($content, $args['status'], $args['headers']);
+return parent::__invoke(...[
+    ...$args,
+    'data' => $mergedData,
+]);
 ```
 
 ### 1.5 Grounding in `migrations.md` and Database Schema
@@ -358,7 +365,7 @@ Zero hand-written controller classes. Zero physical `.blade.php` files on disk. 
 ### 2.1 Design rules
 
 1. **Key = method or parameter name.** `template` matches `Blade::render($string)`, `data` matches `Blade::render($string, $data)` and `ViewController::$args['data']`, `status` and `headers` match `ResponseFactory::make($content, $status, $headers)` and `ResponseFactory::view($view, $data, $status, $headers)`. `deleteCachedView` matches `Blade::render()`'s third parameter.
-2. **Dynamic dispatch over monolithic branching.** Rendering strategies (`template`, `view`) are encapsulated in a dedicated `RenderAction` attribute class. Methods are invoked via dynamic polymorphic dispatch (`$this->{$renderer}(...)`), eliminating nested procedural `if`/`else` trees.
+2. **Direct delegation over bespoke attribute DSLs.** Rendering strategies (`template`, `view`) delegate directly to native Laravel contracts (`BladeCompiler::render()` and `ResponseFactory::make()` / `view()`). Zero custom attribute classes (such as `RenderAction`) are introduced, strictly adhering to Rule 8.
 3. **Template takes precedence over view.** If both `template` and `view` are specified under `setDefaults`, `template` is dispatched first. If `template` is omitted, `view` executes for backwards compatibility.
 4. **Wrap only where Laravel needs a Closure.** Query references (`queries:`) and container callables (`Class@method`) resolve via `DeclaredQuery::run()` and `Container::call()` with named route parameters.
 5. **One seam class per Laravel base class.** `DeclaredView extends ViewController`. It reads its declaration directly from the matched route's `$args` array populated by `RouteParameterBinder`.
@@ -523,120 +530,28 @@ routes:
 | `headers` | `Illuminate\Routing\ResponseFactory` | `ResponseFactory::make()` | `($content = '', $status = 200, array $headers = []): Response` | `ResponseFactory.php:59` |
 | `deleteCachedView` | `Illuminate\View\Compilers\BladeCompiler` | `BladeCompiler::render()` | `bool $deleteCachedView = false` | `BladeCompiler.php:340` |
 
-### 2.5 Dynamic dispatch architecture & execution algorithm
+### 2.5 Pure Seam Architecture & Execution Algorithm
 
-The rendering pipeline in `DeclaredView` delegates view generation to `ZeroToProd\LaravelDeclaration\Attributes\RenderAction`. Matching the design pattern established by `RedirectAction` (`docs/declarative-action.md`) and `Mutation`, `RenderAction` inspects the declaration arguments and dynamically dispatches rendering polymorphically across ordered renderers:
+Rather than inventing a bespoke attribute class (`RenderAction`), `DeclaredView` functions as a pure **Tier 2 (Declarative Seam)** extending `Illuminate\Routing\ViewController`. By mapping `blade:` (`BladeCompiler`), `responses:` (`ResponseFactory`), and `pagination:` (`Paginator`) into **Tier 1**, all directives, anonymous component namespaces, custom echo formatters, and pagination styling are registered with Laravel before `DeclaredView` evaluates templates:
 
 ```
-RenderAction::apply($response, $args, $data)
+DeclaredView::__invoke(...$args)
     │
-    ├─► Checks self::RENDERERS = ['template', 'view']
+    ├─► Resolves queries and merges route parameters into $mergedData
     │
-    ├─► Match 'template':
-    │       $this->template($response, $args['template'], $data, $status, $headers, $args)
-    │       ├─► Blade::render($template, $data, deleteCachedView: true)
-    │       └─► $response->make($html, $status, $headers)
+    ├─► Has 'template':
+    │       ├─► Fires view composer event: event("composing: {$routeName}", [$mergedData])
+    │       ├─► Compiles Blade markup: BladeCompiler::render($template, $mergedData, $deleteCachedView)
+    │       └─► Returns HTTP response: ResponseFactory::make($html, $status, $headers)
     │
-    ├─► Match 'view':
-    │       $this->view($response, $args['view'], $data, $status, $headers, $args)
-    │       └─► $response->view($view, $data, $status, $headers)
+    ├─► Has 'view':
+    │       └─► Delegates to parent ViewController: parent::__invoke(...['data' => $mergedData])
     │
     └─► Neither set:
             throws LogicException("DeclaredView requires either 'template' or 'view'...")
 ```
 
-#### Proposed Dynamic Dispatch Attribute Implementation (`src/Attributes/RenderAction.php`)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace ZeroToProd\LaravelDeclaration\Attributes;
-
-use Attribute;
-use Illuminate\Contracts\Routing\ResponseFactory;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Blade;
-use InvalidArgumentException;
-use LogicException;
-
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
-class RenderAction
-{
-    /** @var list<string> */
-    private const array RENDERERS = ['template', 'view'];
-
-    /**
-     * @param  ResponseFactory  $response
-     * @param  array<string, mixed>  $args
-     * @param  array<string, mixed>  $data
-     */
-    public function apply(ResponseFactory $response, array $args, array $data): Response
-    {
-        $status = is_numeric($args['status'] ?? null) ? (int) $args['status'] : 200;
-        $headers = is_array($args['headers'] ?? null) ? $args['headers'] : [];
-
-        foreach (self::RENDERERS as $renderer) {
-            if (isset($args[$renderer])) {
-                return $this->{$renderer}($response, $args[$renderer], $data, $status, $headers, $args);
-            }
-        }
-
-        throw new LogicException(
-            "DeclaredView requires either 'template' or 'view' to be specified in setDefaults."
-        );
-    }
-
-    /**
-     * @param  ResponseFactory  $response
-     * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $headers
-     * @param  array<string, mixed>  $args
-     */
-    protected function template(
-        ResponseFactory $response,
-        mixed $template,
-        array $data,
-        int $status,
-        array $headers,
-        array $args = []
-    ): Response {
-        if (! is_string($template)) {
-            throw new InvalidArgumentException('The `template` declaration must be a string.');
-        }
-
-        $deleteCachedView = ! isset($args['deleteCachedView']) || (bool) $args['deleteCachedView'];
-
-        $content = Blade::render($template, $data, deleteCachedView: $deleteCachedView);
-
-        return $response->make($content, $status, $headers);
-    }
-
-    /**
-     * @param  ResponseFactory  $response
-     * @param  array<string, mixed>  $data
-     * @param  array<string, mixed>  $headers
-     * @param  array<string, mixed>  $args
-     */
-    protected function view(
-        ResponseFactory $response,
-        mixed $view,
-        array $data,
-        int $status,
-        array $headers,
-        array $args = []
-    ): Response {
-        if (! is_string($view) && ! is_array($view)) {
-            throw new InvalidArgumentException('The `view` declaration must be a string or an array.');
-        }
-
-        return $response->view($view, $data, $status, $headers);
-    }
-}
-```
-
-#### Proposed `src/DeclaredView.php` Seam Implementation
+#### Refactored `src/DeclaredView.php` Seam Implementation (Zero Synthetic Attributes)
 
 ```php
 <?php
@@ -645,11 +560,14 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
+use Illuminate\Contracts\Routing\ResponseFactory;
+use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Http\Response;
 use Illuminate\Routing\ViewController;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Str;
-use ZeroToProd\LaravelDeclaration\Attributes\RenderAction;
+use LogicException;
 
 class DeclaredView extends ViewController
 {
@@ -666,6 +584,7 @@ class DeclaredView extends ViewController
     {
         $args += ['data' => [], 'status' => 200, 'headers' => []];
 
+        $route = request()->route();
         $routeParameters = array_filter($args, static function (string|int $key): bool {
             return ! in_array(
                 $key,
@@ -674,13 +593,15 @@ class DeclaredView extends ViewController
             );
         }, ARRAY_FILTER_USE_KEY);
 
+        // 1. Inbound validation if metadata.request is declared
         $parameters = [
             ...$routeParameters,
-            'request' => request()->route()?->getMetadata('request') === null
+            'request' => $route?->getMetadata('request') === null
                 ? request()
                 : app(DeclaredRequest::class),
         ];
 
+        // 2. Resolve dynamic view data (queries or container callables)
         /** @var array<string, mixed> $data */
         $data = $args['data'];
         $manifest = app(Manifest::class);
@@ -700,7 +621,32 @@ class DeclaredView extends ViewController
 
         $mergedData = array_merge($resolvedData, $routeParameters);
 
-        return (new RenderAction)->apply($this->response, $args, $mergedData);
+        // 3. Dynamic Dispatch: Template wins over external View file
+        if (isset($args['template']) && is_string($args['template'])) {
+            // Bridge to ViewFactory composers if route is named
+            if ($routeName = $route?->getName()) {
+                event("composing: {$routeName}", [$mergedData]);
+            }
+
+            $deleteCachedView = ! isset($args['deleteCachedView']) || (bool) $args['deleteCachedView'];
+            $content = Blade::render($args['template'], $mergedData, deleteCachedView: $deleteCachedView);
+
+            /** @var ResponseFactory $responseFactory */
+            $responseFactory = $this->response;
+
+            return $responseFactory->make($content, (int) $args['status'], (array) $args['headers']);
+        }
+
+        if (isset($args['view'])) {
+            return parent::__invoke(...[
+                ...$args,
+                'data' => $mergedData,
+            ]);
+        }
+
+        throw new LogicException(
+            "DeclaredView requires either 'template' or 'view' to be specified in setDefaults."
+        );
     }
 }
 ```
