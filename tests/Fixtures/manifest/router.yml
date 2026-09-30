@@ -9,6 +9,29 @@ router:
   bind:
     post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PostBinder
     team: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Teams@bySlug
+  middlewareGroup:
+    tenant:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TenantIdentified
+  aliasMiddleware:
+    subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
+  prependMiddlewareToGroup:
+    tenant:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
+  pushMiddlewareToGroup:
+    tenant:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPushed
+  removeMiddlewareFromGroup:
+    tenant:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
+  singularResourceParameters: false
+  resourceParameters:
+    posts: item
+  resourceVerbs:
+    create: nuevo
+  matched:
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\MatchedListener
+    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\InvokableMatchedListener
 
 routes:
   addRoute:
@@ -51,3 +74,13 @@ routes:
       methods: GET
       action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
       middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+
+    - uri: "tenant"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      middleware: [tenant, subscribed]
+
+    - uri: "unsubscribed"
+      methods: GET
+      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+      middleware: [subscribed]

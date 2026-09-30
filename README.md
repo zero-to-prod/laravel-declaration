@@ -149,7 +149,37 @@ router:
   bind:                       # -> bind($key, $binder), one call per entry
     post: App\Routing\PostBinder     # make(PostBinder)->bind($value, $route)
     team: App\Routing\Teams@bySlug   # make(Teams)->bySlug($value, $route)
+  middlewareGroup:            # -> middlewareGroup($name, $middleware), one call per entry
+    tenant:                   # middleware: [tenant] expands to these at dispatch
+      - auth
+      - App\Http\Middleware\TenantIdentified
+  aliasMiddleware:            # -> aliasMiddleware($name, $class), one call per entry
+    subscribed: App\Http\Middleware\EnsureSubscription
+  prependMiddlewareToGroup:   # -> prependMiddlewareToGroup($group, $middleware), one call per item
+    web: [App\Http\Middleware\TenantLocate]
+  pushMiddlewareToGroup:      # -> pushMiddlewareToGroup($group, $middleware), one call per item
+    api: [App\Http\Middleware\RequestTracing]
+  removeMiddlewareFromGroup:  # -> removeMiddlewareFromGroup($group, $middleware), one call per item
+    api: [App\Http\Middleware\StatefulGuard]
+  singularResourceParameters: false   # -> singularResourceParameters(false): {posts}, not {post}
+  resourceParameters:         # -> resourceParameters($parameters), one call with the whole map
+    posts: item
+  resourceVerbs:              # -> resourceVerbs($verbs), one call with the whole map
+    create: nuevo
+  matched:                    # -> matched($callback), one call per item
+    - App\Listeners\LogMatched@handle
 ```
+
+`middlewareGroup` is `Router::middlewareGroup($name, $middleware)`, `aliasMiddleware` is
+`Router::aliasMiddleware($name, $class)`, `pushMiddlewareToGroup` / `prependMiddlewareToGroup`
+/ `removeMiddlewareFromGroup` are the group-mutation trio (one call per item), and `matched`
+registers `RouteMatched` listeners (one call per item; `Class` uses `handle`, bare invokables
+fall back to `__invoke`, called with `($event)` before route middleware). Items may be aliases
+(`throttle:60,1`). `kernel:` middleware keys win for any group/alias the kernel also declares
+(its setters re-sync the router); router-only keys persist, and `router:` keys work even when
+the HTTP kernel never resolves (console). `singularResourceParameters` / `resourceParameters`
+/ `resourceVerbs` are `ResourceRegistrar` global statics for resource routes: re-run
+`route:cache` after editing them, unlike the middleware and `matched` keys.
 
 ## View
 

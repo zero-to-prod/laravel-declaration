@@ -13,7 +13,7 @@ Ten subsystems carried the `[/] Partially Mapped` status. Re-verification agains
 | # | Subsystem | Manifest key | Audit | Verified today | Outcome |
 |---|---|---|---|---|---|
 | 1 | Service Container | `app:` | `[/]` | **All flagged gaps closed** | Stale → `[x]` |
-| 2 | Router Configuration & Binders | `router:` | `[/]` | Gap remains | `[/]` (valid) |
+| 2 | Router Configuration & Binders | `router:` | `[/]` | Resolved by declarative-router-configuration.md; `patterns()` a decided non-goal | `[x]` |
 | 3 | Route Registration | `routes:` | `[/]` | Fully shipped: `uri` noun + dynamic `builders`, plus groups/resources/shortcuts ([declarative-route-registrars.md](declarative-route-registrars.md)) | `[x]` |
 | 4 | View Factory & Namespaces | `view:` | `[/]` | Signature inversion fixed; render-time factory methods remain | `[/]` (narrower) |
 | 5 | View Dispatch Controller (Tier 2) | `DeclaredView` | `[/]` | Inline template dispatch + composer event bridge shipped | Stale → resolved |
@@ -37,26 +37,26 @@ Each item lists: the owning **Laravel API**, the **native signature** (v13.33.0)
 
 ### 2.1 Router Configuration & Binders — `router:` (`src/Router.php`)
 
-Current mapping: `pattern`, `model`, `bind` (executed by `Providers/RouterDeclarationServiceProvider.php`).
+Current mapping: `pattern`, `model`, `bind`, `middlewareGroup`, `aliasMiddleware`, `pushMiddlewareToGroup`, `prependMiddlewareToGroup`, `removeMiddlewareFromGroup`, `singularResourceParameters`, `resourceParameters`, `resourceVerbs`, `matched` (executed by `Providers/RouterDeclarationServiceProvider.php`).
 
 Missing native `Illuminate\Routing\Router` methods:
 
 | Native method | Signature | Purpose | Proposed key |
 |---|---|---|---|
-| `Router::patterns()` | `patterns(array $patterns): void` | Batch form of `pattern()`; registers multiple global regex patterns in one call | `router.patterns` |
-| `Router::middlewareGroup()` | `middlewareGroup(string $name, array $middleware): Router` (`$this`) | Register a reusable middleware group at the router level (syncs `Kernel::setMiddlewareGroups`) | `router.middlewareGroup` |
-| `Router::aliasMiddleware()` | `aliasMiddleware(string $name, string $class): Router` (`$this`) | Register a route middleware alias at the router level (syncs `Kernel::setMiddlewareAliases`) | `router.aliasMiddleware` |
-| `Router::pushMiddlewareToGroup()` | `pushMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Append a middleware to an existing group without redefining it | `router.pushMiddlewareToGroup` |
-| `Router::prependMiddlewareToGroup()` | `prependMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Prepend a middleware to an existing group | `router.prependMiddlewareToGroup` |
-| `Router::removeMiddlewareFromGroup()` | `removeMiddlewareFromGroup(string $group, string $middleware): Router` (`$this`) | Remove a middleware from a group | `router.removeMiddlewareFromGroup` |
-| `Router::singularResourceParameters()` | `singularResourceParameters(bool $singular = true): void` | Force singular resource parameter names (`{post}` vs `{posts}`) | `router.singularResourceParameters` |
-| `Router::resourceParameters()` | `resourceParameters(array $parameters = []): void` | Override resource parameter names globally | `router.resourceParameters` |
-| `Router::resourceVerbs()` | `resourceVerbs(array $verbs = []): array|null` | Localize resource route verbs (create/edit); getter/setter hybrid | `router.resourceVerbs` |
-| `Router::matched()` | `matched(string|callable $callback): void` | Register a route-matched event listener on `Illuminate\Routing\Events\RouteMatched` (single callback — no `$events` argument; one call per list item per Rule 2) | `router.matched` (list of callbacks) |
+| `Router::patterns()` | `patterns(array $patterns): void` | Batch form of `pattern()`; registers multiple global regex patterns in one call | `router.patterns` — decided non-goal (declarative-router.md §2.6) |
+| `Router::middlewareGroup()` | `middlewareGroup(string $name, array $middleware): Router` (`$this`) | Register a reusable middleware group at the router level (syncs `Kernel::setMiddlewareGroups`) | `router.middlewareGroup`  — mapped by declarative-router-configuration.md |
+| `Router::aliasMiddleware()` | `aliasMiddleware(string $name, string $class): Router` (`$this`) | Register a route middleware alias at the router level (syncs `Kernel::setMiddlewareAliases`) | `router.aliasMiddleware`  — mapped by declarative-router-configuration.md |
+| `Router::pushMiddlewareToGroup()` | `pushMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Append a middleware to an existing group without redefining it | `router.pushMiddlewareToGroup`  — mapped by declarative-router-configuration.md |
+| `Router::prependMiddlewareToGroup()` | `prependMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Prepend a middleware to an existing group | `router.prependMiddlewareToGroup`  — mapped by declarative-router-configuration.md |
+| `Router::removeMiddlewareFromGroup()` | `removeMiddlewareFromGroup(string $group, string $middleware): Router` (`$this`) | Remove a middleware from a group | `router.removeMiddlewareFromGroup`  — mapped by declarative-router-configuration.md |
+| `Router::singularResourceParameters()` | `singularResourceParameters(bool $singular = true): void` | Force singular resource parameter names (`{post}` vs `{posts}`) | `router.singularResourceParameters`  — mapped by declarative-router-configuration.md |
+| `Router::resourceParameters()` | `resourceParameters(array $parameters = []): void` | Override resource parameter names globally | `router.resourceParameters`  — mapped by declarative-router-configuration.md |
+| `Router::resourceVerbs()` | `resourceVerbs(array $verbs = []): array|null` | Localize resource route verbs (create/edit); getter/setter hybrid | `router.resourceVerbs`  — mapped by declarative-router-configuration.md |
+| `Router::matched()` | `matched(string|callable $callback): void` | Register a route-matched event listener on `Illuminate\Routing\Events\RouteMatched` (single callback — no `$events` argument; one call per list item per Rule 2) | `router.matched` (list of callbacks)  — mapped by declarative-router-configuration.md |
 
 Context: `kernel.setMiddlewareGroups` / `kernel.setMiddlewareAliases` already map the `Kernel` setters, which keep the router's registries in sync; the router-level methods remain the native seam for group *mutation* (`push`/`prepend`/`remove`) and resource parameter globalization. `patterns()` is the plural batch of the already-mapped `pattern()`. Signatures re-verified against v13.33.0 (`Router.php:1021-1410`): `matched()` takes a single `$callback` (no `$events` parameter), the group-mutation trio returns `$this` (not `array`), and no `prepend` argument exists on `pushMiddlewareToGroup()`.
 
-**Resolution**: [declarative-router-configuration.md](declarative-router-configuration.md) — nine of the ten proposed keys are mapped onto the `router:` block with attribute-selected dynamic dispatch (`#[Binding]` / `#[Setter]` / `#[AppendTo]` / `#[PrependTo]` / `#[Append]`; no per-key provider code), including the `kernel:` precedence model; `patterns()` is reaffirmed as a decided non-goal ([declarative-router.md](declarative-router.md) §2.6). On implementation, this §2.1 closes and §1 row 2 reclassifies `[/]` → `[x]`.
+**Resolution**: [declarative-router-configuration.md](declarative-router-configuration.md) — nine of the ten proposed keys are mapped onto the `router:` block with attribute-selected dynamic dispatch (`#[Binding]` / `#[Setter]` / `#[AppendTo]` / `#[PrependTo]` / `#[Append]`; no per-key provider code), including the `kernel:` precedence model; `patterns()` is reaffirmed as a decided non-goal ([declarative-router.md](declarative-router.md) §2.6). This §2.1 is closed and §1 row 2 is reclassified `[/]` → `[x]`.
 
 ### 2.2 Route Registration — `routes:` (`src/Route.php`, `Providers/RoutesDeclarationServiceProvider.php`)
 

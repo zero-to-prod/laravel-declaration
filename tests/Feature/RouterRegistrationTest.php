@@ -3,8 +3,20 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
+use ZeroToProd\LaravelDeclaration\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
 use ZeroToProd\LaravelDeclaration\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
+use ZeroToProd\LaravelDeclaration\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPushed;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\MiddlewareLog;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TenantIdentified;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\InvokableMatchedListener;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\MatchedListener;
 
 $manifest = __DIR__.'/../Fixtures/manifest/router.yml';
 
@@ -85,10 +97,81 @@ it('ignores unknown router keys', function (): void {
         ->and(app(Router::class)->getPatterns())->toBeEmpty();
 });
 
-it('selects binding properties via attributes', function (): void {
+it('selects declaration properties via attributes', function (): void {
     expect(RouterDeclaration::selected(Binding::class))->toBe([
         RouterDeclaration::pattern,
         RouterDeclaration::model,
         RouterDeclaration::bind,
+        RouterDeclaration::middlewareGroup,
+        RouterDeclaration::aliasMiddleware,
+    ])->and(RouterDeclaration::selected(Setter::class))->toBe([
+        RouterDeclaration::singularResourceParameters,
+        RouterDeclaration::resourceParameters,
+        RouterDeclaration::resourceVerbs,
+    ])->and(RouterDeclaration::selected(PrependTo::class))->toBe([
+        RouterDeclaration::prependMiddlewareToGroup,
+    ])->and(RouterDeclaration::selected(AppendTo::class))->toBe([
+        RouterDeclaration::pushMiddlewareToGroup,
+        RouterDeclaration::removeMiddlewareFromGroup,
+    ])->and(RouterDeclaration::selected(Append::class))->toBe([
+        RouterDeclaration::matched,
     ]);
+});
+
+it('registers a middleware group, its mutations and an alias on the router', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    expect(array_values(app(Router::class)->getMiddlewareGroups()['tenant']))->toBe([
+        GroupPrependedFirst::class,
+        TenantIdentified::class,
+        GroupPushed::class,
+    ])->and(app(Router::class)->getMiddleware()['subscribed'])->toBe(EnsureUserIsSubscribed::class);
+});
+
+it('expands a declared group and alias at dispatch in declared order', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    MiddlewareLog::reset();
+
+    $this->get('/tenant', ['X-Subscribed' => '1'])->assertOk();
+
+    expect(MiddlewareLog::entries())->toBe([
+        MatchedListener::class.'@tenant',
+        InvokableMatchedListener::class.'@tenant',
+        GroupPrependedFirst::class,
+        TenantIdentified::class,
+        GroupPushed::class,
+        EnsureUserIsSubscribed::class,
+    ]);
+});
+
+it('enforces a declared alias without its header', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $this->get('/unsubscribed')->assertForbidden();
+});
+
+it('runs matched listeners before route middleware with raw parameters', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    MiddlewareLog::reset();
+
+    $this->get('/posts/5')->assertOk();
+
+    expect(MiddlewareLog::entries())->toContain(
+        MatchedListener::class.'@posts/{id}',
+        InvokableMatchedListener::class.'@posts/{id}',
+    );
+});
+
+it('pluralizes, renames and localizes resource routes', function () use ($manifest): void {
+    $this->withConfig(['laravel-declaration.manifest' => $manifest]);
+
+    $Router = app(Router::class);
+    $Router->resource('categories', MockController::class);
+    $Router->resource('posts', MockController::class);
+
+    expect($Router->getRoutes()->getByName('categories.show')->uri())->toBe('categories/{categories}')
+        ->and($Router->getRoutes()->getByName('posts.show')->uri())->toBe('posts/{item}')
+        ->and($Router->getRoutes()->getByName('posts.create')->uri())->toBe('posts/nuevo');
 });

@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+/** Declared in `kernel.appendMiddlewareToGroup.web` of router-middleware.yml; records its position at dispatch. */
+class KernelAppended
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        MiddlewareLog::record(self::class);
+
+        return $next($request);
+    }
+}

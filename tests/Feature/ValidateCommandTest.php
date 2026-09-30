@@ -62,6 +62,18 @@ test('laravel-declaration:validate accepts the end-to-end unified manifest', fun
         ->assertSuccessful();
 });
 
+test('laravel-declaration:validate rejects a non-boolean singularResourceParameters', function (): void {
+    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
+    file_put_contents($file, <<<'YAML'
+        router:
+          singularResourceParameters: "nope"
+        YAML);
+
+    $this->artisan('laravel-declaration:validate', ['--manifest' => $file])
+        ->expectsOutputToContain('singularResourceParameters')
+        ->assertFailed();
+});
+
 test('laravel-declaration:validate reports each schema violation', function (): void {
     File::put(storage_path('invalid.yml'), "routes: 5\nbogus: 1\n");
 

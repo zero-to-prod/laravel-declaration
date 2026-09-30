@@ -239,6 +239,72 @@
             "type": "string",
             "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$"
           }
+        },
+        "middlewareGroup": {
+          "description": "-> middlewareGroup($name, $middleware): Defines/replaces a route middleware group on the router. Items are middleware class-strings, aliases, or `alias:params` forms; resolved at dispatch. A `kernel:` middleware key wins when both blocks declare the same group.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "aliasMiddleware": {
+          "description": "-> aliasMiddleware($name, $class): Registers a route middleware alias on the router, usable in any route's `middleware` list (with an optional `:params` suffix).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/classString" }
+        },
+        "prependMiddlewareToGroup": {
+          "description": "-> prependMiddlewareToGroup($group, $middleware): One call per item, reversed so declared order lands at the group head. Silent no-op when the group is missing.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        },
+        "pushMiddlewareToGroup": {
+          "description": "-> pushMiddlewareToGroup($group, $middleware): One call per item; appends to the group, creating it when missing. No-op when already present.",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        },
+        "removeMiddlewareFromGroup": {
+          "description": "-> removeMiddlewareFromGroup($group, $middleware): One call per item; removes the middleware from the group. Silent no-op when the group or the middleware is missing. The only remove seam in Laravel (the kernel has none).",
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        },
+        "singularResourceParameters": {
+          "description": "-> singularResourceParameters($singular): false pluralizes resource parameter names globally ({posts}). Absent: Laravel's default (true). Baked into route:cache.",
+          "type": "boolean"
+        },
+        "resourceParameters": {
+          "description": "-> resourceParameters($parameters): One call with the whole map; replaces the global resource parameter map ({resource: paramName}). Baked into route:cache.",
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "string" }
+        },
+        "resourceVerbs": {
+          "description": "-> resourceVerbs($verbs): One call with the whole map; array_merges the resource verbs (create/edit) used in resource URIs. Baked into route:cache.",
+          "type": ["object", "null"],
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        },
+        "matched": {
+          "description": "-> matched($callback): One call per item; registers a RouteMatched listener (fires at dispatch, before route middleware). `Class` (method `handle`, bare invokables fall back to `__invoke`) or `Class@method`, called with ($event).",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$"
+          }
         }
       }
     },

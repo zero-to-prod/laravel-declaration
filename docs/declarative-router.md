@@ -66,6 +66,7 @@ It does **not** constrain:
 | `Route::where` / `setWheres` | `($name, $expression = null): $this` | route level; already the `where` route key (declarative-routing.md §2.4) |
 | `Route::whereNumber` / `whereAlpha` / `whereAlphaNumeric` / `whereUuid` / `whereUlid` / `whereIn` | `(array\|string $parameters): $this` | route level. On the facade, `Router::__call()` forwards `where*` to a `RouteRegistrar`: a **group** attribute, not a global pattern. There is no global preset in Laravel; declare the preset's regex under `pattern` (§2.2) |
 | `model` / `bind` | `($key, $class, ?Closure $callback = null)` / `($key, $binder)` | declaration targets: declarative-router-bindings.md §1.3 |
+| `middlewareGroup` / `aliasMiddleware` / `pushMiddlewareToGroup` / `prependMiddlewareToGroup` / `removeMiddlewareFromGroup` | `($name, array $middleware)` / `($name, $class)` / the group-mutation trio | declaration targets: declarative-router-configuration.md §1.3 |
 
 ### 1.4 How a pattern reaches a route
 
@@ -197,7 +198,7 @@ routes:
 |---|---|---|---|---|
 | `pattern` | `pattern` | `map<param, regex>` | `$Router->pattern($key, $pattern)` per entry | no global pattern |
 
-An unknown key throws `LogicException` when the manifest is read in `register()`, as `app:` does (declarative-application.md §2.4). `patterns` is an unknown key; `model` / `bind`: declarative-router-bindings.md §2.4.
+An unknown key throws `LogicException` when the manifest is read in `register()`, as `app:` does (declarative-application.md §2.4). `patterns` is an unknown key; `model` / `bind`: declarative-router-bindings.md §2.4; the middleware and resource keys: declarative-router-configuration.md §2.4.
 
 ### 2.5 Registration algorithm (for the provider)
 
@@ -245,7 +246,7 @@ That loop is the whole implementation. The provider adds no transformation, wrap
 - **No preset keys.** Laravel has no `patternNumber()` and no global `whereUuid()`, so the manifest has no such keys either. Use the regex table in §2.2.
 - **No group `where`.** Group attributes (`Route::where([...])->group()`, facade `Route::whereNumber()`) need a group construct, which the manifest does not have. A route's `where` key covers the per-route case.
 - **`model` / `bind` (stage 6)**: [declarative-router-bindings.md](declarative-router-bindings.md).
-- **Middleware** (`aliasMiddleware`, `middlewareGroup`, ...) is not a `router` key: `Http\Kernel::syncMiddlewareToRouter()` overwrites it (roadmap Phase 5).
+- **Middleware** (`middlewareGroup`, `aliasMiddleware`, the group-mutation trio) and the `ResourceRegistrar` globals and `matched`: [declarative-router-configuration.md](declarative-router-configuration.md) — the `kernel:` middleware keys win for any registry key they also declare (§2.6 there).
 
 ---
 

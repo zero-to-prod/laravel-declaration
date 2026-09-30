@@ -3,9 +3,20 @@
 # The docs/declarative-route-registrars.md §2.2 example, spelled with the test
 # fixtures' class-strings (HomeController -> MockController, the admin namespace
 # -> Fixtures\App\Routing\Admin, PhotoMissing -> UserMissingHandler, and the
-# DeclaredAction class-string -> MockController: Laravel validates an invokable
+# DeclaredView -> MockController: Laravel validates an invokable
 # action string at registration) and `web` in place of `auth:sanctum` so the
 # dispatch tests run unauthenticated.
+
+# ResourceRegistrar's statics are process-global: pin the defaults these tests
+# assert so a manifest that sets the `router:` resource globals in the same PHP
+# process (e.g. router.yml) cannot leak into them (declarative-router-configuration.md §2.6).
+router:
+  singularResourceParameters: true
+  resourceParameters: {}
+  resourceVerbs:
+    create: create
+    edit: edit
+
 routes:
   # Router::addRoute() — the shipped flat surface, shape unchanged
   addRoute:

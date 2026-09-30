@@ -34,6 +34,7 @@ The complete request and schema lifecycle in dispatch order, mapping each stage 
 | 20 | Redirect & Session Flash (Write Response) | `Illuminate\Routing\Redirector` / `RedirectResponse` | `setDefaults.redirect` / `with` | Forward Roadmap (Phase 1) |
 | 21 | Zero-PHP Dynamic Model Synthesis | `Illuminate\Database\Eloquent\Model` dynamic class loader | `models` | Forward Roadmap (Phase 2) |
 | 22 | Headless REST/API Response Seam | `Illuminate\Contracts\Routing\ResponseFactory::json()` | `routes.action` (`DeclaredJson`) | Forward Roadmap (Phase 4) |
+| 23 | Router Middleware Registry, Resource Globals & Matched Listeners | `Illuminate\Routing\Router` | `router.*` | Completed |
 
 The persistent schema catalog and database tables serve as the authoritative **system of record** for entity state, while `manifest/app.yml` serves as the declarative **data source**.
 
@@ -93,7 +94,7 @@ The foundational framework mappings and declarative pipelines are fully implemen
 - **View Configuration (`view`)**: View locations, namespace paths, shared view variables, and view composers/creators via `ViewDeclarationServiceProvider`.
 - **Pagination Engine (`pagination`)**: Pagination styling (Tailwind, Bootstrap 5) and custom view configuration via `PaginationDeclarationServiceProvider`. The native Bootstrap 3/4 presets and the `useBootstrap()` alias remain unmapped (see the Tier 1 gap inventory §2.8).
 - **Response Extensions (`responses`)**: Dynamic macro registration on `Illuminate\Contracts\Routing\ResponseFactory` via `ResponseDeclarationServiceProvider`.
-- **Routing & Model Binding (`router`, `routes`)**: Route URI registration, HTTP verb matching, where constraints, route middleware, metadata, safe defaults, global regex patterns, and explicit model/parameter binders via `RouterDeclarationServiceProvider` and `RoutesDeclarationServiceProvider`.
+- **Routing & Model Binding (`router`, `routes`)**: Route URI registration, HTTP verb matching, where constraints, route middleware, metadata, safe defaults, global regex patterns, explicit model/parameter binders, the middleware registry (`middlewareGroup`, `aliasMiddleware`, the group-mutation trio), the `ResourceRegistrar` globals (`singularResourceParameters`, `resourceParameters`, `resourceVerbs`), and `matched` listeners via `RouterDeclarationServiceProvider` and `RoutesDeclarationServiceProvider`.
 - **Request Validation & Authorization (`requests`)**: Declarative form requests extending `FormRequest` via `DeclaredRequest`, validating input rules and evaluating authorization gates prior to controller dispatch.
 - **Eloquent Models (`models`)**: Declarative Eloquent model configuration via `DeclaredModel` (tables, primary keys, key types, incrementing, date formats, timestamps, fillable attributes, guarded attributes, hidden/visible attributes, casts, appends, touched relations, model observers, and global query scopes).
 - **Reusable Query Pipelines (`queries`)**: Declarative query pipeline execution via `DeclaredQuery`, supporting model roots, relation roots, 40+ chained `Builder` methods, and terminal execution (`get`, `first`, `paginate`, `simplePaginate`, `cursorPaginate`, `sole`, `count`, `exists`, `value`, `pluck`).
