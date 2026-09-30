@@ -44,17 +44,19 @@ Missing native `Illuminate\Routing\Router` methods:
 | Native method | Signature | Purpose | Proposed key |
 |---|---|---|---|
 | `Router::patterns()` | `patterns(array $patterns): void` | Batch form of `pattern()`; registers multiple global regex patterns in one call | `router.patterns` |
-| `Router::middlewareGroup()` | `middlewareGroup(string $name, array $middleware): void` | Register a reusable middleware group at the router level (syncs `Kernel::setMiddlewareGroups`) | `router.middlewareGroup` |
-| `Router::aliasMiddleware()` | `aliasMiddleware(string $name, string $class): void` | Register a route middleware alias at the router level (syncs `Kernel::setMiddlewareAliases`) | `router.aliasMiddleware` |
-| `Router::pushMiddlewareToGroup()` | `pushMiddlewareToGroup(string $group, string $middleware, bool $prepend = false): array` | Append a middleware to an existing group without redefining it | `router.pushMiddlewareToGroup` |
-| `Router::prependMiddlewareToGroup()` | `prependMiddlewareToGroup(string $group, string $middleware): array` | Prepend a middleware to an existing group | `router.prependMiddlewareToGroup` |
-| `Router::removeMiddlewareFromGroup()` | `removeMiddlewareFromGroup(string $group, string $middleware): array` | Remove a middleware from a group | `router.removeMiddlewareFromGroup` |
+| `Router::middlewareGroup()` | `middlewareGroup(string $name, array $middleware): Router` (`$this`) | Register a reusable middleware group at the router level (syncs `Kernel::setMiddlewareGroups`) | `router.middlewareGroup` |
+| `Router::aliasMiddleware()` | `aliasMiddleware(string $name, string $class): Router` (`$this`) | Register a route middleware alias at the router level (syncs `Kernel::setMiddlewareAliases`) | `router.aliasMiddleware` |
+| `Router::pushMiddlewareToGroup()` | `pushMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Append a middleware to an existing group without redefining it | `router.pushMiddlewareToGroup` |
+| `Router::prependMiddlewareToGroup()` | `prependMiddlewareToGroup(string $group, string $middleware): Router` (`$this`) | Prepend a middleware to an existing group | `router.prependMiddlewareToGroup` |
+| `Router::removeMiddlewareFromGroup()` | `removeMiddlewareFromGroup(string $group, string $middleware): Router` (`$this`) | Remove a middleware from a group | `router.removeMiddlewareFromGroup` |
 | `Router::singularResourceParameters()` | `singularResourceParameters(bool $singular = true): void` | Force singular resource parameter names (`{post}` vs `{posts}`) | `router.singularResourceParameters` |
 | `Router::resourceParameters()` | `resourceParameters(array $parameters = []): void` | Override resource parameter names globally | `router.resourceParameters` |
-| `Router::resourceVerbs()` | `resourceVerbs(array $verbs = []): void` | Localize resource route verbs (create/edit) | `router.resourceVerbs` |
-| `Router::matched()` | `matched(string|array $events, Closure|string $callback): void` | Listen for route-match events (`Illuminate\Routing\Events\RouteMatched`) | `router.matched` |
+| `Router::resourceVerbs()` | `resourceVerbs(array $verbs = []): array|null` | Localize resource route verbs (create/edit); getter/setter hybrid | `router.resourceVerbs` |
+| `Router::matched()` | `matched(string|callable $callback): void` | Register a route-matched event listener on `Illuminate\Routing\Events\RouteMatched` (single callback — no `$events` argument; one call per list item per Rule 2) | `router.matched` (list of callbacks) |
 
-Context: `kernel.setMiddlewareGroups` / `kernel.setMiddlewareAliases` already map the `Kernel` setters, which keep the router's registries in sync; the router-level methods remain the native seam for group *mutation* (`push`/`prepend`/`remove`) and resource parameter globalization. `patterns()` is the plural batch of the already-mapped `pattern()`.
+Context: `kernel.setMiddlewareGroups` / `kernel.setMiddlewareAliases` already map the `Kernel` setters, which keep the router's registries in sync; the router-level methods remain the native seam for group *mutation* (`push`/`prepend`/`remove`) and resource parameter globalization. `patterns()` is the plural batch of the already-mapped `pattern()`. Signatures re-verified against v13.33.0 (`Router.php:1021-1410`): `matched()` takes a single `$callback` (no `$events` parameter), the group-mutation trio returns `$this` (not `array`), and no `prepend` argument exists on `pushMiddlewareToGroup()`.
+
+**Resolution**: [declarative-router-configuration.md](declarative-router-configuration.md) — nine of the ten proposed keys are mapped onto the `router:` block with attribute-selected dynamic dispatch (`#[Binding]` / `#[Setter]` / `#[AppendTo]` / `#[PrependTo]` / `#[Append]`; no per-key provider code), including the `kernel:` precedence model; `patterns()` is reaffirmed as a decided non-goal ([declarative-router.md](declarative-router.md) §2.6). On implementation, this §2.1 closes and §1 row 2 reclassifies `[/]` → `[x]`.
 
 ### 2.2 Route Registration — `routes:` (`src/Route.php`, `Providers/RoutesDeclarationServiceProvider.php`)
 
@@ -65,13 +67,15 @@ Missing native `Illuminate\Routing\Router` registration surfaces (Route-builder-
 | Native method | Signature | Purpose | Proposed key |
 |---|---|---|---|
 | `Router::group()` | `group(array $attributes, Closure|Router|string $routes): Router` | Shared route attributes (`prefix`, `middleware`, `domain`, `name`, `where`, `namespace`) across nested declarations | `routes.groups` (list of groups with nested `routes`) |
-| `Router::resource()` | `resource(string $name, string $controller): PendingResourceRegistration` | 7 RESTful routes (`index`, `create`, `store`, `show`, `edit`, `update`, `destroy`) with `only`/`except`/`names`/`parameters`/`shallow`/`middleware` options | `routes.resources` |
-| `Router::resources()` | `resources(array $resources): void` | Batch resource registration | `routes.resources` (map form) |
-| `Router::apiResource()` | `apiResource(string $name, string $controller): PendingResourceRegistration` | Resource minus `create`/`edit` | `routes.apiResources` |
-| `Router::apiResources()` | `apiResources(array $resources): void` | Batch API resource registration | `routes.apiResources` (map form) |
-| `Router::singleton()` | `singleton(string $name, string $controller): PendingSingletonResourceRegistration` | Singleton resource routes (`show`, `edit`, `update`) with `only`/`except`/`creatable`/`deletable` | `routes.singletons` |
-| `Router::apiSingleton()` | `apiSingleton(string $name, string $controller): PendingSingletonResourceRegistration` | API singleton variant | `routes.apiSingletons` |
-| `Router::view()` | `view(string $uri, string $view, array $data = []): Route` | Native static-view route shortcut (bypasses `DeclaredView` for pure static content) | `routes.view` |
+| `Router::resource()` | `resource(string $name, string $controller, array $options = []): PendingResourceRegistration` | 7 RESTful routes (`index`, `create`, `store`, `show`, `edit`, `update`, `destroy`) with `only`/`except`/`names`/`parameters`/`shallow`/`middleware` options | `routes.resources` |
+| `Router::resources()` | `resources(array $resources, array $options = []): void` | Batch resource registration | `routes.resources` (map form) |
+| `Router::apiResource()` | `apiResource(string $name, string $controller, array $options = []): PendingResourceRegistration` | Resource minus `create`/`edit` | `routes.apiResources` |
+| `Router::apiResources()` | `apiResources(array $resources, array $options = []): void` | Batch API resource registration | `routes.apiResources` (map form) |
+| `Router::singleton()` | `singleton(string $name, string $controller, array $options = []): PendingSingletonResourceRegistration` | Singleton resource routes (`show`, `edit`, `update`) with `only`/`except`/`creatable`/`deletable` | `routes.singletons` |
+| `Router::singletons()` | `singletons(array $singletons, array $options = []): void` | Batch singleton registration | `routes.singletons` (map form) |
+| `Router::apiSingleton()` | `apiSingleton(string $name, string $controller, array $options = []): PendingSingletonResourceRegistration` | API singleton variant | `routes.apiSingletons` |
+| `Router::apiSingletons()` | `apiSingletons(array $singletons, array $options = []): void` | Batch API singleton registration | `routes.apiSingletons` (map form) |
+| `Router::view()` | `view(string $uri, string $view, array $data = [], int|array $status = 200, array $headers = []): Route` | Native static-view route shortcut (bypasses `DeclaredView` for pure static content; dispatches `ViewController` with `setDefaults`, where an array `$status` carries the headers) | `routes.view` |
 | `Router::redirect()` | `redirect(string $uri, string $destination, int $status = 302): Route` | Native redirect route shortcut | `routes.redirect` |
 | `Router::permanentRedirect()` | `permanentRedirect(string $uri, string $destination): Route` | 301 redirect shortcut | `routes.permanentRedirect` |
 | Verb dispatch keys | `Router::get()`, `post()`, `put()`, `patch()`, `delete()`, `options()`, `any()`, `match()` | Idiomatic verb-key route declaration (cosmetic: `methods:` already covers verbs natively) | optional `routes.verb` dispatch |
@@ -87,10 +91,10 @@ Missing native `Illuminate\View\Factory` methods:
 | Native method | Signature | Purpose | Proposed key / tier |
 |---|---|---|---|
 | `Factory::exists()` | `exists(string $view): bool` | View existence guard (query-time, used by templates and `View::exists()` helper) | `queries` clause or Tier 2 render seam |
-| `Factory::first()` | `first(array $views, Closure|array $data = [], array $mergeData = []): mixed` | Render the first existing view from a fallback chain | `DeclaredView` `setDefaults.first` |
-| `Factory::make()` | `make(string|array $view, array $data = [], array $mergeData = []): View` | Runtime view instance creation (render seam for `DeclaredView`) | Tier 2 `DeclaredView` |
+| `Factory::first()` | `first(array $views, Arrayable|array $data = [], array $mergeData = []): View` | Render the first existing view from a fallback chain | `DeclaredView` `setDefaults.first` |
+| `Factory::make()` | `make(Arrayable|array|string $view, array $data = [], array $mergeData = []): View` | Runtime view instance creation (render seam for `DeclaredView`) | Tier 2 `DeclaredView` |
 | `Factory::file()` | `file(string $path, array $data = [], array $mergeData = []): View` | Render an absolute template path (bypasses finder) | `DeclaredView` `setDefaults.file` |
-| `Factory::renderEach()` | `renderEach(string $view, array $data, string $iterator, string $empty = 'raw|view|callable')` | Render a view per collection item | `DeclaredView` `setDefaults.renderEach` |
+| `Factory::renderEach()` | `renderEach(string $view, array $data, string $iterator, string $empty = 'raw|')` | Render a view per collection item (`raw|`-prefixed `$empty` renders a raw string) | `DeclaredView` `setDefaults.renderEach` |
 | `Factory::flushFinderCache()` | `flushFinderCache(): void` | Clear `FileViewFinder` cache after declaring namespaces at runtime | provider epilogue |
 | `Factory::flushState()` | `flushState(): void` | Reset sections/loops/stacks shared state (test isolation) | provider epilogue |
 
@@ -139,7 +143,7 @@ Missing native `Illuminate\Database\Schema\Blueprint` **alter verbs** (needed in
 | `Blueprint::dropTimestamps()` / `dropTimestampsTz()` / `dropSoftDeletes()` / `dropSoftDeletesTz()` / `dropRememberToken()` / `dropMorphs()` | convenience droppers | Remove conventional column sets |
 | `Blueprint::removeColumn()` | `removeColumn(string $column): void` | Remove a column from the blueprint state |
 | `ColumnDefinition::change()` | `change(): void` (modifier) | Alter an existing column's definition (via `schema.alter`) |
-| `Blueprint::addColumn()` / `rawColumn()` | `addColumn(string $type, string $name, array $parameters = [])` / `rawColumn(string $sql): ColumnDefinition` | Escape hatch for driver-specific column definitions |
+| `Blueprint::addColumn()` / `rawColumn()` | `addColumn(string $type, string $name, array $parameters = [])` / `rawColumn(string $column, string $definition): ColumnDefinition` | Escape hatch for driver-specific column definitions |
 
 Missing column-type surface (flat legacy form): the static index-key list in `TableDefinition::from()` (`['primary', 'unique', 'index', 'fullText', 'spatialIndex']`) omits **`vectorIndex`** and **`rawIndex`**; declared flat, they fall through to the column branch (`method_exists(Blueprint::class, $keyStr)`) and are mis-handled as columns (their `IndexDefinition` results are not `ColumnDefinition`, so modifiers are silently dropped). The explicit `indexes:` form dispatches them correctly. Fix: extend the flat-form index list (or replace it with `method_exists` + return-type dispatch).
 
@@ -215,3 +219,29 @@ Ordered to close Rule 7 violations first, then unblock Phase 2:
 5. **`validator:` factory extensions** (§2.4) — closes the last `requests:` gap.
 6. **`view:` render-time factory methods** (§2.3) via `DeclaredView` `setDefaults` (`first`, `file`, `renderEach`).
 7. **`pagination:` Bootstrap presets** (§2.8) — `useBootstrapThree`/`useBootstrapFour`/`useBootstrap` close the styling gap left by the roadmap's Bootstrap 4/5 claim.
+---
+
+## 5. Line-by-Line Verification Pass Against the Roadmap
+
+Each claim in [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md) was re-verified against `src/` and vendor v13.33.0. Results:
+
+**Roadmap claims confirmed (no changes required to the roadmap):**
+
+- Stages 1–18 (`app`, `config`, `providers`, `kernel`, `db`, `schema`, `router.pattern`, `router.model`/`router.bind`, `routes`, `requests`/`metadata.request`, `queries`, `view`, `blade`, `pagination`, `responses`, `DeclaredView`, `setDefaults.template`, `models`) — every mapped key exists in the corresponding `src/*.php` DataModel and provider (`Manifest.php` declares all ten subsystem properties).
+- §1.1: `ImplicitRouteBinding::resolveForRoute()` uses `$route->signatureParameters(['subClass' => UrlRoutable::class])` (`vendor/.../Routing/ImplicitRouteBinding.php:29`); `Router::substituteBindings()` resolves through `$this->binders[$key]` via `performBinding()`, populated by `Router::bind($key, $binder)` / `Router::model($key, $class, ?Closure $callback = null)` (`Router.php:1170,1185`).
+- §1.2: `DeclaredView` verified — defaults/`setDefaults` merge with route-parameter precedence (`array_merge($resolvedData, $routeParameters)`), `DeclaredQuery::run()` for query handles, `app()->call()` for `Class@method` callables, `Blade::render()` with `deleteCachedView`, `ResponseFactory::make($content, $status, $headers)`, and `ViewController::__invoke()` delegation for `setDefaults.view` (`src/DeclaredView.php`).
+- §1.4: `MigrateCommand` guards creation with `Schema::hasTable()` and creates via `SchemaBuilder::create()` (`src/Internal/Commands/MigrateCommand.php`).
+- Phase 1 status: `docs/declarative-action.md` exists; no `src/DeclaredAction.php`, no `tests/Fixtures/manifest/action.yml`, no `tests/Feature/DeclaredActionTest.php` — "spec-only" is accurate. `RedirectResponse::withInput(?array $input = null)` and `withErrors($provider, $key = 'default')` exist as mapped (`Http/RedirectResponse.php:60,117`).
+- Phase 2 status: no `spl_autoload_register` / `class_alias` / dynamic synthesis anywhere in `src/`; `LaravelDeclarationProvider::register()` only binds `Manifest` and registers declared providers. `src/DeclaredModel.php`, `docs/declarative-model.md`, `tests/Feature/DeclaredModelTest.php`, `tests/Fixtures/manifest/models.yml` shipped as claimed.
+- Phase 3 status: `tests/Fixtures/manifest/end-to-end.yml` + `tests/Feature/EndToEndRequestToViewTest.php` exist (read side); no `todo-app.yml` / `TodoAppIntegrationTest.php` (write side pending).
+- Phase 4 status: no `src/DeclaredJson.php` — future scope accurate.
+- §2.6 model key list matches `src/Model.php` (24 keys incl. `refreshes`, which exists on `Illuminate\Database\Eloquent\Model` in v13.33.0) and `src/DeclaredModel.php` (`__construct()` injection, `resolveObserveAttributes()`, `resolveGlobalScopeAttributes()`, `isIgnoringTouch()`, `getRouteKeyName()`).
+
+**Signature corrections applied to this inventory during the pass (vendor v13.33.0):**
+
+1. §2.1 — `Router::matched()` is `matched($callback)` (single `string|callable`, listens on `RouteMatched`), not the `(string|array $events, Closure|string $callback)` form previously listed; `middlewareGroup()`/`aliasMiddleware()` return `$this`; `pushMiddlewareToGroup($group, $middleware)` has **no** `$prepend` parameter and the group-mutation trio returns `$this` (not `array`); `resourceVerbs()` is a getter/setter hybrid returning `array|null` (`Router.php:1021,1043,1078,1094,1112,1132,1407`).
+2. §2.2 — every resource/singleton registrar takes `array $options = []` (`resource`, `resources`, `apiResource`, `apiResources`, `singleton`, `apiSingleton`, `Router.php:318-452`); the previously omitted batch forms `Router::singletons()` and `Router::apiSingletons()` were added to the table; `Router::view()` carries `$status` (int, or array-as-headers) and `$headers` and internally dispatches `ViewController` with `setDefaults` (`Router.php:287-297`).
+3. §2.3 — `Factory::first()` `$data` is `Arrayable|array` and returns `View` (`Factory.php:148`); `Factory::renderEach()` default is `$empty = 'raw|'`, not `'raw|view|callable'` (`Factory.php:228`); `Factory::composers(array $composers)` confirmed present in `Concerns/ManagesEvents.php:35` (`callback: views` form).
+4. §2.5 — `Blueprint::rawColumn(string $column, string $definition)` takes two arguments, not a single SQL string (`Blueprint.php:1757`); all listed alter verbs, `Schema::table/rename/drop/dropIfExists`, the flat-form `vectorIndex`/`rawIndex` omission, and the `ForeignKeyDefinition extends Fluent` modifier-discard defect were re-confirmed unchanged.
+5. §2.4 and §2.8 — verified unchanged: `Validation\Factory::extend/extendImplicit/extendDependent/replacer` signatures match (`Validation/Factory.php:195-245`, `ConditionalRules` exists), and `AbstractPaginator::useBootstrapThree/useBootstrapFour/useBootstrapFive/useBootstrap` (alias → `useBootstrapFour`) match (`AbstractPaginator.php:628-667`).
+6. **Coverage regression (current `composer check` state)** — the roadmap §3.1 "100% test coverage" claim is stale: `composer check` fails with 99.7% total coverage. Uncovered lines are the guard early-returns `ProvidersDeclarationServiceProvider.php:16` (no `Manifest` bound) and `RoutesDeclarationServiceProvider.php:21` (no `Manifest`/`Router` bound) — both reached only when the `providers:`/`routes:` subsystems boot without a bound `Manifest`. The failure reproduces on the clean tree (docs-only changes excluded via `git stash`), so it is a test regression, not a doc artifact. Remediation: a feature test that boots the providers without a bound `Manifest` to re-cover both guard lines and restore the Definition-of-Done §6 100% gate.
