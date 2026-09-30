@@ -62,14 +62,16 @@ it('binds the abstract inferred from the closure return type', function (): void
     expect(app()->make(Transistor::class)->declared)->toBeTrue();
 });
 
-// AT-04 — container.md — Simple Bindings.
+// AT-04 — container.md — Simple Bindings. The binding "already registered" is
+// PreBindingProvider's register() call, which runs before the app: block is applied
+// in the registered() pass — the plan's documented Given.
 it('skips bindIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
+        providers:
+          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
         app:
-          bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf
           bindIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TwigPdf
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -90,14 +92,16 @@ it('resolves a singleton one time and shares the instance', function (): void {
     expect(app(TenantContext::class))->toBe(app(TenantContext::class));
 });
 
-// AT-06 — container.md — Binding A Singleton.
+// AT-06 — container.md — Binding A Singleton. The pre-existing singleton is
+// PreBindingProvider's register() call, which runs before the app: block is applied
+// in the registered() pass — the plan's documented Given.
 it('skips singletonIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
+        providers:
+          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
         app:
-          singleton:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
           singletonIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\InMemoryTenantContext
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -107,12 +111,13 @@ it('skips singletonIf when a binding already exists', function (): void {
 });
 
 // AT-07 — container.md — Binding Scoped Singletons. The flush mechanism Octane/queue
-// workers invoke on a new lifecycle is forgetScopedInstances().
+// workers invoke on a new lifecycle is forgetScopedInstances(). The explicit
+// self-concrete keeps the test on the documented surface.
 it('shares a scoped instance within one lifecycle and flushes it at a new one', function (): void {
     $file = $this->manifest(<<<'YAML'
         app:
           scoped:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ~
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -126,14 +131,16 @@ it('shares a scoped instance within one lifecycle and flushes it at a new one', 
     expect(app(RequestLog::class))->not->toBe($first);
 });
 
-// AT-08 — container.md — Binding Scoped Singletons.
+// AT-08 — container.md — Binding Scoped Singletons. The binding "already registered" is
+// PreBindingProvider's register() call, which runs before the app: block is applied
+// in the registered() pass — the plan's documented Given.
 it('skips scopedIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
+        providers:
+          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
         app:
-          scoped:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ~
           scopedIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\FileRequestLog
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

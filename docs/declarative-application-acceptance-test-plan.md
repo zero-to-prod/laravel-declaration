@@ -74,7 +74,7 @@ Sources: [container.md — Binding Basics / Simple Bindings](repos/laravel/docs/
 
 **Doc says:** "You may use the `bindIf` method to register a container binding only if a binding has not already been registered for the given type."
 
-- **Given** a binding for the abstract is already registered (e.g. by another provider) and `app.bindIf` declares a different concrete for the same abstract.
+- **Given** a binding for the abstract is already registered by another provider's `register()` and `app.bindIf` declares a different concrete for the same abstract.
 - **When** the abstract is resolved.
 - **Then** the originally registered concrete is returned — the `bindIf` declaration did not overwrite it.
 
@@ -94,7 +94,7 @@ Sources: [container.md — Binding A Singleton](repos/laravel/docs/container.md#
 
 **Doc says:** "You may use the `singletonIf` method to register a singleton container binding only if a binding has not already been registered for the given type."
 
-- **Given** a binding for the abstract already exists and `app.singletonIf` declares a different concrete for it.
+- **Given** a binding for the abstract already exists (registered by another provider's `register()`) and `app.singletonIf` declares a different concrete for it.
 - **When** the abstract is resolved.
 - **Then** the original binding is untouched.
 
@@ -104,7 +104,7 @@ Sources: [container.md — Binding A Singleton](repos/laravel/docs/container.md#
 
 **Doc says:** "The `scoped` method binds a class or interface into the container that should only be resolved one time within a given Laravel request / job lifecycle … instances registered using the `scoped` method will be flushed whenever the Laravel application starts a new 'lifecycle', such as when a Laravel Octane worker processes a new request or when a Laravel queue worker processes a new job."
 
-- **Given** `app.scoped: {App\Services\RequestLog: <concrete>}` resolved once in the current lifecycle.
+- **Given** `app.scoped: {App\Services\RequestLog: App\Services\RequestLog}` resolved once in the current lifecycle.
 - **When** the abstract is resolved again within the same lifecycle, and again after the application starts a new lifecycle (scoped instances flushed — simulated in tests with the flush mechanism Octane/queue workers invoke; see gap note in §7).
 - **Then** the second same-lifecycle resolution returns the identical instance; the post-flush resolution returns a new instance.
 
@@ -114,7 +114,7 @@ Sources: [container.md — Binding Scoped Singletons](repos/laravel/docs/contain
 
 **Doc says:** "You may use the `scopedIf` method to register a scoped container binding only if a binding has not already been registered for the given type."
 
-- **Given** a binding for the abstract already exists and `app.scopedIf` declares a different concrete for it.
+- **Given** a binding for the abstract already exists (registered by another provider's `register()`) and `app.scopedIf` declares a different concrete for it.
 - **When** the abstract is resolved.
 - **Then** the original binding is untouched.
 
@@ -148,7 +148,7 @@ Sources: [container.md — Extending Bindings](repos/laravel/docs/container.md#e
 
 **Doc says:** "After registering the `Report` implementations, you can assign them a tag using the `tag` method: `$this->app->tag([CpuReport::class, MemoryReport::class], 'reports');` … Once the services have been tagged, you may easily resolve them all via the container's `tagged` method."
 
-- **Given** `app.bind` registers the report implementations and `app.tag: {App\Reports\CpuReport: reports, App\Reports\MemoryReport: reports}` (the manifest map is `abstract => tag`; one `tag()` call per entry).
+- **Given** `app.bind` registers the report implementations (`{App\Reports\CpuReport: App\Reports\CpuReport, App\Reports\MemoryReport: App\Reports\MemoryReport}`) and `app.tag: {App\Reports\CpuReport: reports, App\Reports\MemoryReport: reports}` (the manifest map is `abstract => tag`; one `tag()` call per entry).
 - **When** `tagged('reports')` is resolved.
 - **Then** it yields one instance of each tagged implementation.
 
@@ -212,17 +212,17 @@ Sources: [localization.md — Configuring the Locale](repos/laravel/docs/localiz
 
 **Doc says:** "You may also configure a 'fallback language', which will be used when the default language does not contain a given translation string. Like the default language, the fallback language is also configured in the `config/app.php` configuration file, and its value is typically set using the `APP_FALLBACK_LOCALE` environment variable."
 
-- **Given** `app.setLocale: fr` and `app.setFallbackLocale: en`, with a translation key present in `en` but absent from `fr`.
+- **Given** `app.setLocale: fr` and `app.setFallbackLocale: es`, with a translation key present in `es` but absent from `fr`.
 - **When** that translation string is retrieved.
-- **Then** the `en` string is returned (the fallback language is used).
+- **Then** the `es` string is returned (the fallback language is used).
 
-Sources: [localization.md — Configuring the Locale](repos/laravel/docs/localization.md#configuring-the-locale). *Gap note:* the `setFallbackLocale` runtime method itself is not documented in the vendored docs — only the fallback-language concept and its `config/app.php` option are (§7 gap G-6).
+Sources: [localization.md — Configuring the Locale](repos/laravel/docs/localization.md#configuring-the-locale). *Gap note:* the `setFallbackLocale` runtime method itself is not documented in the vendored docs — only the fallback-language concept and its `config/app.php` option are (§7 gap G-6). *Discriminator note:* the fallback is deliberately not the framework default (`en`), so the Then can only hold when the declaration is applied.
 
 ---
 
 ## 5. Paths ([helpers.md](repos/laravel/docs/helpers.md), [structure.md](repos/laravel/docs/structure.md))
 
-Common shape for AT-18 … AT-23: the declared `use*Path` moves the directory the documented helper points at. The helpers' contract is what the docs document; the `use*Path` setters themselves are not documented in the vendored docs (§7 gap G-5).
+Common shape for AT-18 … AT-23: the declared `use*Path` moves the directory the documented helper points at. The helpers' contract is what the docs document; the `use*Path` setters themselves are not documented in the vendored docs (§7 gap G-5). The declared values deliberately differ from the framework defaults, so the helper-contract assertions can only hold when the declaration is applied.
 
 ### AT-18 — `useAppPath` moves the `app` directory
 
@@ -238,7 +238,7 @@ Sources: [helpers.md — `app_path()`](repos/laravel/docs/helpers.md#method-app-
 
 **Doc says:** "The `database_path` function returns the fully qualified path to your application's `database` directory. You may also use the `database_path` function to generate a fully qualified path to a given file within the database directory."
 
-- **Given** `app.useDatabasePath: database`.
+- **Given** `app.useDatabasePath: db`.
 - **When** `database_path()` and `database_path('factories/UserFactory.php')` are called.
 - **Then** both resolve under the declared directory.
 
@@ -258,7 +258,7 @@ Sources: [helpers.md — `lang_path()`](repos/laravel/docs/helpers.md#method-lan
 
 **Doc says:** "The `public_path` function returns the fully qualified path to your application's `public` directory. You may also use the `public_path` function to generate a fully qualified path to a given file within the public directory."
 
-- **Given** `app.usePublicPath: public`.
+- **Given** `app.usePublicPath: public/assets`.
 - **When** `public_path()` and `public_path('css/app.css')` are called.
 - **Then** both resolve under the declared directory.
 
@@ -268,7 +268,7 @@ Sources: [helpers.md — `public_path()`](repos/laravel/docs/helpers.md#method-p
 
 **Doc says:** "The `storage_path` function returns the fully qualified path to your application's `storage` directory. You may also use the `storage_path` function to generate a fully qualified path to a given file within the storage directory."
 
-- **Given** `app.useStoragePath: storage`.
+- **Given** `app.useStoragePath: storage/attachments`.
 - **When** `storage_path()` and `storage_path('app/file.txt')` are called.
 - **Then** both resolve under the declared directory.
 
@@ -278,7 +278,7 @@ Sources: [helpers.md — `storage_path()`](repos/laravel/docs/helpers.md#method-
 
 **Doc says:** "The `config_path` function returns the fully qualified path to your application's `config` directory. You may also use the `config_path` function to generate a fully qualified path to a given file within the application's configuration directory."
 
-- **Given** `app.useConfigPath: config`.
+- **Given** `app.useConfigPath: config/extra`.
 - **When** `config_path()` and `config_path('app.php')` are called.
 - **Then** both resolve under the declared directory.
 

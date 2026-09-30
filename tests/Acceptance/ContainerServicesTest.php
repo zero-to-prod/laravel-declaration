@@ -15,6 +15,7 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryR
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\NullFilter;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\ProfanityFilter;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\S3Disk;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\StoreConsumer;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\TransistorConsumer;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\HookLog;
@@ -27,7 +28,8 @@ beforeEach(function (): void {
 // extension, tagging, contextual bindings and events, sourced from
 // docs/repos/laravel/docs/container.md.
 
-// AT-10 — container.md — Extending Bindings.
+// AT-10 — container.md — Extending Bindings. The consumer is resolved by the
+// container, per the plan's When.
 it('extends a resolved service with the declared extender', function (): void {
     $file = $this->manifest(<<<'YAML'
         app:
@@ -41,16 +43,18 @@ it('extends a resolved service with the declared extender', function (): void {
 
     expect($decorated)->toBeInstanceOf(DecoratedStore::class)
         ->and($decorated->service)->toBeInstanceOf(Repository::class)
-        ->and($decorated->container)->toBe(app());
+        ->and($decorated->container)->toBe(app())
+        ->and(app(StoreConsumer::class)->store())->toBeInstanceOf(DecoratedStore::class);
 });
 
-// AT-11 — container.md — Tagging.
+// AT-11 — container.md — Tagging. The explicit self-concretes keep the test on the
+// documented surface.
 it('resolves tagged bindings together through tagged', function (): void {
     $file = $this->manifest(<<<'YAML'
         app:
           bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: ~
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: ~
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport
           tag:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: reports
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: reports
