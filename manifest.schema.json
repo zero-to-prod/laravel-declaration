@@ -402,6 +402,9 @@
         "defaultView": { "type": ["string", "null"] },
         "defaultSimpleView": { "type": ["string", "null"] },
         "useTailwind": { "type": "boolean" },
+        "useBootstrap": { "type": "boolean" },
+        "useBootstrapThree": { "type": "boolean" },
+        "useBootstrapFour": { "type": "boolean" },
         "useBootstrapFive": { "type": "boolean" }
       }
     },

@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration\Providers;
 
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Preset;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Pagination;
 
@@ -18,12 +19,10 @@ class PaginationDeclarationServiceProvider extends ServiceProvider
             return;
         }
 
-        if ($Manifest->pagination->useTailwind) {
-            Paginator::useTailwind();
-        }
-
-        if ($Manifest->pagination->useBootstrapFive) {
-            Paginator::useBootstrapFive();
+        foreach (Pagination::selected(Preset::class) as $method) {
+            if ($Manifest->pagination->{$method}) {
+                Paginator::{$method}();
+            }
         }
 
         if ($Manifest->pagination->defaultView !== null) {

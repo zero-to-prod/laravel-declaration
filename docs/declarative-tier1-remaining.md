@@ -8,17 +8,11 @@ Design rules apply: **key = native method name** (Rule 1), **pass references thr
 
 ## 1. Partially Mapped — Close the Remaining Native Surface
 
-### 1.1 `pagination:` (`src/Pagination.php`, `Providers/PaginationDeclarationServiceProvider.php`)
+### 1.1 `pagination:` (`src/Pagination.php`, `Providers/PaginationDeclarationServiceProvider.php`) — **closed**
 
-Mapped: `defaultView`, `defaultSimpleView`, `useTailwind`, `useBootstrapFive`.
+Implemented by [declarative-pagination.md](declarative-pagination.md): all five presets (`useTailwind`, `useBootstrap`, `useBootstrapThree`, `useBootstrapFour`, `useBootstrapFive`) plus `defaultView`/`defaultSimpleView` are mapped; the provider dispatches the `#[Preset]` attribute-selected properties dynamically (`Paginator::{$method}()`, the `Kernel`/`Router` `selected()` pattern).
 
-| Missing native method | Signature (v13.33.0, `AbstractPaginator.php:628-667`) | Purpose |
-|---|---|---|
-| `AbstractPaginator::useBootstrapThree()` | `useBootstrapThree(): void` | Bootstrap 3 views (`pagination::bootstrap-3`) |
-| `AbstractPaginator::useBootstrapFour()` | `useBootstrapFour(): void` | Bootstrap 4 views (`pagination::bootstrap-4`) |
-| `AbstractPaginator::useBootstrap()` | `useBootstrap(): void` | Unversioned alias — delegates to `useBootstrapFour()` |
-
-Each preset is a single boolean `view:`-style key that sets `defaultView`/`defaultSimpleView` in one native call. The remaining `AbstractPaginator` statics (`resolveCurrentPath`, `currentPageResolver`, `queryStringResolver`, …) are runtime plumbing and stay unmapped.
+Decided non-goal (runtime plumbing, stays unmapped): the remaining `AbstractPaginator` statics (`resolveCurrentPath`, `currentPageResolver`, `queryStringResolver`, …) — a manifest should not declare them.
 
 ### 1.2 `gate:` (`src/Gate.php`, `Providers/GateDeclarationServiceProvider.php`)
 

@@ -4,85 +4,77 @@ A declarative plugin for Laravel.
 
 ## Roadmap
 
-Tier 1 checklist — titles and statuses mapped line by line in
-[docs/declarative-framework-api-mapping.md](docs/declarative-framework-api-mapping.md).
-Legend: `[x]` implemented (Tier 1 API Map) · `[/]` partially mapped · `[ ]` missing.
-Implemented and partial features link to their section below; unchecked features are not
-yet implemented, so no section exists for them yet — their proposed manifest keys are
-inventoried in [docs/declarative-tier1-remaining.md](docs/declarative-tier1-remaining.md).
-Tier 2 seams (`DeclaredView`, `DeclaredRequest`, `DeclaredQuery`, `DeclaredModel`,
-`DeclaredAction`) are outside this checklist.
 
-### Domain 1: Core Architecture, Container & Configuration
-- [x] [Service Container & Application](#application) — `app:`
-- [x] [Configuration Repository](#config) — `config:`
-- [x] [Service Providers](#providers) — `providers:`
+### Core Architecture, Container & Configuration
+- [x] [Service Container & Application](#application): `app:` | AC
+- [x] [Configuration Repository](#config): `config:`
+- [x] [Service Providers](#providers):`providers:`
 
-### Domain 2: HTTP Kernel & Middleware Pipeline
-- [x] [HTTP Kernel & Middleware Pipeline](#kernel) — `kernel:`
-- [ ] CSRF Verification & Route Exclusions — `csrf:`
-- [ ] HTTP Precognition — `precognition:`
+### HTTP Kernel & Middleware Pipeline
+- [x] [HTTP Kernel & Middleware Pipeline](#kernel): `kernel:`
+- [ ] CSRF Verification & Route Exclusions: `csrf:`
+- [ ] HTTP Precognition: `precognition:`
 
-### Domain 3: HTTP Routing, Pipeline, URLs & Throttling
-- [x] [Router Configuration & Binders](#router) — `router:`
-- [x] [Route Registration](#routes) — `routes:`
-- [ ] URL Generation & Signed URLs — `url:`
-- [ ] Rate Limiter — `rate_limiter:`
+### HTTP Routing, Pipeline, URLs & Throttling
+- [x] [Router Configuration & Binders](#router): `router:`
+- [x] [Route Registration](#routes): `routes:`
+- [ ] URL Generation & Signed URLs: `url:`
+- [ ] Rate Limiter: `rate_limiter:`
 
-### Domain 4: View Layer, Blade Engine & Presentation
-- [x] [View Factory & Namespaces](#view) — `view:`
-- [x] [Blade Compiler & Directives](#blade) — `blade:`
-- [/] [Pagination View Resolvers & Styling](#pagination) — `pagination:`
+### View Layer, Blade Engine & Presentation
+- [x] [View Factory & Namespaces](#view): `view:` | AC
+- [x] [Blade Compiler & Directives](#blade): `blade:` | AC
+- [x] [Pagination View Resolvers & Styling](#pagination): `pagination:`
 
-### Domain 5: Request Lifecycle, Input Resolution & Validation
-- [x] [Form Request Declaration](#requests) — `requests:`
-- [x] [Validation Factory & Custom Rules](#requests) — `validator:` (documented under Requests)
+### Request Lifecycle, Input Resolution & Validation
+- [x] [Form Request Declaration](#requests): `requests:`
+- [x] [Validation Factory & Custom Rules](#requests): `validator:` (documented under Requests) | AC
 
-### Domain 6: Response Generation, Redirects & Transport
-- [/] [Response Factory & Macros](#response) — `responses:`
-- [ ] Redirector & Redirect Responses — `redirect:`
-- [ ] Cookies & Cookie Jar — `cookie:`
-- [ ] API Resources & JSON Serialization — `resources:`
+### Response Generation, Redirects & Transport
+- [/] [Response Factory & Macros](#response): `responses:`
+- [ ] Redirector & Redirect Responses: `redirect:`
+- [ ] Cookies & Cookie Jar: `cookie:`
+- [ ] API Resources & JSON Serialization: `resources:`
 
-### Domain 7: Database Connection, Query Builder, Transactions & Seeding
-- [/] [Database Connection & Transactions](#database) — `db:`
-- [ ] Database Query Builder (Table-Level Queries) — `db_queries:` / `queries.table`
-- [x] [Database Schema & Blueprint](#schema) — `schema:`
-- [ ] Database Seeding & Factories — `seeds:`
+### Database Connection, Query Builder, Transactions & Seeding
+- [/] [Database Connection & Transactions](#database): `db:`
+- [ ] Database Query Builder (Table-Level Queries): `db_queries:` / `queries.table`
+- [x] [Database Schema & Blueprint](#schema): `schema:`
+- [ ] Database Seeding & Factories: `seeds:`
 
-### Domain 8: Eloquent ORM & Query Builder
-- [x] [Eloquent Model Configuration & Lifecycle](#models) — `models:`
-- [/] [Eloquent Query Builder (Model Queries)](#queries) — `queries:`
+### Eloquent ORM & Query Builder
+- [x] [Eloquent Model Configuration & Lifecycle](#models): `models:`
+- [/] [Eloquent Query Builder (Model Queries)](#queries): `queries:`
 
-### Domain 9: Security, Identity & Access Control
-- [/] [Authorization Gates & Policies](#gate) — `gate:`
-- [ ] Authentication Manager & Guards — `auth:`
-- [ ] Session Store & Flash Data — `session:`
-- [ ] Hashing & Encryption — `hashing:`, `encryption:`
-- [ ] API Token Authentication (Sanctum) — `sanctum:`
+### Security, Identity & Access Control
+- [/] [Authorization Gates & Policies](#gate): `gate:`
+- [ ] Authentication Manager & Guards: `auth:`
+- [ ] Session Store & Flash Data: `session:`
+- [ ] Hashing & Encryption: `hashing:`, `encryption:`
+- [ ] API Token Authentication (Sanctum): `sanctum:`
 
-### Domain 10: Events, Async & Realtime Systems
-- [ ] Events & Dispatcher — `events:`
-- [ ] Queues, Workers & Bus — `queues:`, `bus:`
-- [ ] Mail & Mailables — `mail:`
-- [ ] Notifications & Channels — `notifications:`
-- [ ] Broadcasting & WebSockets — `broadcasting:`
+### Events, Async & Realtime Systems
+- [ ] Events & Dispatcher: `events:`
+- [ ] Queues, Workers & Bus: `queues:`, `bus:`
+- [ ] Mail & Mailables: `mail:`
+- [ ] Notifications & Channels: `notifications:`
+- [ ] Broadcasting & WebSockets: `broadcasting:`
 
-### Domain 11: Operations, Console, Storage & Systems
-- [ ] Artisan Console Commands — `commands:`
-- [ ] Task Scheduling — `schedule:`
-- [ ] Cache Repository & Stores — `cache:`
-- [ ] Filesystem & Storage Disks — `storage:`
-- [ ] Localization & Translation Loader — `lang:`
-- [ ] Logging & Context Repository — `logging:`, `context:`
-- [ ] Application Telemetry & Monitoring (Pulse) — `pulse:`
+### Operations, Console, Storage & Systems
+- [ ] Artisan Console Commands: `commands:`
+- [ ] Task Scheduling: `schedule:`
+- [ ] Cache Repository & Stores: `cache:`
+- [ ] Filesystem & Storage Disks: `storage:`
+- [ ] Localization & Translation Loader: `lang:`
+- [ ] Logging & Context Repository: `logging:`, `context:`
+- [ ] Application Telemetry & Monitoring (Pulse): `pulse:`
 
-### Domain 12: Processes, Concurrency & Extensibility
-- [ ] Processes & Concurrency — `process:`, `concurrency:`
-- [ ] HTTP Client Factory — `http:`
-- [ ] Exception Handling & Reporting — `exceptions:`
-- [ ] Feature Flags — `features:`
-- [ ] Full-Text Search (Scout) — `scout:`
+### Processes, Concurrency & Extensibility
+- [ ] Processes & Concurrency: `process:`, `concurrency:`
+- [ ] HTTP Client Factory: `http:`
+- [ ] Exception Handling & Reporting: `exceptions:`
+- [ ] Feature Flags: `features:`
+- [ ] Full-Text Search (Scout): `scout:`
 
 ## Requirements
 
@@ -334,12 +326,15 @@ Complete structure:
 ```yaml
 pagination:
   useTailwind: true                   # -> Paginator::useTailwind()
+  useBootstrap: true                  # -> Paginator::useBootstrap() — alias for useBootstrapFour()
+  useBootstrapThree: true             # -> Paginator::useBootstrapThree()
+  useBootstrapFour: true              # -> Paginator::useBootstrapFour()
   useBootstrapFive: true              # -> Paginator::useBootstrapFive()
   defaultView: pagination::custom     # -> Paginator::defaultView($view)
   defaultSimpleView: pagination::simple-custom   # -> Paginator::defaultSimpleView($view)
 ```
 
-`useBootstrapThree()` / `useBootstrapFour()` / `useBootstrap()` are not yet declarable (docs/declarative-tier1-remaining.md).
+Presets apply in the order above and each overwrites both default views, so the **last truthy preset wins**; `defaultView` / `defaultSimpleView` apply after the presets and override them. Omitted or `false` presets are never applied.
 
 ## Kernel
 

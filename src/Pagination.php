@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Preset;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Pagination
@@ -21,13 +22,18 @@ final readonly class Pagination
     #[Describe([Describe::nullable => true])]
     public ?string $defaultSimpleView;
 
-    public const string useTailwind = 'useTailwind';
-
-    #[Describe([Describe::default => false])]
+    #[Preset, Describe([Describe::default => false])]
     public bool $useTailwind;
 
-    public const string useBootstrapFive = 'useBootstrapFive';
+    #[Preset, Describe([Describe::default => false])]
+    public bool $useBootstrap;
 
-    #[Describe([Describe::default => false])]
+    #[Preset, Describe([Describe::default => false])]
+    public bool $useBootstrapThree;
+
+    #[Preset, Describe([Describe::default => false])]
+    public bool $useBootstrapFour;
+
+    #[Preset, Describe([Describe::default => false])]
     public bool $useBootstrapFive;
 }
