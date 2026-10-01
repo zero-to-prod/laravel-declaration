@@ -2,11 +2,19 @@
 
 declare(strict_types=1);
 
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\UserRepository;
+
 // Acceptance tests for src/View.php — docs/declarative-view-acceptance-test-plan.md.
 // Every behavior is sourced from docs/repos/laravel/docs/views.md and
 // docs/repos/laravel/docs/packages.md, the systems of record. Fixture views render from
 // resources/declared-views and resources/package-views (copied into the Testbench skeleton
 // by tests/TestCase.php); fixture composers and creators live in Fixtures/App/View/Acceptance.
+//
+// Setup dependency (§6 G-1): every documented-behavior manifest below also declares the
+// undocumented view.addLocation so its fixture views are findable — the skeleton's default
+// path is resources/views, and these fixtures live in resources/declared-views. addLocation
+// is itself an undocumented surface (G-1) with no acceptance test; it appears here purely
+// as test setup, never as the behavior under test.
 //
 // AT-03 (closure composer) has no test here: the declared `composer` value is a string the
 // Factory resolves as a class composer, so the documented closure form is not declarable —
@@ -34,7 +42,9 @@ it('makes the declared shared data available to every rendered view', function (
 
 // AT-02 — views.md — View Composers: "the compose method of the App\View\Composers\
 // ProfileComposer class will be executed each time the profile view is being rendered" —
-// binding `count` like the doc's example.
+// binding `count` derived from the repository like the doc's example. The count varies per
+// render (the Factory builds a fresh composer per render), so the second render showing the
+// next count proves compose ran again rather than replaying memoized data.
 it('runs the declared composer each time its view is rendered', function (): void {
     $file = $this->manifest(<<<'YAML'
         view:
@@ -46,23 +56,30 @@ it('runs the declared composer each time its view is rendered', function (): voi
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(view('profile')->render())->toBe('composed')
-        ->and(view('profile')->render())->toBe('composed');
+    $first = view('profile')->render();
+    $second = view('profile')->render();
+
+    expect((int) $first)->toBeGreaterThan(0)
+        ->and($second)->toBe((string) ((int) $first + 1));
 });
 
 // AT-04 — views.md — View Composers: "all view composers are resolved via the service
 // container, so you may type-hint any dependencies you need within a composer's
-// constructor" — the count only appears when the container injected UserRepository.
+// constructor" — the same ProfileComposer AT-02 exercises. The repository is bound in the
+// container to a fixed count, so the output shows it only when the container injected the
+// composer's constructor dependency.
 it('resolves the declared composer through the service container', function (): void {
     $file = $this->manifest(<<<'YAML'
         view:
           addLocation:
             - resources/declared-views
           composer:
-            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ContainerComposer
+            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+    $this->app->bind(UserRepository::class, fn (): UserRepository => new UserRepository(42));
 
     expect(view('profile')->render())->toBe('42');
 });

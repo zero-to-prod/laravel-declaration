@@ -1,1 +1,1 @@
-<x-panel>inside</x-panel>
+<x-panel /><x-badge/>

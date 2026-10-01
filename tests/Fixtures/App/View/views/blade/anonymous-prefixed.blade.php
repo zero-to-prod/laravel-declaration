@@ -1,1 +1,1 @@
-<x-dashboard::panel>inside</x-dashboard::panel>
+<x-dashboard::panel />

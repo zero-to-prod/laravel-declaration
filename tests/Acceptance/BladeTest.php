@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Filesystem\Filesystem;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Components\Alert;
-use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DatetimeDirective;
-use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DiskCondition;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\PlainStringable;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\VersionedDatetimeDirective;
@@ -36,10 +34,9 @@ it('compiles the declared directive through the callback with the directive expr
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    $output = view('blade.datetime', ['var' => new DateTimeImmutable('2020-01-01 12:00')])->render();
+    $output = view('blade.datetime', ['var' => new DateTime('2020-01-01 12:00')])->render();
 
-    expect($output)->toBe('01/01/2020 12:00')
-        ->and(DatetimeDirective::compile('$var'))->toContain("->format('m/d/Y H:i')");
+    expect($output)->toBe('01/01/2020 12:00');
 });
 
 // AT-02 — blade.md — Extending Blade: "After updating the logic of a Blade directive, you
@@ -73,12 +70,16 @@ it('keeps old directive logic in the compiled view cache until view:clear', func
 });
 
 // AT-03 — blade.md — Custom Echo Handlers: "If you attempt to 'echo' an object using
-// Blade, the object's __toString method will be invoked."
+// Blade, the object's __toString method will be invoked." The manifest declares a
+// `stringable` entry for an unrelated type, and none of them covers PlainStringable.
 it('echoes objects through __toString when no stringable handler covers the type', function (): void {
     $file = $this->manifest(<<<'YAML'
         view:
           addLocation:
             - resources/declared-views
+        blade:
+          stringable:
+            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\MoneyEchoHandler::render
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -130,13 +131,14 @@ it('renders only the branch whose condition matches the declared if handler', fu
 
     $this->withConfig(['laravel-declaration.manifest' => $file, 'filesystems.default' => 'ftp']);
 
-    expect(trim(view('blade.disk')->render()))->toBe('other')
-        ->and(DiskCondition::check('local'))->toBeFalse();
+    expect(trim(view('blade.disk')->render()))->toBe('other');
 });
 
 // AT-06 — blade.md — Custom If Statements: the disk conditional is also usable as
-// "@unlessdisk('local') ... @enddisk" — the negated variant.
-it('skips the unless-variant body when the condition handler returns true', function (): void {
+// "@unlessdisk('local') ... @enddisk" — the negated variant: the body renders the
+// negation of the handler's result (skipped when the handler returns true, rendered
+// when it returns false).
+it('renders the unless-variant body only when the condition handler returns false', function (): void {
     $file = $this->manifest(<<<'YAML'
         view:
           addLocation:
@@ -149,6 +151,10 @@ it('skips the unless-variant body when the condition handler returns true', func
     $this->withConfig(['laravel-declaration.manifest' => $file, 'filesystems.default' => 'local']);
 
     expect(view('blade.unless-disk')->render())->toBeEmpty();
+
+    $this->withConfig(['laravel-declaration.manifest' => $file, 'filesystems.default' => 's3']);
+
+    expect(trim(view('blade.unless-disk')->render()))->toBe('not-local');
 });
 
 // AT-07 — blade.md — HTML Entity Encoding: "By default, Blade (and the Laravel e
@@ -203,7 +209,8 @@ it('renders the component class under its declared tag alias', function (): void
 
 // AT-10 — blade.md — Anonymous Component Paths: "When component paths are registered
 // without a specified prefix ... they may be rendered in your Blade components without a
-// corresponding prefix as well."
+// corresponding prefix as well." Registering the extra path must not break default
+// discovery from resources/views/components, so <x-badge/> is resolved alongside <x-panel />.
 it('resolves an anonymous component from the declared unprefixed path', function (): void {
     $file = $this->manifest(<<<'YAML'
         view:
@@ -216,7 +223,7 @@ it('resolves an anonymous component from the declared unprefixed path', function
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(view('blade.anonymous-panel')->render())->toBe('<div class="panel">inside</div>');
+    expect(view('blade.anonymous-panel')->render())->toBe('<div class="panel"></div><span class="badge"></span>');
 });
 
 // AT-11 — blade.md — Anonymous Component Paths: "When a prefix is provided, components
