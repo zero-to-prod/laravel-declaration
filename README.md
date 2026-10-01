@@ -7,8 +7,8 @@ A declarative plugin for Laravel.
 
 ### Core Architecture, Container & Configuration
 - [x] [Service Container & Application](#application): `app:` | AC
-- [x] [Configuration Repository](#config): `config:`
-- [x] [Service Providers](#providers):`providers:`
+- [x] [Configuration Repository](#config): `config:` | AC
+- [x] [Service Providers](#providers):`providers:` | AC
 
 ### HTTP Kernel & Middleware Pipeline
 - [x] [HTTP Kernel & Middleware Pipeline](#kernel): `kernel:`
