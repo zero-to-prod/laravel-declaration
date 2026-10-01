@@ -8,11 +8,11 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\Ri
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\ServerProviderConsumer;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\Services\DigitalOceanServerProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\Services\Riak\Connection;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PhaseLog;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher;
-use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\HookLog;
 
 beforeEach(function (): void {
-    HookLog::reset();
+    PhaseLog::reset();
 });
 
 // docs/declarative-providers-acceptance-test-plan.md — the manifest's `providers:` list,
@@ -28,7 +28,7 @@ it('loads the declared provider — its register() and boot() both ran during th
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(HookLog::entries())->toBe(['register', 'boot']);
+    expect(PhaseLog::entries())->toBe(['register', 'boot']);
 });
 
 // AT-02 — providers.md — The Register Method. The doc's RiakServiceProvider defines an
@@ -87,7 +87,7 @@ it('calls boot() after all other providers are registered, so every binding is a
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(HookLog::entries())->toBe([
+    expect(PhaseLog::entries())->toBe([
         'register:first',
         'register:second',
         'boot:first',
