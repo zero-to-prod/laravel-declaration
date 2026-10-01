@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelDeclaration\Attributes;
+namespace ZeroToProd\LaravelDeclaration\Attributes\Attributes;
 
 use Attribute;
 use Illuminate\Database\Schema\Blueprint;

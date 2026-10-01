@@ -1,0 +1,53 @@
+schema:
+  connection: ~
+  dropIfExists:
+    - scratch
+  drop:
+    - legacy
+  rename:
+    - from: old_users
+      to: users
+  create:
+    people:
+      id: ~
+      string:
+        - column: title
+          length: 100
+        - column: user_id
+      timestamps: ~
+  table:
+    ghost:
+      string:
+        - column: phantom
+    people:
+      string:
+        - column: nickname
+          length: 64
+        - column: title
+          length: 200
+          change: true
+      integer:
+        - column: priority
+          default: 0
+      dropColumn:
+        - obsolete
+      renameColumn:
+        from: user_id
+        to: owner_id
+      renameIndex:
+        from: people_title_index
+        to: people_title_ft
+      dropIndex:
+        - people_title_index
+      index:
+        - columns: [owner_id, priority]
+          nullsNotDistinct: true
+      foreign:
+        - columns: owner_id
+          on: people
+          references: id
+          cascadeOnDelete: true
+      dropTimestamps: ~
+    users:
+      dropForeign:
+        - user_id

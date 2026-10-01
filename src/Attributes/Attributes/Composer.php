@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelDeclaration\Attributes;
+namespace ZeroToProd\LaravelDeclaration\Attributes\Attributes;
 
 use Attribute;
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
-final class Location {}
+final class Composer {}

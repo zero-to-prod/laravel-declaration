@@ -4,23 +4,32 @@ declare(strict_types=1);
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\ColumnDefinition;
-use Illuminate\Database\Schema\ForeignIdColumnDefinition;
+use Illuminate\Database\Schema\ForeignKeyDefinition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use ZeroToProd\LaravelDeclaration\Attributes\ColumnModifier;
-use ZeroToProd\LaravelDeclaration\Attributes\ColumnType;
-use ZeroToProd\LaravelDeclaration\Attributes\ForeignKeyModifier;
-use ZeroToProd\LaravelDeclaration\Attributes\TableConstraint;
-use ZeroToProd\LaravelDeclaration\Attributes\TableOption;
-use ZeroToProd\LaravelDeclaration\ColumnDefinitionModel;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ColumnModifier;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ColumnType;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ForeignKeyModifier;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\TableConstraint;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\TableOption;
+use ZeroToProd\LaravelDeclaration\BlueprintAction;
+use ZeroToProd\LaravelDeclaration\Internal\BlueprintMethodKind;
+use ZeroToProd\LaravelDeclaration\Internal\GuardKind;
 use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Schema;
 use ZeroToProd\LaravelDeclaration\TableDefinition;
+use ZeroToProd\LaravelDeclaration\TableRename;
+
+function blueprint(): Blueprint
+{
+    return createTestBlueprint('people');
+}
 
 test('it creates declared tables, columns, indexes, and constraints via declaration:migrate', function (): void {
     SchemaFacade::dropIfExists('users');
     SchemaFacade::dropIfExists('todos');
     SchemaFacade::dropIfExists('tags');
+    SchemaFacade::dropIfExists('audits');
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
@@ -28,16 +37,18 @@ test('it creates declared tables, columns, indexes, and constraints via declarat
 
     expect(SchemaFacade::hasTable('users'))->toBeFalse()
         ->and(SchemaFacade::hasTable('todos'))->toBeFalse()
-        ->and(SchemaFacade::hasTable('tags'))->toBeFalse();
+        ->and(SchemaFacade::hasTable('tags'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('audits'))->toBeFalse();
 
     $this->artisan('declaration:migrate')
         ->expectsOutputToContain('Created')
-        ->expectsOutputToContain('Schema migration complete. [3] table(s) created.')
+        ->expectsOutputToContain('Schema migration complete. [4] table(s) created.')
         ->assertSuccessful();
 
     expect(SchemaFacade::hasTable('users'))->toBeTrue()
         ->and(SchemaFacade::hasTable('todos'))->toBeTrue()
         ->and(SchemaFacade::hasTable('tags'))->toBeTrue()
+        ->and(SchemaFacade::hasTable('audits'))->toBeTrue()
         ->and(
             SchemaFacade::hasColumns('users', [
                 'id',
@@ -70,12 +81,6 @@ test('it creates declared tables, columns, indexes, and constraints via declarat
             ])
         )->toBeTrue();
 
-    // Verify columns on users
-
-    // Verify columns on todos
-
-    // Verify columns on tags
-
     // Verify unique index on users.email
     $userIndexes = SchemaFacade::getIndexes('users');
     $emailIndex = collect($userIndexes)->first(fn (array $idx): bool => $idx['columns'] === ['email']);
@@ -100,6 +105,7 @@ test('it applies schema idempotently without destroying existing data', function
     SchemaFacade::dropIfExists('users');
     SchemaFacade::dropIfExists('todos');
     SchemaFacade::dropIfExists('tags');
+    SchemaFacade::dropIfExists('audits');
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
@@ -129,6 +135,7 @@ test('declaration:migrate works via laravel-declaration:migrate alias', function
     SchemaFacade::dropIfExists('users');
     SchemaFacade::dropIfExists('todos');
     SchemaFacade::dropIfExists('tags');
+    SchemaFacade::dropIfExists('audits');
 
     $this->withConfig([
         'laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml',
@@ -136,7 +143,7 @@ test('declaration:migrate works via laravel-declaration:migrate alias', function
 
     $this->artisan('laravel-declaration:migrate')
         ->expectsOutputToContain('Created')
-        ->expectsOutputToContain('Schema migration complete. [3] table(s) created.')
+        ->expectsOutputToContain('Schema migration complete. [4] table(s) created.')
         ->assertSuccessful();
 
     $this->artisan('laravel-declaration:migrate')
@@ -158,30 +165,288 @@ test('declaration:migrate outputs info message when no schema block is present',
 test('it throws LogicException during manifest hydration when table key is unknown', function (): void {
     Manifest::from([
         'schema' => [
-            'tables' => [
+            'create' => [
                 'users' => [
                     'nonExistentBlueprintMethod' => true,
                 ],
             ],
         ],
     ]);
-})->throws(LogicException::class, 'Unknown Blueprint method or table option [nonExistentBlueprintMethod].');
+})->throws(LogicException::class, 'Unknown Blueprint method [nonExistentBlueprintMethod].');
 
-test('it throws LogicException during manifest hydration when column method is unknown', function (): void {
-    Manifest::from([
-        'schema' => [
-            'tables' => [
-                'users' => [
-                    'string' => [
-                        'column' => 'email',
-                    ],
-                ],
-            ],
-        ],
+test('it throws LogicException during manifest hydration when the Blueprint method is unknown', function (): void {
+    expect(fn (): BlueprintAction => BlueprintAction::fromDefinition('invalidBlueprintCol', null))
+        ->toThrow(LogicException::class, 'Unknown Blueprint method [invalidBlueprintCol].');
+});
+
+test('it executes drop, dropIfExists, rename, create, and table in fixed order', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema-alter.yml']);
+
+    SchemaFacade::dropIfExists('users');
+    SchemaFacade::dropIfExists('people');
+    SchemaFacade::create('legacy', fn (Blueprint $table) => $table->id());
+    SchemaFacade::create('old_users', fn (Blueprint $table) => $table->id());
+
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Dropped if exists')
+        ->expectsOutputToContain('Dropped')
+        ->expectsOutputToContain('Renamed to users')
+        ->expectsOutputToContain('Created')
+        ->assertSuccessful();
+
+    expect(SchemaFacade::hasTable('scratch'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('legacy'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('old_users'))->toBeFalse()
+        ->and(SchemaFacade::hasTable('users'))->toBeTrue()
+        ->and(SchemaFacade::hasTable('people'))->toBeTrue();
+});
+
+test('it alters an existing table idempotently through derived native guards', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema-alter.yml']);
+
+    SchemaFacade::create('legacy', fn (Blueprint $table) => $table->id());
+    SchemaFacade::create('old_users', fn (Blueprint $table) => $table->id());
+    SchemaFacade::create('people', function (Blueprint $table): void {
+        $table->id();
+        $table->string('title', 100);
+        $table->string('user_id');
+        $table->string('obsolete');
+        $table->index('title', 'people_title_index');
+        $table->timestamps();
+    });
+
+    $this->artisan('declaration:migrate')->assertSuccessful();
+
+    expect(SchemaFacade::hasColumns('people', ['nickname', 'priority', 'owner_id']))
+        ->toBeTrue()
+        ->and(SchemaFacade::hasColumn('people', 'obsolete'))->toBeFalse()
+        ->and(SchemaFacade::hasColumn('people', 'user_id'))->toBeFalse()
+        ->and(SchemaFacade::getColumnListing('people'))->toContain('owner_id')->not->toContain('obsolete')
+        ->and(collect(SchemaFacade::getIndexes('people'))->first(
+            fn (array $index): bool => $index['name'] === 'people_owner_id_priority_index'
+        ))->not->toBeNull()
+        ->and(collect(SchemaFacade::getForeignKeys('people'))->first(
+            fn (array $fk): bool => $fk['columns'] === ['owner_id']
+        )['on_delete'])->toBe('cascade');
+
+    // Idempotent re-run: every guard fails, zero actions dispatch.
+    $before = SchemaFacade::getColumnListing('people');
+    SchemaFacade::create('legacy', fn (Blueprint $table) => $table->id());
+
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Rename skipped')
+        ->assertSuccessful();
+
+    expect(SchemaFacade::getColumnListing('people'))->toBe($before);
+});
+
+test('it dispatches the standalone foreign method onto ForeignKeyDefinition modifiers', function (): void {
+    SchemaFacade::dropIfExists('users');
+    SchemaFacade::dropIfExists('audits');
+
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema.yml']);
+
+    $this->artisan('declaration:migrate')->assertSuccessful();
+
+    $foreignKey = collect(SchemaFacade::getForeignKeys('audits'))->first(
+        fn (array $fk): bool => $fk['columns'] === ['user_id']
+    );
+
+    expect($foreignKey)->not->toBeNull()
+        ->and($foreignKey['foreign_table'])->toBe('users')
+        ->and($foreignKey['foreign_columns'])->toBe(['id'])
+        ->and($foreignKey['on_delete'])->toBe('cascade');
+});
+
+test('it dispatches guarded actions only when the derived native guard passes', function (): void {
+    SchemaFacade::dropIfExists('widget');
+
+    $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/schema-none.yml']);
+
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Altered [1] action(s)')
+        ->assertSuccessful();
+
+    expect(SchemaFacade::hasColumn('widget', 'uuid'))->toBeTrue();
+});
+
+test('it throws when foreign key modifiers target a non-foreign-key column', function (): void {
+    // Hydration accepts FK modifiers for column factories — the chain may transition to
+    // ForeignKeyDefinition via constrained()/references().
+    $action = BlueprintAction::fromDefinition('string', ['column' => 'x', 'cascadeOnDelete' => true]);
+
+    // Execution: the chain target is a plain ColumnDefinition — loud failure (Rule 7).
+    expect(fn (): mixed => $action->apply(blueprint()))->toThrow(LogicException::class);
+
+    // Execution: FK modifier declared before `constrained` on a ForeignIdColumnDefinition.
+    $action = BlueprintAction::fromDefinition('foreignId', ['column' => 'user_id', 'cascadeOnDelete' => true, 'constrained' => true]);
+
+    expect(fn (): mixed => $action->apply(blueprint()))->toThrow(LogicException::class);
+});
+
+test('it throws on unknown modifier keys and lifecycle verbs', function (): void {
+    expect(fn (): BlueprintAction => BlueprintAction::fromDefinition('string', ['column' => 'x', 'nulable' => true]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): TableDefinition => TableDefinition::from(['create' => []]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): TableDefinition => TableDefinition::from(['drop' => []]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): TableDefinition => TableDefinition::from(['build' => null]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): TableDefinition => TableDefinition::from(['addFluentCommands' => null]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): TableDefinition => TableDefinition::from(['getColumns' => null]))
+        ->toThrow(LogicException::class)
+        ->and(fn (): BlueprintAction => BlueprintAction::fromDefinition('dropColumn', ['columns' => 'x', 'bogus' => true]))
+        ->toThrow(LogicException::class, 'does not accept modifiers')
+        ->and(fn (): BlueprintAction => BlueprintAction::fromDefinition('dropColumn', ['columns' => 'x', 'change' => true]))
+        ->toThrow(LogicException::class, 'does not accept modifiers');
+});
+
+test('it dispatches index modifiers, addColumn, rawColumn, and rawIndex onto the blueprint', function (): void {
+    $table = blueprint();
+
+    TableDefinition::from([
+        'index' => [['columns' => ['title'], 'nullsNotDistinct' => true]],
+        'rawIndex' => [['expression' => 'lower(title)', 'name' => 'people_title_lower_idx']],
+        'addColumn' => [['type' => 'integer', 'name' => 'count']],
+        'rawColumn' => [['column' => 'legacy_state', 'definition' => 'VARCHAR(20)']],
+    ])->apply($table);
+
+    $commands = collect($table->getCommands())->map(fn ($command) => $command->toArray());
+
+    expect($commands->firstWhere('name', 'index')['nullsNotDistinct'])->toBeTrue()
+        ->and($commands->firstWhere('name', 'index')['columns'])->toBe(['title'])
+        ->and($commands->firstWhere('index', 'people_title_lower_idx'))->not->toBeNull()
+        ->and(collect($table->getColumns())->first(fn ($column): bool => $column['type'] === 'raw')['name'])->toBe('legacy_state')
+        ->and(collect($table->getColumns())->first(fn ($column): bool => $column['type'] === 'integer')['name'])->toBe('count');
+});
+
+test('it derives native guards per alter action', function (): void {
+    $add = BlueprintAction::fromDefinition('integer', ['column' => 'priority', 'default' => 0]);
+    $change = BlueprintAction::fromDefinition('string', ['column' => 'title', 'length' => 200, 'change' => true]);
+    $drop = BlueprintAction::fromDefinition('dropColumn', ['columns' => ['obsolete']]);
+    $rename = BlueprintAction::fromDefinition('renameColumn', ['from' => 'user_id', 'to' => 'owner_id']);
+    $morphs = BlueprintAction::fromDefinition('morphs', ['name' => 'taggable']);
+    $timestamps = BlueprintAction::fromDefinition('timestamps', null);
+    $fk = BlueprintAction::fromDefinition('foreign', ['columns' => 'owner_id', 'references' => 'people', 'on' => 'id']);
+    $index = BlueprintAction::fromDefinition('index', ['columns' => 'title']);
+    $namedIndex = BlueprintAction::fromDefinition('index', ['columns' => ['owner_id'], 'name' => 'my_idx']);
+    $addColumn = BlueprintAction::fromDefinition('addColumn', ['type' => 'geometry', 'name' => 'location', 'parameters' => ['srid' => 4326]]);
+    $foreignIdFor = BlueprintAction::fromDefinition('foreignIdFor', ['model' => 'SomeModel']);
+    $dropForeignIdFor = BlueprintAction::fromDefinition('dropForeignIdFor', 'SomeModel');
+    $dropForeign = BlueprintAction::fromDefinition('dropForeign', 'owner_id');
+    $foreignNull = BlueprintAction::fromDefinition('foreign', null);
+    $temporary = BlueprintAction::fromDefinition('temporary', true);
+
+    expect($add->guards()[0]->kind)->toBe(GuardKind::ColumnMissing)
+        ->and($add->guards()[0]->target)->toBe('priority')
+        ->and($change->guards()[0]->kind)->toBe(GuardKind::ColumnExists)
+        ->and($change->guards()[0]->target)->toBe('title')
+        ->and($drop->guards()[0]->kind)->toBe(GuardKind::ColumnExists)
+        ->and($drop->guards()[0]->target)->toBe(['obsolete'])
+        ->and($rename->guards()[0]->kind)->toBe(GuardKind::ColumnExists)
+        ->and($rename->guards()[0]->target)->toBe('user_id')
+        ->and($rename->guards()[1]->kind)->toBe(GuardKind::ColumnMissing)
+        ->and($rename->guards()[1]->target)->toBe('owner_id')
+        ->and($morphs->guards()[0]->kind)->toBe(GuardKind::ColumnMissing)
+        ->and($morphs->guards()[0]->target)->toBe('taggable_id')
+        ->and($timestamps->guards()[0]->target)->toBe('created_at')
+        ->and($fk->guards()[0]->kind)->toBe(GuardKind::ForeignKeyMissing)
+        ->and($fk->guards()[0]->target)->toBe(['owner_id'])
+        ->and($index->guards()[0]->kind)->toBe(GuardKind::IndexMissing)
+        ->and($index->guards()[0]->target)->toBe(['title'])
+        ->and($namedIndex->guards()[0]->target)->toBe('my_idx')
+        ->and($addColumn->guards()[0]->kind)->toBe(GuardKind::ColumnMissing)
+        ->and($addColumn->guards()[0]->target)->toBe('location')
+        ->and($foreignIdFor->guards()[0]->kind)->toBe(GuardKind::None)
+        ->and($dropForeignIdFor->guards())->toBeEmpty()
+        ->and($dropForeign->guards()[0]->kind)->toBe(GuardKind::ForeignKeyExists)
+        ->and($dropForeign->guards()[0]->target)->toBe(['owner_id'])
+        ->and($foreignNull->guards()[0]->target)->toBe([])
+        ->and($temporary->guards())->toBeEmpty();
+});
+
+test('it derives no guards for unknown Blueprint methods', function (): void {
+    expect(BlueprintMethodKind::of('undeclared')->guards(new BlueprintAction('undeclared')))->toBeEmpty();
+});
+
+test('it classifies Blueprint methods by docblock return type', function (): void {
+    expect(BlueprintMethodKind::of('string'))->toBe(BlueprintMethodKind::Column)
+        ->and(BlueprintMethodKind::of('foreignId'))->toBe(BlueprintMethodKind::Column)
+        ->and(BlueprintMethodKind::of('index'))->toBe(BlueprintMethodKind::Index)
+        ->and(BlueprintMethodKind::of('vectorIndex'))->toBe(BlueprintMethodKind::Index)
+        ->and(BlueprintMethodKind::of('rawIndex'))->toBe(BlueprintMethodKind::Index)
+        ->and(BlueprintMethodKind::of('foreign'))->toBe(BlueprintMethodKind::ForeignKey)
+        ->and(BlueprintMethodKind::of('dropColumn'))->toBe(BlueprintMethodKind::Command)
+        ->and(BlueprintMethodKind::of('renameIndex'))->toBe(BlueprintMethodKind::Command)
+        ->and(BlueprintMethodKind::of('morphs'))->toBe(BlueprintMethodKind::Unit)
+        ->and(BlueprintMethodKind::of('temporary'))->toBe(BlueprintMethodKind::Unit)
+        ->and(BlueprintMethodKind::of('timestamps'))->toBe(BlueprintMethodKind::Collection)
+        ->and(BlueprintMethodKind::of('removeColumn'))->toBe(BlueprintMethodKind::Command)
+        ->and(BlueprintMethodKind::of('toSql'))->toBe(BlueprintMethodKind::Unknown)
+        ->and(BlueprintMethodKind::of('getColumns'))->toBe(BlueprintMethodKind::Unknown)
+        ->and(BlueprintMethodKind::of('addColumnDefinition'))->toBe(BlueprintMethodKind::Unknown)
+        ->and(BlueprintMethodKind::of('addCommand'))->toBe(BlueprintMethodKind::Unknown);
+});
+
+test('BlueprintAction shapes definitions into named and positional arguments', function (): void {
+    $scalar = BlueprintAction::fromDefinition('morphs', 'taggable');
+    $list = BlueprintAction::fromDefinition('string', ['username', 100]);
+    $boolean = BlueprintAction::fromDefinition('timestamps', true);
+    $map = BlueprintAction::fromDefinition('foreignId', ['column' => 'user_id', 'constrained' => ['users', 'acc_id']]);
+
+    expect($scalar->arguments)->toBe(['taggable'])
+        ->and($list->arguments)->toBe(['username', 100])
+        ->and($boolean->arguments)->toBeEmpty()
+        ->and($map->arguments)->toBe(['column' => 'user_id'])
+        ->and($map->modifiers)->toBe(['constrained' => ['users', 'acc_id']]);
+
+    $column = $map->apply(blueprint());
+
+    expect($column)->toBeInstanceOf(ForeignKeyDefinition::class);
+});
+
+test('TableDefinition handles instance context, declaration order, and non-array context', function (): void {
+    // Instance context
+    $orig = new TableDefinition;
+    expect(TableDefinition::from($orig))->toBe($orig);
+
+    // Non-array context
+    $empty = TableDefinition::from(null);
+    expect($empty->actions)->toBeEmpty();
+
+    // Declaration-order dispatch across method kinds
+    $tableDef = TableDefinition::from([
+        'morphs' => 'taggable',
+        'timestamps' => null,
+        'comment' => 'table comment',
+        'index' => [['columns' => ['taggable_id', 'taggable_type'], 'name' => 'composite_idx']],
     ]);
 
-    expect(fn (): ColumnDefinitionModel => ColumnDefinitionModel::fromDefinition('invalidBlueprintCol', null))
-        ->toThrow(LogicException::class, 'Unknown Blueprint column method [invalidBlueprintCol].');
+    $blueprint = createTestBlueprint('items');
+    $tableDef->apply($blueprint);
+
+    expect(collect($blueprint->getColumns())->pluck('name')->toArray())
+        ->toContain('taggable_type', 'taggable_id', 'created_at', 'updated_at')
+        ->and(collect($blueprint->getCommands())->first(
+            fn ($command): bool => $command['index'] === 'composite_idx'
+        )['columns'])->toBe(['taggable_id', 'taggable_type']);
+});
+
+test('Schema DataModel hydrates the five Builder verbs', function (): void {
+    $schema = Schema::from([]);
+
+    expect($schema->connection)->toBeNull()
+        ->and($schema->create->isEmpty())->toBeTrue()
+        ->and($schema->table->isEmpty())->toBeTrue()
+        ->and($schema->rename)->toBeEmpty()
+        ->and($schema->drop)->toBeEmpty()
+        ->and($schema->dropIfExists)->toBeEmpty();
+
+    // listOf with a non-array value yields an empty list
+    expect(Schema::from(['rename' => 'not-a-list'])->rename)->toBeEmpty()
+        ->and(Schema::from(['rename' => [['from' => 'a', 'to' => 'b']]])->rename[0])->toBeInstanceOf(TableRename::class);
 });
 
 function createTestBlueprint(string $table = 'test_table'): Blueprint
@@ -274,124 +539,4 @@ test('dynamic dispatch TableOption attribute applies table options', function ()
     // value
     $option->apply($blueprint, 'engine', 'InnoDB');
     expect($blueprint->engine)->toBe('InnoDB');
-});
-
-test('ColumnDefinitionModel handles constraint shapes and factory parameters', function (): void {
-    $blueprint = createTestBlueprint();
-
-    // Constrained true with fk modifiers
-    $model1 = new ColumnDefinitionModel(['user_id'], [], ['cascadeOnDelete' => true, 'onDelete' => 'cascade', 'onUpdate' => ['cascade']], true);
-    $col1 = $model1->apply($blueprint, 'foreignId');
-    expect($col1)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // Constrained null with col modifiers
-    $modelNull = new ColumnDefinitionModel(['account_id'], ['nullable' => true, 'default' => 'active', 'comment' => ['a comment']], []);
-    $colNull = $modelNull->apply($blueprint, 'foreignId');
-    expect($colNull)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // Constrained string table
-    $model2 = new ColumnDefinitionModel(['account_id'], [], [], 'accounts');
-    $col2 = $model2->apply($blueprint, 'foreignId');
-    expect($col2)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // Constrained list array
-    $model3 = new ColumnDefinitionModel(['account_id'], [], [], ['accounts', 'acc_id']);
-    $col3 = $model3->apply($blueprint, 'foreignId');
-    expect($col3)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // Constrained map array
-    $model4 = new ColumnDefinitionModel(['account_id'], [], [], ['table' => 'accounts', 'column' => 'acc_id', 'indexName' => 'acc_fk']);
-    $col4 = $model4->apply($blueprint, 'foreignId');
-    expect($col4)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // Constrained fallback/other (e.g. object)
-    $model5 = new ColumnDefinitionModel(['obj_id'], [], [], (object) ['other' => true]);
-    $col5 = $model5->apply($blueprint, 'foreignId');
-    expect($col5)->toBeInstanceOf(ForeignIdColumnDefinition::class);
-
-    // fromDefinition with column vs name
-    $morphModel = ColumnDefinitionModel::fromDefinition('morphs', ['column' => 'imageable']);
-    expect($morphModel->factoryArguments)->toBe(['imageable']);
-
-    // fromDefinition with args array
-    $decimalModel = ColumnDefinitionModel::fromDefinition('decimal', ['args' => ['balance', 8, 4]]);
-    expect($decimalModel->factoryArguments)->toBe(['balance', 8, 4]);
-
-    // fromDefinition with scalar value
-    $enumModel = ColumnDefinitionModel::fromDefinition('string', 'username');
-    expect($enumModel->factoryArguments)->toBe(['username']);
-
-    // fromDefinition with null
-    $nullModel = ColumnDefinitionModel::fromDefinition('timestamps', null);
-    expect($nullModel->factoryArguments)->toBeEmpty();
-});
-
-test('TableDefinition handles instance context, scalar index, associative index, and pre-partitioned', function (): void {
-    // Instance context
-    $orig = new TableDefinition;
-    expect(TableDefinition::from($orig))->toBe($orig);
-
-    // Scalar index
-    $scalarIdx = TableDefinition::from(['index' => 'single_col']);
-    expect($scalarIdx->indexes['index'])->toBe(['single_col']);
-
-    // Associative index (non-list array)
-    $assocIdx = TableDefinition::from(['index' => ['columns' => ['col_a'], 'name' => 'idx_a']]);
-    expect($assocIdx->indexes['index'])->toBe([['columns' => ['col_a'], 'name' => 'idx_a']]);
-
-    // Non-array context
-    $empty = TableDefinition::from(null);
-    expect($empty->options)->toBeEmpty()
-        ->and($empty->columns)->toBeEmpty()
-        ->and($empty->indexes)->toBeEmpty();
-
-    // Pre-partitioned context
-    $partitioned = TableDefinition::from([
-        'options' => ['engine' => 'InnoDB'],
-        'columns' => ['string' => [new ColumnDefinitionModel(['col_a'])]],
-        'indexes' => ['index' => ['col_a']],
-    ]);
-    expect($partitioned->options)->toBe(['engine' => 'InnoDB'])
-        ->and($partitioned->columns['string'])->toHaveCount(1)
-        ->and($partitioned->indexes['index'])->toBe(['col_a']);
-
-    // Blueprint method that returns void (morphs) and Collection (timestamps) and options with method
-    $tableDef = TableDefinition::from([
-        'morphs' => 'taggable',
-        'timestamps' => null,
-        'comment' => 'table comment',
-        'index' => [
-            [['taggable_id', 'taggable_type'], 'composite_idx'],
-            'taggable_id',
-        ],
-    ]);
-
-    $blueprint = createTestBlueprint('items');
-    $tableDef->apply($blueprint);
-
-    expect(collect($blueprint->getColumns())->pluck('name')->toArray())
-        ->toContain('taggable_type', 'taggable_id', 'created_at', 'updated_at');
-});
-
-test('ColumnDefinitionModel covers remaining branches', function (): void {
-    $blueprint = createTestBlueprint();
-
-    // fromDefinition throws when column type is not a Blueprint method
-    expect(fn (): ColumnDefinitionModel => ColumnDefinitionModel::fromDefinition('invalidColType', null))
-        ->toThrow(LogicException::class, 'Unknown Blueprint column method [invalidColType].');
-
-    // Method parameter named 'column' receives 'name' from definition
-    $nameModel = ColumnDefinitionModel::fromDefinition('string', ['name' => 'username']);
-    expect($nameModel->factoryArguments)->toBe(['username']);
-
-    // apply with scalar modifier
-    $colModel = new ColumnDefinitionModel(['bio'], ['default' => 'none', 'nullable' => true, 'comment' => null]);
-    $col = $colModel->apply($blueprint, 'text');
-    expect($col->get('default'))->toBe('none');
-});
-
-test('Schema DataModel instantiates with null connection and empty tables collection by default', function (): void {
-    $schema = Schema::from([]);
-    expect($schema->connection)->toBeNull()
-        ->and($schema->tables->isEmpty())->toBeTrue();
 });

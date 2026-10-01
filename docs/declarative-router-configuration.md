@@ -307,14 +307,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration;
 
-use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\Append;
-use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\Key;
-use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Setter;
-use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Append;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\AppendTo;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Binding;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\PrependTo;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Setter;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Router
 {
@@ -403,15 +396,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration\Providers;
 
-use Illuminate\Routing\Router;
-use Illuminate\Support\ServiceProvider;
-use ZeroToProd\LaravelDeclaration\Attributes\Append;
-use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Setter;
-use ZeroToProd\LaravelDeclaration\Manifest;
-use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
+use Illuminate\Routing\Router;use Illuminate\Support\ServiceProvider;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Append;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\AppendTo;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Binding;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\PrependTo;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Setter;use ZeroToProd\LaravelDeclaration\Manifest;use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
 
 /** @internal */
 class RouterDeclarationServiceProvider extends ServiceProvider

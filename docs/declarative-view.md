@@ -403,10 +403,7 @@ That is the whole implementation: nine literal `Factory` calls, so phpstan check
 
    namespace ZeroToProd\LaravelDeclaration;
 
-   use LogicException;
-   use Zerotoprod\DataModel\Describe;
-   use ZeroToProd\LaravelDeclaration\Attributes\Key;
-   use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use LogicException;use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
    final readonly class View
    {

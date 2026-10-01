@@ -261,10 +261,7 @@ That loop is the whole implementation. The provider adds no transformation, wrap
 
    namespace ZeroToProd\LaravelDeclaration;
 
-   use LogicException;
-   use Zerotoprod\DataModel\Describe;
-   use ZeroToProd\LaravelDeclaration\Attributes\Key;
-   use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use LogicException;use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
    /**
     * The `router:` block of the manifest.

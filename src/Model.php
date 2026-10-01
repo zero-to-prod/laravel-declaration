@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\ClassDefault;
-use ZeroToProd\LaravelDeclaration\Attributes\Key;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ClassDefault;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class Model

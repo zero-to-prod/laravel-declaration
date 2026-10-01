@@ -11,11 +11,11 @@ use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use LogicException;
-use ZeroToProd\LaravelDeclaration\Attributes\Append;
-use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Prepend;
-use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Setter;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\AppendTo;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Prepend;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\PrependTo;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Kernel;
 use ZeroToProd\LaravelDeclaration\Manifest;
 

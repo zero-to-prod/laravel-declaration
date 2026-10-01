@@ -793,7 +793,7 @@
       "additionalProperties": true
     },
     "schema": {
-      "description": "Declarative database schema definition.",
+      "description": "Declarative database schema definition. Verb keys are native Illuminate\\Database\\Schema\\Builder method names.",
       "type": ["object", "null"],
       "additionalProperties": false,
       "properties": {
@@ -801,12 +801,42 @@
           "description": "The database connection name. If omitted or null, the default connection is used.",
           "type": ["string", "null"]
         },
-        "tables": {
-          "description": "Map of table names to table schema definitions.",
+        "create": {
+          "description": "Builder::create($table, $callback) — one guarded call per entry; body = Blueprint methods.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/tableDefinition"
           }
+        },
+        "table": {
+          "description": "Builder::table($table, $callback) — alter blueprint; every action is dispatched through its derived native guard.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/tableDefinition"
+          }
+        },
+        "rename": {
+          "description": "Builder::rename($from, $to) — one call per entry.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          }
+        },
+        "drop": {
+          "description": "Builder::drop($table) — one call per entry (unguarded: fails loudly if the table is missing).",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dropIfExists": {
+          "description": "Builder::dropIfExists($table) — one call per entry.",
+          "type": "array",
+          "items": { "type": "string" }
         }
       }
     },

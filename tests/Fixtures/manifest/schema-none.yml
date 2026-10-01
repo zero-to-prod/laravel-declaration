@@ -1,0 +1,8 @@
+schema:
+  connection: ~
+  create:
+    widget:
+      id: ~
+  table:
+    widget:
+      uuid: ~

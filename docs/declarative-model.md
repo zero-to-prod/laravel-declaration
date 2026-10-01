@@ -625,12 +625,7 @@ That is the whole implementation: five members and one lookup. The provider is u
 
    namespace ZeroToProd\LaravelDeclaration;
 
-   use LogicException;
-   use ReflectionClass;
-   use Zerotoprod\DataModel\Describe;
-   use ZeroToProd\LaravelDeclaration\Attributes\ClassDefault;
-   use ZeroToProd\LaravelDeclaration\Attributes\Key;
-   use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ClassDefault;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
    final readonly class Model
    {

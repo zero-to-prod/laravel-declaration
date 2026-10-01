@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration;
 
 use Zerotoprod\DataModel\Describe;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\Conditional;
-use ZeroToProd\LaravelDeclaration\Attributes\Path;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Conditional;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
 final readonly class App

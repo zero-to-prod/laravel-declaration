@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
-use ZeroToProd\LaravelDeclaration\Attributes\Append;
-use ZeroToProd\LaravelDeclaration\Attributes\AppendTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\PrependTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Setter;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Append;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\AppendTo;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\PrependTo;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Setter;
 use ZeroToProd\LaravelDeclaration\Router as RouterDeclaration;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst;

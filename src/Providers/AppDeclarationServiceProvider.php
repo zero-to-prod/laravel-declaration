@@ -10,9 +10,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use LogicException;
 use ZeroToProd\LaravelDeclaration\App;
-use ZeroToProd\LaravelDeclaration\Attributes\Binding;
-use ZeroToProd\LaravelDeclaration\Attributes\Conditional;
-use ZeroToProd\LaravelDeclaration\Attributes\Path;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Binding;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Conditional;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Path;
 use ZeroToProd\LaravelDeclaration\Manifest;
 
 /**

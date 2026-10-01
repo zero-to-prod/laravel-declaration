@@ -1,6 +1,6 @@
 schema:
   connection: ~
-  tables:
+  create:
     users:
       id: ~
       string:
@@ -43,3 +43,13 @@ schema:
         length: 50
         unique: true
       timestamps: ~
+
+    audits:
+      id: ~
+      string:
+        column: user_id
+      foreign:
+        - columns: user_id
+          on: users
+          references: id
+          cascadeOnDelete: true
