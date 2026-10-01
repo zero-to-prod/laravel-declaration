@@ -23,8 +23,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Bootstrap\LoadConfiguration;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Config;
-use Illuminate\View\Factory;
 use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
+use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\ViewWarmProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider;
 
 use function Orchestra\Testbench\default_skeleton_path;
@@ -100,7 +100,9 @@ it('replaces an existing value with the declared one', function (): void {
 });
 
 // AT-05 — README § Config: "`name: Tenant Console  # config('app.name'); other app.* keys
-// survive`" — the set addresses one node and leaves the rest of the file's map intact.
+// survive`" — the set addresses one node and leaves the rest of the file's map intact. The
+// sibling value is the config file's own literal ('UTC' — ./config/app.php's declared
+// 'timezone'), untouched by the declaration.
 it('keeps the siblings of a declared key', function (): void {
     $file = $this->manifest(<<<'YAML'
         config:
@@ -108,10 +110,14 @@ it('keeps the siblings of a declared key', function (): void {
             name: Tenant Console
         YAML);
 
-    $this->withConfig(['app.timezone' => 'Europe/Paris', 'laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(config('app.timezone'))->toBe('Europe/Paris')
-        ->and(config('app.name'))->toBe('Tenant Console');
+    expect(config('app.timezone'))->toBe('UTC')
+        ->and(config('app.name'))->toBe('Tenant Console')
+        // supplement (declarative-configuration.md §1.2): `config('app')` is the whole
+        // app array including both keys
+        ->and(config('app'))->name->toBe('Tenant Console')
+        ->and(config('app'))->timezone->toBe('UTC');
 });
 
 // AT-06 — README § Config: "`stores.redis.connection: cache  # one nested key; the rest of
@@ -159,26 +165,32 @@ it('replaces a map value wholesale instead of merging it recursively', function 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
     expect(config('database.redis'))->toBe(['host' => 'declared-host'])
-        ->and(config('database.migrations'))->not->toBeNull();
+        // the file's own keys inside the replaced node are gone — declare their dot-paths
+        // separately to keep them
+        ->and(config('database.redis.client'))->toBeNull()
+        ->and(config('database.redis.options'))->toBeNull();
 });
 
 // AT-09 — lifecycle.md — Service Providers: "once all of the providers have been registered,
 // the `boot` method will be called on each provider. This is so service providers may depend
 // on every container binding being registered … by the time their `boot` method is executed".
 // ViewWarmProvider registers BEFORE LaravelDeclarationProvider (tests/TestCase.php) and reads
-// the declared key in boot() — the warm-up resolves `greeting` while the declared location is
-// the only extra one, so the factory's finder caches that hit, which is observable afterwards.
+// config('app.name') in boot() — HookLog records whatever boot() saw, whatever the provider
+// order.
 it('makes the declared values visible to the boot of providers registered earlier', function (): void {
     $file = $this->manifest(<<<'YAML'
         config:
-          laravel-declaration:
-            warm-views: true
+          app:
+            name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect($this->app->make(Factory::class)->getFinder()->getViews())->toHaveKey('greeting')
-        ->and($this->app->make(Factory::class)->getFinder()->getViews()['greeting'])->toContain('declared-views');
+    try {
+        expect(ViewWarmProvider::$bootSeenAppName)->toBe('Tenant Console');
+    } finally {
+        ViewWarmProvider::$bootSeenAppName = null;
+    }
 });
 
 // AT-10 — lifecycle.md — Service Providers (register-all-then-boot-all) + declarative-configuration.md
@@ -210,8 +222,12 @@ it('makes the declared values visible to a declared provider register and boot',
 // environment is determined via the `APP_ENV` variable from your `.env` file" + §1.1 of the
 // design doc (source-derived): LoadConfiguration consumes `app.env` and `app.timezone`
 // before any provider registers, so declaring them changes `config()` only — the environment
-// binding and the PHP timezone keep the values they were bootstrapped with.
+// binding and the PHP timezone keep the values they were bootstrapped with. The effects are
+// captured before the manifest-bearing application is created and must be unchanged after.
 it('changes only the repository when the bootstrap-consumed keys are declared', function (): void {
+    $environmentBefore = $this->app->environment();
+    $timezoneBefore = date_default_timezone_get();
+
     $file = $this->manifest(<<<'YAML'
         config:
           app:
@@ -221,22 +237,33 @@ it('changes only the repository when the bootstrap-consumed keys are declared', 
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect($this->app->environment())->toBe('testing')
+    expect($this->app->environment())->toBe($environmentBefore)
         ->and(config('app.env'))->toBe('staging')
         ->and(config('app.timezone'))->toBe('Antarctica/Troll')
-        ->and(date_default_timezone_get())->toBe('UTC');
+        ->and(date_default_timezone_get())->toBe($timezoneBefore);
 });
 
 // AT-12 — configuration.md — Retrieving Environment Configuration: `.env` values are "read
 // by the configuration files within the `config` directory using Laravel's `env` function";
 // README § Config: manifest values win. declarative-configuration.md §2.6 (source-derived):
-// `env()` called directly still returns the raw value.
+// `env()` called directly still returns the raw value. The first application proves the
+// file's env('APP_NAME') actually sources the process variable; the second adds the manifest
+// block, whose value wins in config() while env() stays raw.
 it('wins over the env-sourced value while env keeps returning the raw one', function (): void {
     putenv('APP_NAME=Legacy');
     $_ENV['APP_NAME'] = 'Legacy';
     $_SERVER['APP_NAME'] = 'Legacy';
 
     try {
+        // without a config block, config/app.php's env('APP_NAME') reaches the repository
+        // (a manifest path no file provides, so the declaration provider loads nothing)
+        $missing = tempnam(sys_get_temp_dir(), 'missing-');
+        unlink($missing);
+
+        $this->withConfig(['laravel-declaration.manifest' => $missing]);
+
+        expect(config('app.name'))->toBe('Legacy');
+
         $file = $this->manifest(<<<'YAML'
             config:
               app:
