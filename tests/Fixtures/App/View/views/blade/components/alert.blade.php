@@ -1,0 +1,1 @@
+<span class="alert-{{ $type }}">{{ $slot }}</span>

@@ -110,6 +110,8 @@ abstract class TestCase extends Orchestra
 
         (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/View/views', $skeleton.'/resources/declared-views');
 
+        (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/Acceptance/Blade/anonymous-components', $skeleton.'/resources/acceptance-components');
+
         (new Filesystem)->copyDirectory(__DIR__.'/Fixtures/App/Acceptance/Lang', $skeleton.'/lang');
     }
 
