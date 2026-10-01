@@ -2,6 +2,79 @@
 
 A declarative plugin for Laravel.
 
+## Prompts
+name: plan
+```md
+Write a context complete implementation plan for <component> defined in `README.md`.
+Use these steps:
+1. Understand the relevant source code:
+   1. src/
+   2. tests/
+2. Understand the relevant documentation in `docs/repos/laravel/docs`
+3. Understand the relevant vendor source code
+   1. `vendor/laravel/`
+   2. `vendor/laravel/`
+4. Decompose the problem
+5. Justify each implementation detail by referencing the source of truth
+
+Implementation Goal: implement a yml data structure and php implementation that maps 1-to-1 to the laravel API.
+
+Strategy:
+- Use dynamic dispatch to keep naming vertically consistent and code simple
+- The keys map to function names, the values map to the function signature
+- Use Attribute Oriented Programming (AOP) over of imperative programming.
+- Use existing patterns in the codebase
+
+Deliverable: 
+- [ ] A context complete Markdown file. 
+- [ ] All code examples are complete
+- [ ] All implementation details are referenced to the source code
+- [ ] No code is implemented.
+```
+name: plan-validate
+```md
+Iterate line by line through <plan> and validate the document.
+1. Visit the source code
+2. Visit the vendor source code
+    1. `vendor/laravel/`
+    2. `vendor/laravel/`
+3. Compare the implementation details with the source of truth
+4. Extract the diff and update <plan>
+
+Deliverable:
+- [ ] No gaps in implementation are found compared to the source of truth
+- [ ] Implementation is mapped 1-to-1 to the api
+- [ ] <plan> is updated
+```
+name: plan-simplify
+```markdown
+Review <plan> and align it to these goals
+- [ ] Look at deep underlying patters to expose commonalities
+- [ ] Leverage the commonalities to simplify the code
+- [ ] Use Attribute Oriented Programming to eliminate switch/match statements
+- [ ] Use dynamic dispatch to keep naming vertically aligned and bound to the laravel public api
+- [ ] Break existing code that does not map onto the API
+- [ ] Identify and eliminate all implementation opinions. 
+  - This is a thing wrapper around Laravel's API. 
+  - Forward data to the api. Nothing more
+
+Goal: Simplify the code by map cleanly onto the Laravel API.
+
+Deliverable:
+- [ ] Simplified p
+```
+name: plan-test
+```markdown
+Look through `repos/laravel/docs/` and identify the documentation for <component> referenced in `README.md`. 
+Write an acceptance test plan based on the documentation.
+This means:
+- Find the source documentation
+- Extract documented behavior
+- Write: `given, when, then` tests based on each unique documented behavior
+- Write a reference to the sources that back the test.
+The deliverable is a Markdown document in @docs/. Do not implement the tests.
+```
+
 ## Roadmap
 
 
@@ -38,7 +111,7 @@ A declarative plugin for Laravel.
 
 ### Database Connection, Query Builder, Transactions & Seeding
 - [/] [Database Connection & Transactions](#database): `db:`
-- [ ] Database Query Builder (Table-Level Queries): `db_queries:` / `queries.table`
+- [ ] Database Query Builder (Table-Level Queries): `queries:` / `queries.table`
 - [x] [Database Schema & Blueprint](#schema): `schema:`
 - [ ] Database Seeding & Factories: `seeds:`
 
@@ -65,6 +138,8 @@ A declarative plugin for Laravel.
 - [ ] Task Scheduling: `schedule:`
 - [ ] Cache Repository & Stores: `cache:`
 - [ ] Filesystem & Storage Disks: `storage:`
+- [ ] Image Manipulation: `image:`
+- [ ] Redis: `redis:`
 - [ ] Localization & Translation Loader: `lang:`
 - [ ] Logging & Context Repository: `logging:`, `context:`
 - [ ] Application Telemetry & Monitoring (Pulse): `pulse:`

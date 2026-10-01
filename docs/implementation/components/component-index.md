@@ -1,0 +1,128 @@
+# Component Index — Tier 1
+
+Maps each declarative component to its vendor source code (`vendor/laravel/framework/src/Illuminate`).
+
+Source: [declarative-framework-api-mapping.md](../../declarative-framework-api-mapping.md), [README.md](../../../README.md).
+
+- app
+  - `Illuminate\Container\Container`
+  - `Illuminate\Foundation\Application`
+- config
+  - `Illuminate\Config\Repository`
+- providers
+  - `Illuminate\Foundation\Application`
+- kernel
+  - `Illuminate\Foundation\Http\Kernel`
+  - `Illuminate\Routing\Pipeline`
+- csrf
+  - `Illuminate\Foundation\Http\Middleware\ValidateCsrfToken`
+- precognition
+  - `Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests`
+- router
+  - `Illuminate\Routing\Router`
+- routes
+  - `Illuminate\Routing\Router`
+  - `Illuminate\Routing\Route`
+- url
+  - `Illuminate\Routing\UrlGenerator`
+- rate_limiter
+  - `Illuminate\Cache\RateLimiter`
+- view
+  - `Illuminate\View\Factory`
+  - `Illuminate\View\FileViewFinder`
+- blade
+  - `Illuminate\View\Compilers\BladeCompiler`
+- pagination
+  - `Illuminate\Pagination\Paginator`
+  - `Illuminate\Pagination\LengthAwarePaginator`
+- image
+  - `Illuminate\Image\ImageManager`
+- requests
+  - `Illuminate\Foundation\Http\FormRequest`
+- validator
+  - `Illuminate\Validation\Factory`
+  - `Illuminate\Contracts\Validation\ValidationRule`
+- responses
+  - `Illuminate\Contracts\Routing\ResponseFactory`
+  - `Illuminate\Routing\ResponseFactory`
+- redirect
+  - `Illuminate\Routing\Redirector`
+  - `Illuminate\Http\RedirectResponse`
+- cookie
+  - `Illuminate\Cookie\CookieJar`
+- resources
+  - `Illuminate\Http\Resources\Json\JsonResource`
+- db
+  - `Illuminate\Database\DatabaseManager`
+  - `Illuminate\Database\Connection`
+- queries
+  - `Illuminate\Database\Query\Builder`
+- schema
+  - `Illuminate\Database\Schema\Builder`
+  - `Illuminate\Database\Schema\Blueprint`
+- seeds
+  - `Illuminate\Database\Seeder`
+  - `Illuminate\Database\Eloquent\Factories\Factory`
+- models
+  - `Illuminate\Database\Eloquent\Model`
+- queries
+  - `Illuminate\Database\Eloquent\Builder`
+- gate
+  - `Illuminate\Contracts\Auth\Access\Gate`
+  - `Illuminate\Auth\Access\Gate`
+- auth
+  - `Illuminate\Auth\AuthManager`
+- session
+  - `Illuminate\Session\SessionManager`
+  - `Illuminate\Session\Store`
+- hashing
+  - `Illuminate\Hashing\HashManager`
+- encryption
+  - `Illuminate\Encryption\Encrypter`
+- sanctum
+  - `Laravel\Sanctum\HasApiTokens`
+  - `Laravel\Sanctum\Sanctum`
+- events
+  - `Illuminate\Events\Dispatcher`
+- queues
+  - `Illuminate\Queue\QueueManager`
+- bus
+  - `Illuminate\Bus\Dispatcher`
+- mail
+  - `Illuminate\Mail\MailManager`
+- notifications
+  - `Illuminate\Notifications\ChannelManager`
+- broadcasting
+  - `Illuminate\Broadcasting\BroadcastManager`
+- commands
+  - `Illuminate\Console\Application`
+- schedule
+  - `Illuminate\Console\Scheduling\Schedule`
+- cache
+  - `Illuminate\Cache\CacheManager`
+  - `Illuminate\Contracts\Cache\Repository`
+- redis
+  - `Illuminate\Redis\RedisManager`
+  - `Illuminate\Redis\Connections\Connection`
+- storage
+  - `Illuminate\Filesystem\FilesystemManager`
+- lang
+  - `Illuminate\Translation\Translator`
+- logging
+  - `Illuminate\Log\LogManager`
+- context
+  - `Illuminate\Log\Context\Repository`
+- pulse
+  - `Laravel\Pulse\Pulse`
+- process
+  - `Illuminate\Process\Factory`
+- concurrency
+  - `Illuminate\Concurrency\ConcurrencyManager`
+- http
+  - `Illuminate\Http\Client\Factory`
+- exceptions
+  - `Illuminate\Contracts\Debug\ExceptionHandler`
+- features
+  - `Laravel\Pennant\FeatureManager`
+- scout
+  - `Laravel\Scout\Searchable`

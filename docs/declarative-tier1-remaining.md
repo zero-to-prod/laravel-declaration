@@ -86,7 +86,7 @@ Each row is a `[ ]` checklist item in [declarative-framework-api-mapping.md](dec
 
 | Proposed key | System of record | Native surface |
 |---|---|---|
-| `db_queries:` / `queries.table` | `Illuminate\Database\Query\Builder` | Table-level direct queries (`DB::table(...)`) bypassing Eloquent models |
+| `queries:` / `queries.table` | `Illuminate\Database\Query\Builder` | Table-level direct queries (`DB::table(...)`) bypassing Eloquent models |
 | `seeds:` | `Illuminate\Database\Seeder`, `Illuminate\Database\Eloquent\Factories\Factory` | Record insertion, factory sequence definitions |
 
 ### Domain 9
@@ -116,6 +116,8 @@ Each row is a `[ ]` checklist item in [declarative-framework-api-mapping.md](dec
 | `schedule:` | `Illuminate\Console\Scheduling\Schedule` | `command()`, `job()`, `call()`, `daily()`, `hourly()`, … |
 | `cache:` | `Illuminate\Cache\CacheManager`, `Illuminate\Contracts\Cache\Repository` | Store configuration, tagging |
 | `storage:` | `Illuminate\Filesystem\FilesystemManager` | `disk()`, `build()`, driver configuration |
+| `image:` | `Illuminate\Image\ImageManager` | Image sources `fromBytes()`, `fromStream()`, `fromBase64()`, `fromPath()`, `fromStorage()`, `fromUpload()`, `fromUrl()`; default driver via `config('images.default')`; custom drivers via `extend()` |
+| `redis:` | `Illuminate\Redis\RedisManager`, `Illuminate\Redis\Connections\Connection` | `connection()`, `connections()`, `purge()`, `extend()`, `enableEvents()`/`disableEvents()` |
 | `lang:` | `Illuminate\Translation\Translator` | `addLines()`, `addJsonPath()`, `setLocale()` |
 | `logging:`, `context:` | `Illuminate\Log\LogManager`, `Illuminate\Log\Context\Repository` | `channel()`, `Context::add()` |
 | `pulse:` | `Laravel\Pulse\Pulse` | Recorders, slow query thresholds, user resolvers |

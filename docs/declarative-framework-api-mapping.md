@@ -83,7 +83,7 @@ Status designations:
 
 ### Domain 7: Database Connection, Query Builder, Transactions & Seeding
 - [/] **Database Connection & Transactions** (`Illuminate\Database\DatabaseManager`, `Illuminate\Database\Connection`) — `db:` (`connection` + `listen` mapped; `transaction`, `statement`, `unprepared`, `beforeExecuting` remain)
-- [ ] **Database Query Builder (Table-Level Queries)** (`Illuminate\Database\Query\Builder`) — `db_queries:` / `queries.table`
+- [ ] **Database Query Builder (Table-Level Queries)** (`Illuminate\Database\Query\Builder`) — `queries:` / `queries.table`
 - [x] **Database Schema & Blueprint** (`Illuminate\Database\Schema\Builder`, `Illuminate\Database\Schema\Blueprint`) — `schema:` (`create`, `table`, `rename`, `drop`, `dropIfExists` under native names; `BlueprintAction` dynamic dispatch with guard annotations — [declarative-schema-table-operations.md](declarative-schema-table-operations.md))
 - [ ] **Database Seeding & Factories** (`Illuminate\Database\Seeder`, `Illuminate\Database\Eloquent\Factories\Factory`) — `seeds:`
 
@@ -111,6 +111,8 @@ Status designations:
 - [ ] **Task Scheduling** (`Illuminate\Console\Scheduling\Schedule`) — `schedule:`
 - [ ] **Cache Repository & Stores** (`Illuminate\Cache\CacheManager`, `Illuminate\Contracts\Cache\Repository`) — `cache:`
 - [ ] **Filesystem & Storage Disks** (`Illuminate\Filesystem\FilesystemManager`) — `storage:`
+- [ ] **Image Manipulation** (`Illuminate\Image\ImageManager`) — `image:`
+- [ ] **Redis Connections** (`Illuminate\Redis\RedisManager`, `Illuminate\Redis\Connections\Connection`) — `redis:`
 - [ ] **Localization & Translation Loader** (`Illuminate\Translation\Translator`) — `lang:`
 - [ ] **Logging & Context Repository** (`Illuminate\Log\LogManager`, `Illuminate\Log\Context\Repository`) — `logging:`, `context:`
 - [ ] **Application Telemetry & Monitoring (Pulse)** (`Laravel\Pulse\Pulse`) — `pulse:`
@@ -187,7 +189,7 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 | Subsystem & Doc Reference | System of Record (Laravel Class) | Tier | Status | Manifest Key / Seam Class | Mapped vs. Gap |
 |---|---|---|---|---|---|
 | **Database Connection & Transactions**<br>`docs/repos/laravel/docs/database.md` | `Illuminate\Database\DatabaseManager`<br>`Illuminate\Database\Connection` | Tier 1 | **Partially Mapped** | `db:` (`src/Database.php`, `Providers/DatabaseDeclarationServiceProvider.php`) | **Mapped**: `connection` (listener scoping) and `listen` (query listeners via `DatabaseManager::listen()`).<br>**Gap**: `transaction()`, `statement()`, `unprepared()`, `beforeExecuting()`. |
-| **Database Query Builder**<br>`docs/repos/laravel/docs/queries.md` | `Illuminate\Database\Query\Builder` | Tier 1 | **Missing** | `db_queries:` / `queries.table` | **Gap**: table-level direct queries (`DB::table(...)`) bypassing Eloquent models. |
+| **Database Query Builder**<br>`docs/repos/laravel/docs/queries.md` | `Illuminate\Database\Query\Builder` | Tier 1 | **Missing** | `queries:` / `queries.table` | **Gap**: table-level direct queries (`DB::table(...)`) bypassing Eloquent models. |
 | **Database Schema & Blueprint**<br>`docs/repos/laravel/docs/migrations.md` | `Illuminate\Database\Schema\Builder`<br>`Illuminate\Database\Schema\Blueprint` | Tier 1 | **Implemented** | `schema:` (`src/Schema.php`, `src/TableDefinition.php`, `src/BlueprintAction.php`, `Internal/Commands/MigrateCommand.php`) | **Mapped**: the five native `Schema` operations `create`, `table`, `rename`, `drop`, `dropIfExists` with guard-derived idempotency (`hasTable`/`hasColumn`/`hasIndex`/`hasForeignKey`); all `Blueprint` column types, column modifiers, FK modifiers, index declarations, and table options dispatch dynamically through `BlueprintAction` sequential dispatch onto whatever the Blueprint actually returned (no static whitelists) ([declarative-schema-table-operations.md](declarative-schema-table-operations.md)).<br>**Gap**: none on the mapped surface; `ColumnDefinition::change()` is pinned by test. |
 | **Database Seeding & Factories**<br>`docs/repos/laravel/docs/seeding.md` | `Illuminate\Database\Seeder`<br>`Illuminate\Database\Eloquent\Factories\Factory` | Tier 1 | **Missing** | `seeds:` | **Gap**: declarative record insertion or factory sequence definitions. |
 
@@ -228,6 +230,8 @@ Derived from `vendor/laravel/framework/src/Illuminate/` (`laravel/framework` v13
 | **Task Scheduling**<br>`docs/repos/laravel/docs/scheduling.md` | `Illuminate\Console\Scheduling\Schedule` | Tier 1 | **Missing** | `schedule:` | **Gap**: `command()`, `job()`, `call()`, `daily()`, `hourly()`. |
 | **Cache Manager**<br>`docs/repos/laravel/docs/cache.md` | `Illuminate\Cache\CacheManager`<br>`Illuminate\Contracts\Cache\Repository` | Tier 1 | **Missing** | `cache:` | **Gap**: store configuration, cache tagging, declarative memoization keys. |
 | **Filesystem & Storage**<br>`docs/repos/laravel/docs/filesystem.md` | `Illuminate\Filesystem\FilesystemManager` | Tier 1 | **Missing** | `storage:` | **Gap**: `disk()`, `build()`, disk driver configuration. |
+| **Image Manipulation**<br>`docs/repos/laravel/docs/images.md` | `Illuminate\Image\ImageManager` | Tier 1 | **Missing** | `image:` | **Gap**: image sources `fromBytes()`, `fromStream()`, `fromBase64()`, `fromPath()`, `fromStorage()`, `fromUpload()`, `fromUrl()`; default driver selection (`getDefaultDriver()` reads `config('images.default')`); custom drivers via `Manager::extend()` implementing `Illuminate\Contracts\Image\Driver`; transformation handlers via `transformUsing()`. |
+| **Redis Connections**<br>`docs/repos/laravel/docs/redis.md` | `Illuminate\Redis\RedisManager`<br>`Illuminate\Redis\Connections\Connection` | Tier 1 | **Missing** | `redis:` | **Gap**: `connection()`, `connections()`, `purge()`, custom client drivers via `extend()`, `enableEvents()`/`disableEvents()`. Server configuration (`client`, `options`, clusters) stays a `config:` concern ([declarative-configuration.md](declarative-configuration.md)). |
 | **Localization & Translation**<br>`docs/repos/laravel/docs/localization.md` | `Illuminate\Translation\Translator` | Tier 1 | **Missing** | `lang:` | **Gap**: `addLines()`, `addJsonPath()`, `setLocale()`. |
 | **Logging & Context**<br>`docs/repos/laravel/docs/logging.md`<br>`context.md` | `Illuminate\Log\LogManager`<br>`Illuminate\Log\Context\Repository` | Tier 1 | **Missing** | `logging:`, `context:` | **Gap**: `channel()`, `Context::add()`. |
 | **Application Telemetry & Monitoring (Pulse)**<br>`docs/repos/laravel/docs/pulse.md` | `Laravel\Pulse\Pulse` | Tier 1 | **Missing** | `pulse:` | **Gap**: recorders configuration, slow query thresholds, user resolvers. |

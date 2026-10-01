@@ -1,6 +1,6 @@
 # Declarative Config — Acceptance Test Plan (manifest `config:` → `Illuminate\Config\Repository`)
 
-**Subject under test:** the `DataModel` property hydrated from the manifest's `config:` key ([Manifest.php](../src/Manifest.php) `$config` — `map<file, map<key, mixed>>`), applied by [ConfigDeclarationServiceProvider.php](../src/Providers/ConfigDeclarationServiceProvider.php) in `register()` as one `Config::set(Arr::prependKeysWith($values, "$file."))` per file — i.e. the manifest block **is** the argument to `config([...])` against the `Illuminate\Config\Repository` ([declarative-configuration.md](declarative-configuration.md) §1.2, §2.1).
+**Subject under test:** the `DataModel` property hydrated from the manifest's `config:` key ([Manifest.php](../src/Manifest.php) `$config` — `array<string, mixed>` in code, `map<file, map<key, mixed>>` at the schema level; a scalar value throws `LogicException` in `register()`), applied by [ConfigDeclarationServiceProvider.php](../src/Providers/ConfigDeclarationServiceProvider.php) in `register()` — a `callAfterResolving(Manifest::class, …)` callback that fires during the register phase, once [LaravelDeclarationProvider.php](../src/LaravelDeclarationProvider.php) binds the manifest instance — as one `Config::set(Arr::prependKeysWith($values, "$file."))` per file — i.e. the manifest block **is** the argument to `config([...])` against the `Illuminate\Config\Repository` ([declarative-configuration.md](declarative-configuration.md) §1.2, §2.1).
 
 **Source documentation:** [docs/repos/laravel/docs/configuration.md](repos/laravel/docs/configuration.md) (§ Accessing Configuration Values, § Configuration Caching, § Environment Configuration), [packages.md](repos/laravel/docs/packages.md) (§ Default Package Configuration), [lifecycle.md](repos/laravel/docs/lifecycle.md) / [providers.md](repos/laravel/docs/providers.md) (register/boot ordering) — the vendored Laravel docs are the **system of record** for every behavior below (upstream equivalents in §6). The declared surface is README [§ Config](../README.md#config) + [declarative-configuration.md](declarative-configuration.md); that design doc is framework-verified and is cited only for source-derived supplements, flagged per test — never as the sole source of a tested behavior.
 
@@ -59,7 +59,7 @@ Sources: [configuration.md — Accessing Configuration Values](repos/laravel/doc
 
 - **Given** the manifest declares `config: {app: {name: Tenant Console}}`.
 - **When** `Config::string('app.name')` is called.
-- **Then** it returns `'Tenant Console'`; and when `Config::integer('app.name')` is called against the same string value, an exception is thrown.
+- **Then** it returns `'Tenant Console'`; and when `Config::integer('app.name')` is called against the same string value, an exception is thrown. (*Source-derived supplement:* the typed getters on `Illuminate\Config\Repository` throw `InvalidArgumentException` — [Repository.php](../../vendor/laravel/framework/src/Illuminate/Config/Repository.php).)
 
 Sources: [configuration.md — Accessing Configuration Values](repos/laravel/docs/configuration.md#accessing-configuration-values).
 
@@ -123,7 +123,7 @@ Sources: [declarative-configuration.md](declarative-configuration.md) §2.4, §2
 
 ### AT-09 — declared values are visible to every provider's `boot()`
 
-**Doc says:** lifecycle.md: "After instantiating the providers, the `register` method will be called on all of the providers. Then, once all of the providers have been registered, the `boot` method will be called on each provider. This is so service providers may depend on every container binding being registered and available by the time their `boot` method is executed." packages.md places config merging "within your service provider's `register` method" — the phase the manifest set runs in ([declarative-configuration.md](declarative-configuration.md) §1.1, §2.5).
+**Doc says:** lifecycle.md: "After instantiating the providers, the `register` method will be called on all of the providers. Then, once all of the providers have been registered, the `boot` method will be called on each provider. This is so service providers may depend on every container binding being registered and available by the time their `boot` method is executed." packages.md places config merging "within your service provider's `register` method" — the phase the manifest set runs in ([declarative-configuration.md](declarative-configuration.md) §1.1, §2.5; [LaravelDeclarationProvider.php](../src/LaravelDeclarationProvider.php) binds the manifest instance in `register()` before its declaration providers register).
 
 - **Given** the manifest declares `config: {app: {name: Tenant Console}}` and a service provider's `boot()` reads `config('app.name')`.
 - **When** the application boots.
@@ -139,7 +139,7 @@ Sources: [lifecycle.md — Service Providers](repos/laravel/docs/lifecycle.md#se
 - **When** the application boots and that provider registers.
 - **Then** its `register()` sees `'Tenant Console'`.
 
-Sources: [lifecycle.md — Service Providers](repos/laravel/docs/lifecycle.md#service-providers). *Supplement (source-derived):* the set's position in the register phase and declared providers registering from `boot()` — [declarative-configuration.md](declarative-configuration.md) §1.1, §1.3.
+Sources: [lifecycle.md — Service Providers](repos/laravel/docs/lifecycle.md#service-providers). *Supplement (source-derived):* the set's position in the register phase ([declarative-configuration.md](declarative-configuration.md) §1.1) and declared providers being registered from [ProvidersDeclarationServiceProvider.php](../src/Providers/ProvidersDeclarationServiceProvider.php) `boot()` via `$this->app->register($Provider->class, $Provider->force)`, so their `register()` runs in the boot phase — [declarative-configuration.md](declarative-configuration.md) §1.3.
 
 ### AT-11 — bootstrap-consumed keys change `config()` but not the environment or timezone
 
@@ -147,7 +147,7 @@ Sources: [lifecycle.md — Service Providers](repos/laravel/docs/lifecycle.md#se
 
 - **Given** the `.env` sets `APP_ENV=production` and the manifest declares `config: {app: {env: staging, timezone: Antarctica/Troll}}`.
 - **When** `App::environment()`, `date_default_timezone_get()`, and `config('app.env')` / `config('app.timezone')` are read.
-- **Then** the environment is still `production` and the timezone is unchanged, while `config('app.env')` is `'staging'` and `config('app.timezone')` is `'Antarctica/Troll'` (the repository holds the YAML values; the effects keep the file values).
+- **Then** the environment is still `production` and the timezone is unchanged, while `config('app.env')` is `'staging'` and `config('app.timezone')` is `'Antarctica/Troll'` (the repository holds the YAML values; the effects keep the file values). *Supplement (source-derived):* `App::environment()` returns the `$this['env']` binding cached by `Application::detectEnvironment()` at bootstrap — [Application.php](../../vendor/laravel/framework/src/Illuminate/Foundation/Application.php) — so a later `Config::set()` cannot change it.
 
 Sources: [configuration.md — Determining the Current Environment](repos/laravel/docs/configuration.md#determining-the-current-environment); [declarative-configuration.md](declarative-configuration.md) §1.1, §2.6 (source-derived).
 
@@ -163,7 +163,7 @@ Sources: [configuration.md — Retrieving Environment Configuration](repos/larav
 
 ### AT-13 — `config:cache` combines all configuration options, including the declared values
 
-**Doc says:** configuration.md: "you should cache all of your configuration files into a single file using the `config:cache` Artisan command. This will combine all of the configuration options for your application into a single file which can be quickly loaded by the framework." declarative-configuration.md §2.6 (source-derived): `ConfigCacheCommand` bootstraps a fresh application with providers included, so the declared values are written into `bootstrap/cache/config.php`.
+**Doc says:** configuration.md: "you should cache all of your configuration files into a single file using the `config:cache` Artisan command. This will combine all of the configuration options for your application into a single file which can be quickly loaded by the framework." declarative-configuration.md §2.6 (source-derived): `ConfigCacheCommand::getFreshConfiguration()` requires the host's `bootstrap/app.php` and bootstraps the console kernel, so providers register and the declared values are written into `bootstrap/cache/config.php` — [ConfigCacheCommand.php](../../vendor/laravel/framework/src/Illuminate/Foundation/Console/ConfigCacheCommand.php).
 
 - **Given** the manifest declares `config: {app: {name: Tenant Console}}` and `php artisan config:cache` runs.
 - **When** a request or Artisan command calls `config('app.name')` with the cached configuration loaded.
@@ -217,3 +217,4 @@ Vendored docs (system of record, relative to `docs/repos/laravel/docs/`) with up
 4. [providers.md](repos/laravel/docs/providers.md) — https://laravel.com/docs/providers — `boot()` after all registrations (AT-09).
 5. [README.md](../README.md) (§ Config) — in-repo feature spec — merge precedence, sibling survival, dot-path keys, undeclared file keys (AT-04…AT-07, AT-12).
 6. [declarative-configuration.md](declarative-configuration.md) — in-repo design doc, framework-verified — source-derived supplements only, flagged per test (AT-05, AT-07, AT-08, AT-10, AT-11, AT-13, AT-14, AT-15; G-1…G-4).
+7. [vendor/laravel/framework](../../vendor/laravel/framework) (v13.33.0) — the framework source behind the flagged supplements: `Config/Repository.php` (AT-03 exception type), `Foundation/Bootstrap/LoadConfiguration.php` (AT-11 bootstrap consumption), `Foundation/Application.php` (AT-11 environment caching), `Foundation/Console/ConfigCacheCommand.php` (AT-13 fresh-app cache), `Support/ServiceProvider.php` (AT-04 `mergeConfigFrom` precedence).

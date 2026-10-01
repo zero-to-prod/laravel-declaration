@@ -262,16 +262,16 @@ it('keeps global middleware running when a route excludes it with withoutMiddlew
 });
 
 // AT-09 — middleware.md — Middleware Groups: "Sometimes you may want to group several middleware
-// under a single key … using the `appendToGroup` method" and "Middleware groups may be assigned
-// to routes … using the same syntax as individual middleware".
+// under a single key … using the `appendToGroup` method" — the doc's two-member example — and
+// "Middleware groups may be assigned to routes … using the same syntax as individual middleware".
 it('runs middleware appended to a group when the group is assigned to a route', function (): void {
     $file = $this->manifest(<<<'YAML'
         kernel:
           setMiddlewareGroups:
-            group-name:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
+            group-name: []
           appendMiddlewareToGroup:
             group-name:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
               - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
         routes:
           addRoute:
@@ -288,8 +288,8 @@ it('runs middleware appended to a group when the group is assigned to a route', 
     expect(MiddlewareLog::entries())->toBe([GroupFirst::class, GroupSecond::class]);
 });
 
-// AT-10 — middleware.md — Middleware Groups: the same section's `prependToGroup` form, called
-// directly beside `appendToGroup`.
+// AT-10 — middleware.md — Middleware Groups: the same section's `prependToGroup` form — the doc's
+// two-member example — called directly beside `appendToGroup`.
 it('runs middleware prepended to a group when the group is assigned to a route', function (): void {
     $file = $this->manifest(<<<'YAML'
         kernel:
@@ -299,6 +299,7 @@ it('runs middleware prepended to a group when the group is assigned to a route',
           prependMiddlewareToGroup:
             group-name:
               - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupPrepended
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
         routes:
           addRoute:
             - uri: grouped
@@ -311,7 +312,11 @@ it('runs middleware prepended to a group when the group is assigned to a route',
 
     $this->get('/grouped')->assertOk();
 
-    expect(MiddlewareLog::entries())->toBe([GroupPrepended::class, GroupFirst::class]);
+    expect(MiddlewareLog::entries())->toBe([
+        GroupPrepended::class,
+        GroupSecond::class,
+        GroupFirst::class,
+    ]);
 });
 
 // AT-11 — middleware.md — Manually Managing Laravel's Default Middleware Groups: "you may

@@ -1,6 +1,6 @@
 # Declarative HTTP Kernel — Acceptance Test Plan (`src/Kernel.php`)
 
-**Subject under test:** [src/Kernel.php](../src/Kernel.php) (`ZeroToProd\LaravelDeclaration\Kernel`) — the `DataModel` hydrated from the manifest's `kernel:` key ([Manifest.php](../src/Manifest.php) `?Kernel $kernel`). Its thirteen properties are `Illuminate\Foundation\Http\Kernel` method names; they are applied by [KernelDeclarationServiceProvider.php](../src/Providers/KernelDeclarationServiceProvider.php) as identically-named `Kernel` calls when the container first resolves `Illuminate\Contracts\Http\Kernel` (`callAfterResolving`, queued in `boot()`): a list property is one call per item in declaration order (the `Prepend` lists are called in reverse so the first declared item lands first), a map property is one call per entry with the key as the target or anchor argument, the `set*` keys are one bulk call, and `whenRequestLifecycleIsLongerThan` maps each threshold key to a handler reference.
+**Subject under test:** [src/Kernel.php](../src/Kernel.php) (`ZeroToProd\LaravelDeclaration\Kernel`) — the `DataModel` hydrated from the manifest's `kernel:` key ([Manifest.php](../src/Manifest.php) `?Kernel $kernel`). Its thirteen properties are `Illuminate\Foundation\Http\Kernel` method names; they are applied by [KernelDeclarationServiceProvider.php](../src/Providers/KernelDeclarationServiceProvider.php) as identically-named `Kernel` calls when the container first resolves `Illuminate\Contracts\Http\Kernel` (`callAfterResolving`, queued in `boot()`): a list property is one call per item in declaration order (the `Prepend` values are called in reverse so the first declared item lands first), a map property is one call per entry with the key as the target or anchor argument (the `PrependTo` values are called in reverse so the first declared item lands first), the `set*` keys are one bulk call, and `whenRequestLifecycleIsLongerThan` maps each threshold key to a handler reference.
 
 **Source documentation:** [docs/repos/laravel/docs/middleware.md](repos/laravel/docs/middleware.md) — the vendored Laravel docs are the **system of record** for every behavior below (upstream equivalents in §10), with [lifecycle.md](repos/laravel/docs/lifecycle.md), [requests.md](repos/laravel/docs/requests.md), [routing.md](repos/laravel/docs/routing.md) and [container.md](repos/laravel/docs/container.md) corroborating. The vendored docs register middleware through the `bootstrap/app.php` `Middleware` configuration object (`$middleware->append(...)`, `->use(...)`, `->group(...)`); each declared `kernel:` key is the identically-named `Kernel`-method counterpart of one documented configuration call. This plan contains no behavior sourced from the framework code alone.
 
@@ -17,9 +17,9 @@
 | `prependMiddleware` | `prepend` adds a middleware to the beginning of the list | AT-02 |
 | `setGlobalMiddleware` | the default stack of global middleware may be provided to the `use` method to manage the stack manually | AT-03 |
 | `setGlobalMiddleware` | the manually provided stack may then be adjusted as necessary (an omitted default no longer runs) | AT-04 |
-| `pushMiddleware` | a global middleware can perform its task after the request is handled, on the outgoing response | AT-05 |
-| `pushMiddleware` | all middleware are resolved via the service container — constructor type-hints are injected | AT-06 |
-| `pushMiddleware` | a middleware inspects and filters the request: it rejects it (redirect) before the application handles it, or allows it to proceed | AT-07 |
+| `pushMiddleware` | a middleware inspects and filters the request: it rejects it (redirect) before the application handles it, or allows it to proceed | AT-05 |
+| `pushMiddleware` | a global middleware can perform its task after the request is handled, on the outgoing response | AT-06 |
+| `pushMiddleware` | all middleware are resolved via the service container — constructor type-hints are injected | AT-07 |
 | `pushMiddleware` | `withoutMiddleware` does not apply to global middleware | AT-08 |
 | `appendMiddlewareToGroup` | middleware grouped under a single key run when the group is assigned to a route with the same syntax as individual middleware | AT-09 |
 | `prependMiddlewareToGroup` | the doc's `prependToGroup` form — prepended members run when the group is assigned to a route | AT-10 |
@@ -76,7 +76,7 @@ Sources: [middleware.md — Manually Managing Laravel's Default Global Middlewar
 - **When** the route is requested.
 - **Then** the padded string arrives untrimmed and the empty field is not `null` — the omitted defaults no longer run, because the manually provided list is the whole global middleware stack.
 
-Sources: [middleware.md — Manually Managing Laravel's Default Global Middleware](repos/laravel/docs/middleware.md#manually-managing-laravels-default-global-middleware); [requests.md — Disabling Input Normalization](repos/laravel/docs/requests.md#input-trimming-and-normalization).
+Sources: [middleware.md — Manually Managing Laravel's Default Global Middleware](repos/laravel/docs/middleware.md#manually-managing-laravels-default-global-middleware); [requests.md — Disabling Input Normalization](repos/laravel/docs/requests.md#disabling-input-normalization).
 
 ---
 
@@ -134,9 +134,9 @@ Sources: [middleware.md — Excluding Middleware](repos/laravel/docs/middleware.
 
 **Doc says:** "Sometimes you may want to group several middleware under a single key to make them easier to assign to routes. You may accomplish this using the `appendToGroup` method" — `$middleware->appendToGroup('group-name', [First::class, Second::class]);` — and "Middleware groups may be assigned to routes and controller actions using the same syntax as individual middleware" — `->middleware('group-name')`.
 
-- **Given** the manifest declares `kernel.setMiddlewareGroups: {'group-name': [<First>]}` and `kernel.appendMiddlewareToGroup: {'group-name': [<Second>]}` — a defined group joined by the doc's append — and a route assigned `middleware: ['group-name']` (the doc's same syntax as individual middleware).
+- **Given** the manifest declares `kernel.setMiddlewareGroups: {'group-name': []}` — the group defined, empty, so the Kernel surface's append can join it (§9 G-7) — and `kernel.appendMiddlewareToGroup: {'group-name': [<First>, <Second>]}` — the doc's two-member append — and a route assigned `middleware: ['group-name']` (the doc's same syntax as individual middleware).
 - **When** the route is requested.
-- **Then** both `First` and `Second` executed — the appended middleware joined the group under the single key and ran with it when the group was assigned to the route.
+- **Then** both `First` and `Second` executed, in the order they were declared — the appended middleware joined the group under the single key and ran with it when the group was assigned to the route.
 
 Sources: [middleware.md — Middleware Groups](repos/laravel/docs/middleware.md#middleware-groups).
 
@@ -144,9 +144,9 @@ Sources: [middleware.md — Middleware Groups](repos/laravel/docs/middleware.md#
 
 **Doc says:** the same section's example calls `$middleware->prependToGroup('group-name', [First::class, Second::class]);` directly beside `appendToGroup`.
 
-- **Given** the manifest declares `kernel.setMiddlewareGroups: {'group-name': [<First>]}` and `kernel.prependMiddlewareToGroup: {'group-name': [<Prepended>]}`, and a route assigned `middleware: ['group-name']`.
+- **Given** the manifest declares `kernel.setMiddlewareGroups: {'group-name': [<First>]}` and `kernel.prependMiddlewareToGroup: {'group-name': [<Prepended>, <Second>]}` — the doc's two-member prepend beside the plan's declared group — and a route assigned `middleware: ['group-name']`.
 - **When** the route is requested.
-- **Then** `Prepended` executed as part of the group when the group was assigned to the route.
+- **Then** `Prepended` and `Second` executed as part of the group, ahead of the group's `First`, with `Prepended` — the first declared — landing first.
 
 Sources: [middleware.md — Middleware Groups](repos/laravel/docs/middleware.md#middleware-groups).
 
@@ -241,10 +241,10 @@ G-1–G-2: no acceptance test can be written from `docs/repos/laravel/docs/` for
 | # | Declared surface | Why no doc-backed test |
 |---|---|---|
 | G-1 | `prependToMiddlewarePriority`, `appendToMiddlewarePriority` | The docs document only the *anchored* priority insertions — `prependToPriorityList` "inserts the given middleware before another middleware", `appendToPriorityList` "after another middleware" ([middleware.md — Sorting Middleware](repos/laravel/docs/middleware.md#sorting-middleware)); an unanchored insert at the list edge is undocumented. The anchored forms are expressed by `addToMiddlewarePriorityBefore`/`After` (AT-14, AT-15). In-repo mapping: [declarative-kernel.md](declarative-kernel.md) §2.4. |
-| G-2 | `whenRequestLifecycleIsLongerThan` | Request-duration handlers have zero matches in the vendored docs. Nearest non-backing docs: [lifecycle.md](repos/laravel/docs/lifecycle.md) (the lifecycle the handler observes) and [pulse.md — Slow Requests](repos/laravel/docs/pulse.md#slow-requests) (a Pulse dashboard recorder with its own 1,000ms threshold — a different surface). The threshold keys and the handler reference dispatch are framework-source only: [declarative-kernel.md](declarative-kernel.md) §2.5 (`wrapDurationHandler`). |
+| G-2 | `whenRequestLifecycleIsLongerThan` | Request-duration handlers have zero matches in the vendored docs. Nearest non-backing docs: [lifecycle.md](repos/laravel/docs/lifecycle.md) (the lifecycle the handler observes) and [pulse.md — Slow Requests](repos/laravel/docs/pulse.md#slow-requests-card) (a Pulse dashboard card with its own 1,000ms default threshold — a different surface). The threshold keys and the handler reference dispatch are framework-source only: [declarative-kernel.md](declarative-kernel.md) §2.5 (`wrapDurationHandler`). |
 | G-3 | (inverse) array anchors for priority insertion | "The `before` and `after` arguments may also be an array of middleware classes" ([middleware.md — Sorting Middleware](repos/laravel/docs/middleware.md#sorting-middleware)), but `addToMiddlewarePriorityBefore`/`After` is a map whose anchor is the YAML key — a scalar string — so an array anchor has no declarable expression. |
-| G-4 | (inverse) `replace` / `remove` | The docs document replacing default group entries (`$middleware->web(replace: ...)`, `remove:` — [middleware.md — Laravel's Default Middleware Groups](repos/laravel/docs/middleware.md#laravels-default-middleware-groups)) and removing middleware from the stack (`$middleware->remove([...])` — [requests.md — Disabling Input Normalization](repos/laravel/docs/requests.md#input-trimming-and-normalization)); `kernel:` has no `replace`/`remove` keys — the nearest expressions are wholesale redefinition via `setMiddlewareGroups` (AT-11) and `setGlobalMiddleware` (AT-04). |
-| G-5 | (inverse) default-group auto-application | "By default, the `web` and `api` middleware groups are automatically applied to your application's corresponding `routes/web.php` and `routes/api.php` files by the `bootstrap/app.php` file" ([middleware.md — Middleware Groups](repos/laravel/docs/middleware.md#middleware-groups) note) — a `bootstrap/app.php` surface the `kernel:` block does not own; the tests assign groups to declared routes explicitly (AT-09–AT-11). |
+| G-4 | (inverse) `replace` / `remove` | The docs document replacing default group entries (`$middleware->web(replace: ...)`, `remove:` — [middleware.md — Laravel's Default Middleware Groups](repos/laravel/docs/middleware.md#laravels-default-middleware-groups)) and removing middleware from the stack (`$middleware->remove([...])` — [requests.md — Disabling Input Normalization](repos/laravel/docs/requests.md#disabling-input-normalization)); `kernel:` has no `replace`/`remove` keys — the nearest expressions are wholesale redefinition via `setMiddlewareGroups` (AT-11) and `setGlobalMiddleware` (AT-04). |
+| G-5 | (inverse) default-group auto-application | "By default, the `web` and `api` middleware groups are automatically applied to your application's corresponding `routes/web.php` and `routes/api.php` files by the `bootstrap/app.php` file" ([middleware.md — Manually Managing Laravel's Default Middleware Groups](repos/laravel/docs/middleware.md#manually-managing-laravels-default-middleware-groups) note) — a `bootstrap/app.php` surface the `kernel:` block does not own; the tests assign groups to declared routes explicitly (AT-09–AT-11). |
 | G-6 | (inverse) shared `handle`/`terminate` instance | The doc's singleton alternative — "register the middleware with the container using the container's `singleton` method" ([middleware.md — Terminable Middleware](repos/laravel/docs/middleware.md#terminable-middleware)) — is a container-registration surface; `kernel:` declares only stack membership, so AT-17 tests the documented default (a fresh instance per `terminate`) only. |
 | G-7 | mutating an undefined group | `appendMiddlewareToGroup`/`prependMiddlewareToGroup` on a group that has not been defined throws `InvalidArgumentException` (framework source, [declarative-kernel.md](declarative-kernel.md) §1.4); the vendored docs document no undefined-group behavior for `appendToGroup` — nearest non-backing doc: [middleware.md — Middleware Groups](repos/laravel/docs/middleware.md#middleware-groups). |
 

@@ -1,0 +1,1 @@
+custom-default:{{ $paginator->count() }}

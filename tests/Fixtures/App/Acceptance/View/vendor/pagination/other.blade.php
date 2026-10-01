@@ -1,0 +1,1 @@
+other-view:{{ $paginator->count() }}@if(isset($foo))-foo:{{ $foo }}@endif
