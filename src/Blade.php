@@ -19,7 +19,7 @@ final readonly class Blade
 
     public const string if = 'if';
 
-    /** @var array<string, string> */
+    /** @var array<string, callable-string> */
     #[Describe([Describe::default => []])]
     public array $if;
 

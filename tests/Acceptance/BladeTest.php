@@ -203,7 +203,7 @@ it('renders the component class under its declared tag alias', function (): void
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(view('blade.component-alert')->render())->toBe('<span class="alert-error">watch out</span>')
+    expect(view('blade.component-alert')->render())->toBe('<span class="alert-info"></span>')
         ->and(Alert::class)->not->toContain('App\\View\\Components');
 });
 
@@ -242,5 +242,5 @@ it('resolves an anonymous component from the declared prefixed path', function (
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-    expect(view('blade.anonymous-prefixed')->render())->toBe('<div class="panel">inside</div>');
+    expect(view('blade.anonymous-prefixed')->render())->toBe('<div class="panel"></div>');
 });

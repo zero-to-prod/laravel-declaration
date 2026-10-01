@@ -24,7 +24,11 @@ class BladeDeclarationServiceProvider extends ServiceProvider
             }
 
             foreach ($Manifest->blade->if as $name => $callback) {
-                $blade->if($name, fn (...$args) => $this->app->call($callback, $args));
+                // Conditional directives are invoked positionally by Blade::check
+                // (blade.md — Custom If Statements: "Blade::if('disk', function
+                // (string $value) { ... })"), so the declared callable reference
+                // registers directly with Blade::if.
+                $blade->if($name, $callback);
             }
 
             foreach ($Manifest->blade->component as $class => $alias) {
