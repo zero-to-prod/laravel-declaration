@@ -32,7 +32,7 @@ php artisan declaration:migrate
     Builder::table($table, $callback)                   // Builder.php:508 — NO hasTable guard of its own; guarded per action here
       Blueprint::__construct($connection, $table, $callback)
         creating() === false                            // Blueprint.php:327 — no 'create' command queued
-        TableDefinition::apply($blueprint)              // same dispatch; addColumnDefinition() pushes to $commands (Blueprint.php:1862, push at :1866)
+        TableDefinition::apply($blueprint)              // same dispatch; addColumnDefinition() pushes to $commands (Blueprint.php:1862, push at :1867)
         $column->change()                               // Fluent::__call sets attributes['change'] (Fluent.php:299)
       BlueprintState::update($command)                  // SQLite alter/change emulation (Blueprint.php:150-151, :316)
 ```
@@ -40,18 +40,18 @@ php artisan declaration:migrate
 Consequences, each verified against v13.33.0:
 
 1. **`create` and `table` share one blueprint body.** `Builder::table()` passes the callback straight into `createBlueprint($table, $callback)` → `Blueprint::__construct(..., $callback)` runs it during construction; `Builder::create()` wraps it in `tap(...)` after queuing `$blueprint->create()`. Every column factory, modifier, index, and dropper behaves identically; the grammar compiles per-connection (`compileCreate` vs `compileChange`, `compileAdd`, `compileDropColumn`, …).
-2. **SQLite (the test driver) supports the full alter surface.** When the connection is SQLite, the blueprint attaches a `BlueprintState` (`Blueprint.php:316`) and `toSql()` routes every command through `$this->state->update($command)` (`Blueprint.php:151`) — column changes and drops are emulated as table rebuilds. No driver special-casing is needed in the package.
+2. **SQLite (the test driver) supports the full alter surface.** The blueprint attaches a `BlueprintState` whenever alter commands exist — the attach inside `addAlterCommands()` (`Blueprint.php:316`) is unconditional — and `toSql()` routes every command through `$this->state->update($command)` (`Blueprint.php:151`). SQLite is the only consumer: `SQLiteGrammar::compileAlter()` reads `$blueprint->getState()` and emulates column changes and drops as table rebuilds. No driver special-casing is needed in the package.
 3. **The four new Builder operations are one-liners natively.** `drop()`/`dropIfExists()`/`rename()` build a blueprint with a single verb command and `build()` it — they take no callback. `table()` takes the same callback shape as `create()`.
 4. **`hasTable()`/`hasColumn()`/`hasIndex()`/`hasForeignKey()` query the live catalog** (`Builder.php:169,270,444,471`) — these are the idempotency primitives for alter operations (§3.6).
 
 ### 1.2 The four `Builder` operations (verified signatures)
 
-v13.33.0 declares native parameter/return types **only on the `whenTable*` helpers** (`Builder.php:299-346`) — every other `Builder` method is untyped and carries docblock types (`@param string $table`, `@return void`). Signatures below are the verbatim native ones:
+The `whenTable*` helpers (`Builder.php:299-346`) are the only `Builder` operations **fully native-typed on every parameter**; reflection adds partial native types elsewhere — `table()`/`create()` carry a native `Closure $callback`, `hasColumns()` a native `array $columns` (`Builder.php:284`), `withoutForeignKeyConstraints()`/`blueprintResolver()` native `Closure`s, and the static `defaultTimePrecision(?int $precision): void` (`Builder.php:83`) is fully native. Every other method — including `drop`/`dropIfExists`/`rename` — is untyped with docblock types (`@param string $table`, `@return void`), and **no public `Builder` method declares a native return type**. Signatures below are the verbatim native ones:
 
 | Method | Native signature | Line | Blueprint verb queued |
 |---|---|---|---|
 | `Builder::table()` | `table($table, Closure $callback)` | `Builder.php:508` | none (alter mode) |
-| `Builder::create()` | `create($table, Closure $callback)` | `Builder.php:520` | `$blueprint->create()` (`Blueprint.php:336`) |
+| `Builder::create()` | `create($table, Closure $callback)` | `Builder.php:520` | `$blueprint->create()` (`Blueprint.php:338`) |
 | `Builder::drop()` | `drop($table)` | `Builder.php:535` | `$blueprint->drop()` (`Blueprint.php:401`) |
 | `Builder::dropIfExists()` | `dropIfExists($table)` | `Builder.php:548` | `$blueprint->dropIfExists()` (`Blueprint.php:411`) |
 | `Builder::rename()` | `rename($from, $to)` | `Builder.php:612` | `$blueprint->rename($to)` (`Blueprint.php:647`) |
@@ -71,7 +71,7 @@ Idempotency predicates on the same Builder (used by the executor, not re-impleme
 
 ### 1.3 The Blueprint alter-verb surface (verified signatures, all reachable through the existing `method_exists` dispatch)
 
-Signatures below are docblock-typed — `Blueprint` declares **no native parameter/return types** (§1.4); the `@return` column quotes the verbatim docblock tag, which is the classifier's only source (§3.0).
+Signatures below are docblock-typed — `Blueprint`'s public surface declares **no native return types**; native parameter types exist only on `addColumn` (`array $parameters = []`), `after` (`Closure $callback`) and `enum`/`set` (`array $allowed`), while parameter **names** are still read by reflection (`§3.0 parameters()`); the `@return` column quotes the verbatim docblock tag, which is the kind classifier's only source (§3.0).
 
 | Method | Signature | Line | Docblock `@return` |
 |---|---|---|---|
@@ -82,7 +82,7 @@ Signatures below are docblock-typed — `Blueprint` declares **no native paramet
 | `dropConstrainedForeignId()` | `dropConstrainedForeignId($column)` | `Blueprint.php:524` | `\Illuminate\Support\Fluent` (drops the FK then the column) |
 | `dropForeignIdFor()` / `dropConstrainedForeignIdFor()` | `drop*ForeignIdFor($model, $column = null)` — instantiates string models and calls `$model->getForeignKey()` | `Blueprint.php:538,554` | `\Illuminate\Support\Fluent` |
 | `renameIndex()` | `renameIndex(string $from, string $to): Fluent` | `Blueprint.php:570` | `Fluent` |
-| `dropTimestamps()` / `dropTimestampsTz()` / `dropSoftDeletes()` / `dropSoftDeletesTz()` / `dropRememberToken()` / `dropMorphs()` | convenience droppers (`dropMorphs(string $name, ?string $indexName = null)`) | `Blueprint.php:580-634` | `void` |
+| `dropTimestamps()` / `dropTimestampsTz()` / `dropSoftDeletes()` / `dropSoftDeletesTz()` / `dropRememberToken()` / `dropMorphs()` | convenience droppers (`dropMorphs(string $name, ?string $indexName = null)`; the `morphs` family carries a third `$after` parameter — `morphs($name, $indexName = null, $after = null)`) | `Blueprint.php:580-634` | `void` |
 | `removeColumn()` | `removeColumn(string $name): self` | `Blueprint.php:1901` | `$this` |
 | `ColumnDefinition::change()` | *not a real method* — `Fluent::__call()` sets `attributes['change'] = true` (`Fluent.php:299`); consumed by `compileChange` and `BlueprintState` | `ColumnDefinition.php:11` (`@method $this change()`) | `$this` |
 | `addColumn()` | `addColumn(string $type, string $name, array $parameters = []): ColumnDefinition` | `Blueprint.php:1849` | `ColumnDefinition` |
@@ -93,32 +93,32 @@ Signatures below are docblock-typed — `Blueprint` declares **no native paramet
 
 Modifier targets verified in full:
 
-- **`ColumnDefinition`** (extends `Fluent`, `ColumnDefinition.php:39`): every modifier is either a real method (`nullable`, `default`, `unsigned`, `useCurrent`, `useCurrentOnUpdate`, …) or a `@method`-annotated Fluent verb — the docblock lists all of them including **`change()`** (`ColumnDefinition.php:11`). Column-level index modifiers (`index`, `unique`, `fulltext`, `spatialIndex`, `vectorIndex`, `primary`) are `@method`-annotated too.
+- **`ColumnDefinition`** (extends `Fluent`, `ColumnDefinition.php:39`) is an **empty class** — reflection shows zero methods of its own (`method_exists(ColumnDefinition::class, 'nullable')` is false), so *every* modifier (`nullable`, `default`, `unsigned`, `useCurrent`, `useCurrentOnUpdate`, …) is a `@method`-annotated Fluent attribute verb consumed by the grammars. The docblock lists all of them including **`change()`** (`ColumnDefinition.php:11`), plus the column-level index modifiers (`index`, `unique`, `fulltext`, `spatialIndex`, `vectorIndex`, `primary`).
 - **`ForeignIdColumnDefinition`** (extends `ColumnDefinition`): real methods `constrained($table = null, $column = null, $indexName = null)` (`ForeignIdColumnDefinition.php:37`) and `references($column, $indexName = null)` (`:52`) — `references()` itself creates the FK via `$this->blueprint->foreign(...)` and returns the `ForeignKeyDefinition`, so the fluent target transitions even without `constrained()`.
 - **`ForeignKeyDefinition`** (extends `Fluent`, `ForeignKeyDefinition.php:17`): real methods `cascadeOnUpdate/restrictOnUpdate/nullOnUpdate/noActionOnUpdate/cascadeOnDelete/restrictOnDelete/nullOnDelete/noActionOnDelete` plus `@method`-annotated `deferrable`, `initiallyImmediate`, `inplace`, `lock`, `on`, `onDelete`, `onUpdate`, `references`.
 - **`IndexDefinition`** (extends `Fluent`): `@method`-annotated `algorithm`, `deferrable`, `initiallyImmediate`, `inplace`, `language`, `lock`, `nullsNotDistinct`, `online` — today the `indexes:` bag discards the returned `IndexDefinition`, so these are undeclarable; sequential dispatch makes them declarable for free.
-- **Table options** `engine()`, `charset()`, `collation()`, `temporary()` are **property setters** on the blueprint (`Blueprint.php:347-395` — `$this->engine = $engine`), not Fluent commands; `comment()` queues a `tableComment` command (`Blueprint.php:1768`). Plain method dispatch covers all five; the `property_exists` branch in the shipped `TableDefinition::apply()` is unnecessary.
-- **Getter trap (must not classify as DDL):** `getColumns()`/`getAddedColumns()`/`getChangedColumns()` carry `@return \Illuminate\Database\Schema\ColumnDefinition[]` and `getCommands()` carries `@return \Illuminate\Support\Fluent[]` (`Blueprint.php:1960-1984`) — with a naive `@return` capture these getters classify as column/command factories. The classifier (§3.0) captures the trailing `[]` so any array-typed return is `Unknown`; non-DDL `void` internals (`addFluentCommands`, `addAlterCommands`, `macro`, `mixin`, `flushMacros`) are excluded by the `LIFECYCLE` deny list.
+- **Table options** `engine()`, `charset()`, `collation()`, `temporary()` are **property setters** on the blueprint (`Blueprint.php:349-391` — `$this->engine = $engine`), not Fluent commands; `innoDb()` (`Blueprint.php:359`) is a Unit-classified alias for `engine('InnoDB')`; `comment()` queues a `tableComment` command (`Blueprint.php:1768`). Plain method dispatch covers all; the `property_exists` branch in the shipped `TableDefinition::apply()` is unnecessary.
+- **Getter trap (must not classify as DDL):** `getColumns()` (`Blueprint.php:1967`)/`getAddedColumns()` (`:2007`)/`getChangedColumns()` (`:2021`) carry `@return \Illuminate\Database\Schema\ColumnDefinition[]` and `getCommands()` (`:1977`) carries `@return \Illuminate\Support\Fluent[]` — with a naive `@return` capture these getters classify as column/command factories. The classifier (§3.0) captures the trailing `[]` so any array-typed return is `Unknown`; non-DDL `void` internals (`addFluentCommands`, `addAlterCommands`, `macro`, `mixin`, `flushMacros`) are excluded by the `LIFECYCLE` deny list.
 
 ### 1.4 Return-type classification (the dynamic replacement for the two static key lists)
 
-The v13.33.0 `Blueprint` methods declare **no native return types** (verified by reflection: `ReflectionMethod::getReturnType()` is empty for `string`, `index`, `foreign`, `morphs`, `dropColumn`, `timestamps`, `rawColumn`, `removeColumn`, `renameIndex`, `engine`, `temporary`, `comment`, `dropForeignIdFor`). The only machine-readable classification source is the **docblock `@return` tag**, which is complete and consistent across the DDL surface:
+The v13.33.0 `Blueprint` methods declare **no native return types** (verified by reflection: `ReflectionMethod::getReturnType()` is empty for `string`, `index`, `foreign`, `morphs`, `dropColumn`, `timestamps`, `rawColumn`, `removeColumn`, `renameIndex`, `engine`, `temporary`, `comment`, `dropForeignIdFor` — the only native returns sit on non-public internals: private `hasState(): bool`, protected `defaultTimePrecision(): ?int`). The only machine-readable classification source is the **docblock `@return` tag**, which is complete and consistent across the DDL surface (reflection census: 61 Column, 7 Index, 1 ForeignKey, 19 Command, 26 Unit, 5 Collection, 10 Unknown):
 
 | `@return` tag | Classification | Methods (representative) |
 |---|---|---|
 | `\Illuminate\Database\Schema\ColumnDefinition` / `ForeignIdColumnDefinition` | **column factory** | `id`, `string`, `integer`, `foreignId`, `foreignIdFor`, `addColumn`, `rawColumn`, … |
-| `\Illuminate\Database\Schema\IndexDefinition` | **index factory** | `primary`, `unique`, `index`, `fullText`, `spatialIndex`, `vectorIndex`, `rawIndex` (`Blueprint.php:658-738`) |
-| `\Illuminate\Database\Schema\ForeignKeyDefinition` | **foreign-key factory** | `foreign` (`Blueprint.php:750`) |
+| `\Illuminate\Database\Schema\IndexDefinition` | **index factory** | `primary`, `unique`, `index`, `fullText`, `spatialIndex`, `vectorIndex`, `rawIndex` (`Blueprint.php:660-740`) |
+| `\Illuminate\Database\Schema\ForeignKeyDefinition` | **foreign-key factory** | `foreign` (`Blueprint.php:752`) |
 | `\Illuminate\Support\Fluent` | **verb** | `dropColumn`, `dropUnique`, `dropIndex`, `dropForeign`, `renameColumn`, `renameIndex`, `comment` |
-| `void` | **unit verb** | `morphs`, `temporary`, `engine`, `dropTimestamps`, `dropMorphs` — note `dropConstrainedForeignId`/`dropForeignIdFor`/`dropConstrainedForeignIdFor` are **not** here: their docblocks are `Fluent` → `Command` |
-| `\Illuminate\Support\Collection` | **multi-column factory** | `timestamps`, `nullableTimestampsTz`, `datetimes` |
+| `void` | **unit verb** | `morphs`, `temporary`, `engine`, `innoDb`, `dropTimestamps`, `dropMorphs` — note `dropConstrainedForeignId`/`dropForeignIdFor`/`dropConstrainedForeignIdFor` are **not** here: their docblocks are `Fluent` → `Command` |
+| `\Illuminate\Support\Collection` | **multi-column factory** | `timestamps`, `nullableTimestamps`, `timestampsTz`, `nullableTimestampsTz`, `datetimes` (generic docblocks `Collection<int, ColumnDefinition>` truncate at `<` under the capture regex) |
 | `$this` | **verb (stateful)** | `removeColumn` |
 | any `X[]` (`ColumnDefinition[]`, `Fluent[]`) | **unknown → rejected** | getters `getColumns`, `getAddedColumns`, `getChangedColumns`, `getCommands` — the classifier captures the trailing `[]` so array returns never match a DDL kind |
 | anything else / none | **unknown → rejected at hydration** | `build` (`@return void` — denied by `LIFECYCLE`), `toSql` (`@return array` → unknown), `creating` (`@return bool`) |
 
 ### 1.5 The defects being fixed (verified by code trace against `src/`)
 
-1. **`ForeignKeyDefinition` modifier discard (Rule 7 violation).** `Blueprint::foreign()` returns `ForeignKeyDefinition`, which extends `Illuminate\Support\Fluent` — **not** `ColumnDefinition` (`ForeignKeyDefinition.php:17`). The shipped `ColumnDefinitionModel::apply()` dispatches FK modifiers only when `constrained !== null && $column instanceof ForeignIdColumnDefinition`, and remaining modifiers only when `$column instanceof ColumnDefinition`. A declaration like `foreign: {column: user_id, references: users, on: id, cascadeOnDelete: true}` therefore **silently discards every modifier**. Verified: no `ForeignKeyDefinition` branch exists in `src/ColumnDefinitionModel.php`.
+1. **`ForeignKeyDefinition` modifier discard (Rule 7 violation).** `Blueprint::foreign()` returns `ForeignKeyDefinition`, which extends `Illuminate\Support\Fluent` — **not** `ColumnDefinition` (`ForeignKeyDefinition.php:17`). The shipped `ColumnDefinitionModel::apply()` dispatches FK modifiers only when `constrained !== null && $column instanceof ForeignIdColumnDefinition`, and remaining modifiers only when `$column instanceof ColumnDefinition`. A declaration like `foreign: {column: user_id, on: users, references: id, cascadeOnDelete: true}` therefore **silently discards every modifier**. Verified: no `ForeignKeyDefinition` branch exists in `src/ColumnDefinitionModel.php`.
 2. **Flat-form index list omits `vectorIndex` and `rawIndex`.** The static list in `TableDefinition::from()` is `['primary', 'unique', 'index', 'fullText', 'spatialIndex']`; `vectorIndex` (`Blueprint.php:724`) and `rawIndex` (`Blueprint.php:740`) fall through to the column branch and are mis-handled as columns — their `IndexDefinition` results are not `ColumnDefinition`, and the `name`/`column` key collision overwrites `factoryArguments[0]` with the index name (e.g. `vectorIndex: {column: embedding, name: idx}` dispatches `vectorIndex('idx')`).
 3. **Named-index map form mis-dispatch (new finding, beyond the inventory list).** In `TableDefinition::apply()`, the `indexes:` loop passes a map definition straight through: `$table->{$indexMethod}($definition)` — so `index: {columns: [user_id], name: my_idx}` calls `$table->index(['columns' => …, 'name' => …])`, treating the map itself as the `$columns` argument. The doc's §1.4 pseudocode (`isset($indexArgs['columns'])`) was never implemented.
 4. **`Fluent::__call` swallows unknown modifier typos.** `string: {column: x, nulable: true}` sets a dead `nulable` attribute (`Fluent.php:299`) — silent no-op. Likewise `length: 255` on `string` works today only *accidentally* (the Fluent attribute named `length` overwrites the null factory argument). Named arguments make both correct-by-construction and unknown modifiers become loud failures.
@@ -152,7 +152,7 @@ The shipped `schema:` block has a single non-native key (`tables`). The complete
 | table-level index factories (`primary`, `unique`, `index`, `fullText`, `spatialIndex`, `vectorIndex`, `rawIndex`) | `! hasIndex($table, $name ?? [$columns])` | add only when missing; the declared `name` parameter wins, a scalar column is wrapped `[$column]` (`hasIndex` compares `$value['columns'] === $index`, so a bare string never matches a column list, `Builder.php:456`) |
 | `foreign` | `! hasForeignKey($table, [$columns])` | constraint add only when missing; scalar wrapped for the same `===` asymmetry (`Builder.php:474`) |
 | multi-column factories (`timestamps`, `morphs`, `rememberToken`, `softDeletes`, `id`, …) | `! hasColumn($canonical or $column)` | add only when missing |
-| table options (`engine`, `charset`, `collation`, `temporary`, `comment`) | none | property/command setters are naturally re-runnable |
+| table options (`engine`, `innoDb`, `charset`, `collation`, `temporary`, `comment`) | none | property/command setters are naturally re-runnable |
 | unrecognized verb | none | runs unguarded; inapplicable verbs fail with Laravel's own error (Rule 7) |
 
 Because every action is individually guarded, a **fresh** database (where `create` built the full desired state) and an **existing** database (where `table` fills the diff) both converge without errors — the same convergence property the `hasTable()` guard gives creation.
@@ -196,11 +196,13 @@ schema:
       string:
         column: user_id
       # standalone Blueprint::foreign() — FK modifiers now dispatch onto ForeignKeyDefinition (the fixed defect);
-      # `columns` is the native parameter name of Blueprint::foreign($columns, $name = null)
+      # `columns` is the native parameter name of Blueprint::foreign($columns, $name = null);
+      # `on` is the referenced TABLE and `references` the referenced COLUMN(S), exactly as
+      # ForeignKeyDefinition declares them (@method on(string $table), @method references(string|string[] $columns))
       foreign:
         - columns: user_id
-          references: people
-          on: id
+          on: people
+          references: id
           cascadeOnDelete: true
 
   # Builder::table($table, Closure) — alter mode; every action individually guarded
@@ -228,8 +230,8 @@ schema:
           nullsNotDistinct: true            # IndexDefinition modifier (previously undeclarable)
       foreign:
         - columns: owner_id          # native parameter name of Blueprint::foreign($columns, $name = null)
-          references: people
-          on: id
+          on: people                 # referenced table
+          references: id             # referenced column(s)
           cascadeOnDelete: true
       addColumn:                            # escape hatch: Blueprint::addColumn($type, $name, $parameters)
         - type: geometry
@@ -244,7 +246,7 @@ schema:
       dropTimestamps: ~                     # conventional dropper — guarded by hasColumn('created_at')
 ```
 
-Column shapes are unchanged from the shipped surface (scalar shorthand, map with modifiers, list for duplicate types). New: map keys matching the method's **native parameter names** become named arguments; everything else is a validated modifier dispatched in declaration order.
+Column shapes are unchanged from the shipped surface (scalar shorthand, map with modifiers, list for duplicate types). One consequence of Rule 2 for **index factories**: a flat list (`index: [user_id, completed]`) is one call per entry — two single-column indexes — while a composite index keeps the nested form the shipped fixture already uses (`index: [- [user_id, completed]]`) or the `columns:` map form. New: map keys matching the method's **native parameter names** become named arguments; everything else is a validated modifier dispatched in declaration order.
 
 ### 2.3 Key → method → signature map
 
@@ -327,12 +329,17 @@ enum BlueprintMethodKind: string
     {
         static $cache = [];
 
-        if (! method_exists(Blueprint::class, $method)) {
-            return self::Unknown;
-        }
-
         if (isset($cache[$method])) {
             return $cache[$method];
+        }
+
+        // `method_exists()` also matches non-public internals whose docblocks classify as
+        // DDL kinds (`addColumnDefinition` → Column, `addCommand`/`createCommand` → Command,
+        // `addImpliedCommands`/`ensureCommandsAreValid` → Unit); require visibility so they
+        // fail at hydration with a LogicException instead of a protected-call Error.
+        if (! method_exists(Blueprint::class, $method)
+            || ! (new ReflectionMethod(Blueprint::class, $method))->isPublic()) {
+            return $cache[$method] = self::Unknown;
         }
 
         return $cache[$method] = self::classify($method);
@@ -1143,8 +1150,8 @@ schema:
           nullsNotDistinct: true
       foreign:
         - columns: owner_id
-          references: people
-          on: id
+          on: people
+          references: id
           cascadeOnDelete: true
       dropTimestamps: ~
 ```
@@ -1343,11 +1350,13 @@ test('it classifies Blueprint methods by docblock return type', function (): voi
         ->and(BlueprintMethodKind::of('temporary'))->toBe(BlueprintMethodKind::Unit)
         ->and(BlueprintMethodKind::of('timestamps'))->toBe(BlueprintMethodKind::Collection)
         ->and(BlueprintMethodKind::of('removeColumn'))->toBe(BlueprintMethodKind::Command)
-        ->and(BlueprintMethodKind::of('toSql'))->toBe(BlueprintMethodKind::Unknown);
+        ->and(BlueprintMethodKind::of('toSql'))->toBe(BlueprintMethodKind::Unknown)
+        ->and(BlueprintMethodKind::of('addColumnDefinition'))->toBe(BlueprintMethodKind::Unknown)
+        ->and(BlueprintMethodKind::of('addCommand'))->toBe(BlueprintMethodKind::Unknown);
 });
 ```
 
-Additional coverage required by the Definition-of-Done `--min=100` gate: the `GuardKind::None` branch (a `Column`-kind factory with no derivable target — e.g. a future zero-argument factory not in the canonical map), `GuardKind::ForeignKeyExists` (declare `dropForeign: - [owner_id]` — columns form, since SQLite foreign-key names are `null` — in the alter fixture), the `dropForeignIdFor` unguarded path, `Schema::listOf` with a non-array value, the extended `LIFECYCLE` entries (`addFluentCommands: ~` → `LogicException`) and array-return getters (`getColumns: ~` → `Unknown`), and the `MigrateCommand` early-return guard (`No declarative schema defined in manifest.` — already covered by the shipped suite).
+Additional coverage required by the Definition-of-Done `--min=100` gate: the `GuardKind::None` branch (a `Column`-kind factory with no derivable target — e.g. a future zero-argument factory not in the canonical map), `GuardKind::ForeignKeyExists` (declare `dropForeign: - [owner_id]` — columns form, since SQLite foreign-key names are `null` — in the alter fixture), the `dropForeignIdFor` unguarded path, `Schema::listOf` with a non-array value, the extended `LIFECYCLE` entries (`addFluentCommands: ~` → `LogicException`) and array-return getters (`getColumns: ~` → `Unknown`), the non-public gate (`addColumnDefinition: ~` → `Unknown`), and the `MigrateCommand` early-return guard (`No declarative schema defined in manifest.` — already covered by the shipped suite).
 
 ---
 
@@ -1360,16 +1369,21 @@ Additional coverage required by the Definition-of-Done `--min=100` gate: the `Gu
 5. **New finding: named-index map form mis-dispatches** — the shipped `indexes:` loop passes an assoc map as `$columns`; the plan's named-argument form replaces it.
 6. **New finding: no native return types on `Blueprint` methods** (reflection-verified) — docblock `@return` is the only dynamic classification source, and it is complete for the DDL surface (§1.4).
 7. **New finding: `change()` is a `Fluent::__call` attribute** (`Fluent.php:299`; `ColumnDefinition.php:11` `@method`), consumed by `compileChange`/`BlueprintState` — declarable today, pinned by test.
-8. **New finding: `Blueprint::engine/charset/collation/temporary` are property setters** (`Blueprint.php:347-395`) — the `property_exists` dispatch branch is dead weight; method dispatch suffices.
+8. **New finding: `Blueprint::engine/charset/collation/temporary` are property setters** (`Blueprint.php:349-391`) — the `property_exists` dispatch branch is dead weight; method dispatch suffices.
 9. **New finding: `build()`'s docblock is `@return void`** — a kind-only allowlist would admit it; the `LIFECYCLE` deny list is required for hydration safety.
 10. **Guard primitives verified:** `hasIndex()` matches index name *or* column list (`Builder.php:444`), `hasForeignKey()` matches name *or* columns (`Builder.php:471`), `whenTableHasColumn()`/`whenTableDoesntHaveColumn()` are `predicate + table()` (`Builder.php:299-360`) — the executor's predicate form is exactly equivalent.
 11. **Constraint on guards:** `hasIndex($table, $index, $type)` type-matching is case-sensitive against grammar output (`$type === $value['type']`, `Builder.php:449-455`); the derived guards pass no type (any index on the columns counts) — documented trade-off, avoids false negatives for `vectorIndex`-style types.
 12. **Coverage/DoD:** `composer check` (`lint`, `rector-lint`, `analyse`, `coverage --min=100`, `bc-check`) must pass after implementation; §4 enumerates the branch-level tests for the new guard/classifier code.
-13. **Claim: §1.2/§1.3 signatures.** Refined — v13.33.0 declares native parameter/return types only on the `whenTable*` helpers (`Builder.php:299-346`); every other `Builder`/`Blueprint` method is untyped with docblock types. All signature tables now quote the verbatim native signatures (reflection-checked).
-14. **New finding: three alter-verb docblocks are `Fluent`, not `void`.** `dropConstrainedForeignId` (`Blueprint.php:522`), `dropForeignIdFor` (`:536`), `dropConstrainedForeignIdFor` (`:552`) classify as **Command**, not Unit (§1.3/§1.4 corrected). Guard behavior is unchanged: `dropConstrainedForeignId` already sat in the `dropColumn` command group and the `dropForeignIdFor` pair stays unguarded.
+13. **Claim: §1.2/§1.3 signatures.** Refined — the `whenTable*` helpers (`Builder.php:299-346`) are the only `Builder` methods fully native-typed on every parameter; `table()`/`create()` carry a native `Closure $callback`, `hasColumns()` a native `array $columns`, and the static `defaultTimePrecision(?int $precision): void` (`Builder.php:83`) is fully native; no public `Builder`/`Blueprint` method declares a native **return** type. `Blueprint`'s only native parameter types are `addColumn` (`array $parameters`), `after` (`Closure`) and `enum`/`set` (`array $allowed`). All signature tables now quote the verbatim native signatures (reflection-checked).
+14. **New finding: three alter-verb docblocks are `Fluent`, not `void`.** `dropConstrainedForeignId` (`Blueprint.php:524`), `dropForeignIdFor` (`:538`), `dropConstrainedForeignIdFor` (`:554`) classify as **Command**, not Unit (§1.3/§1.4 corrected). Guard behavior is unchanged: `dropConstrainedForeignId` already sat in the `dropColumn` command group and the `dropForeignIdFor` pair stays unguarded.
 15. **New finding: array-typed docblock returns leak into DDL kinds.** With the naive `[\w\\$]+` capture, `getColumns`/`getAddedColumns`/`getChangedColumns` (`@return ColumnDefinition[]`) classify as **Column** and `getCommands` (`@return Fluent[]`) as **Command** — declarable getters would pollute the blueprint. Fixed by capturing the trailing `[]` (`[\w\\\[\]$]+`) so any `X[]` return is Unknown (§3.0); non-DDL `void` internals (`addFluentCommands`, `addAlterCommands`, `macro`, `mixin`, `flushMacros`) are excluded by the extended `LIFECYCLE` deny list.
 16. **New finding: hydration cannot prove Column-kind modifier validity.** `isValidModifier` must include `ForeignKeyDefinition` for column factories because the chain may transition (`constrained()`/`references()` verified at `ForeignIdColumnDefinition.php:37,52` — the shipped `todos` fixture relies on it). A modifier that survives hydration but misses the actual target (`string` + `cascadeOnDelete`) is swallowed by `Fluent::__call` (`Fluent.php:299`) unless `apply()` re-validates against the current chain target — execution is the loud-failure seam (§3.2); the §4 throw test moved from hydration to execution.
 17. **New finding: scalar guard targets never match column lists.** `hasIndex`/`hasForeignKey` compare `$value['name'] === $index || $value['columns'] === $index` (`Builder.php:456,474`) — a bare string column never equals a column list, so a scalar-form guard would always pass and break idempotency. Index factories guard on `name ?? [$columns]`, `foreign` on `[$columns]` (§3.2 normalization); `dropIndex`/`dropForeign` keep scalar name-form (index names are real on SQLite; FK names are not — item 18).
 18. **New finding: SQLite foreign keys have no names.** `SQLiteProcessor::processForeignKeys` returns `'name' => null` — name-form `hasForeignKey`/`dropForeign` guards never match on the test driver; the `ForeignKeyExists` coverage uses the columns form.
 19. **Fixture coherence:** unguarded `drop` fails loudly on SQLite (`DROP TABLE` on a missing table), and a `rename` target colliding with a `create` target suppresses the create (the `hasTable()` guard skips it, so the expected `Created` output never appears) — the alter fixture pre-creates dropped tables and renames `old_users` → `users` while creating `people`.
 20. **Guardability of escape hatches and droppers:** `addColumn($type, $name, $parameters)` names its column through the `name` parameter, so `columnGuard()` falls back to `argument('name')` (§3.2); `dropSoftDeletes`/`dropSoftDeletesTz` gained `CANONICAL_COLUMNS` entries (`deleted_at`) to match §2.1's promised guard — both were silently unguarded in the previous revision.
+21. **New finding: non-public methods leak through `method_exists()`.** `method_exists(Blueprint::class, 'addColumnDefinition')` is true and its docblock (`@return \Illuminate\Database\Schema\ColumnDefinition`) classifies as Column; `addCommand`/`createCommand` (`@return Fluent`) classify as Command and `addImpliedCommands`/`ensureCommandsAreValid` (`@return void`) as Unit — declaring any of them would hydrate and then fail with a protected-call `Error` at dispatch. Fixed: `BlueprintMethodKind::of()` requires `ReflectionMethod::isPublic()` (§3.0); the classification test pins `addColumnDefinition`/`addCommand` → `Unknown`.
+22. **New finding: `ColumnDefinition` is an empty class.** Reflection: zero methods of its own — `method_exists(ColumnDefinition::class, 'nullable')` is false; every modifier is a `@method`-annotated Fluent attribute verb read by the grammars (e.g. `MySqlGrammar` compiles `varchar({$column->length})` straight from the attribute — the §1.5 defect 4 "works accidentally" trace). §1.3's "real methods" wording corrected; hydration validation for column modifiers runs entirely through `annotatedMethods()`.
+23. **New finding: `references`/`on` semantics.** `ForeignKeyDefinition::references()` sets the referenced **column(s)** and `on()` the referenced **table** (`@method on(string $table)`, `@method references(string|string[] $columns)`, `ForeignKeyDefinition.php:12,15`) — the §2.2/§4 examples had them inverted (`references: people, on: id` would reference column `people` on table `id`); fixed to `on: people, references: id`. The §4 foreign-key assertions (`foreign_table`, `foreign_columns`) pin the correct orientation.
+24. **Index-factory list semantics pinned by Rule 2.** `TableDefinition::from()` splits flat lists before `fromDefinition()`, so `index: [a, b]` is two single-column calls while `index: [- [a, b]]` (the shipped fixture's form) and the `columns:` map form stay composite — §2.2 documents this; the shipped `index: [- [user_id, completed]]` body is unchanged under the new dispatch.
+25. **`BlueprintState` attach is unconditional for alter blueprints** (`addAlterCommands()`, `Blueprint.php:316`) — SQLite is merely the sole consumer (`SQLiteGrammar::compileAlter()` reads `$blueprint->getState()`, emulating changes/drops as rebuilds); §1.1 wording refined. The generic `@return Collection<int, ColumnDefinition>` docblocks also truncate at `<` under the capture regex, so `timestamps` & co. classify as Collection (§1.4).
