@@ -27,7 +27,7 @@
 
 ### AT-01 — a declared custom rule verifies its attribute (an invalid value fails, a valid one passes)
 
-**Doc says:** "Laravel provides a variety of helpful validation rules; however, you may wish to specify some of your own." The doc's example is "a rule that verifies a string is uppercase" whose single method "receives the attribute name, its value" — [structure.md](repos/laravel/docs/structure.md#the-rules-directory) adds that "Rules are used to encapsulate complicated validation logic in a simple object."
+**Doc says:** "Laravel provides a variety of helpful validation rules; however, you may wish to specify some of your own." The doc's example is "a rule that verifies a string is uppercase" whose single method (`validate`) "receives the attribute name, its value, and a callback that should be invoked on failure with the validation error message" — [structure.md](repos/laravel/docs/structure.md#the-rules-directory) adds that "Rules are used to encapsulate complicated validation logic in a simple object."
 
 - **Given** the manifest declares `validator.extend: {slug: 'App\Validation\Slug@check'}` — a custom rule named `slug` whose `check` verifies the value against `/^[a-z0-9-]+$/` (`slug` is not a built-in rule; the doc's `uppercase` example name collides with the built-in [uppercase](repos/laravel/docs/validation.md#rule-uppercase) rule) — and a request rule `slug: [required, slug]`.
 - **When** a value violating the rule is validated (`Not OK`), and then a value satisfying it (`ok-slug`).
@@ -37,9 +37,9 @@ Sources: [validation.md — Custom Validation Rules](repos/laravel/docs/validati
 
 ### AT-02 — a custom rule is not run when its attribute is absent or contains an empty string
 
-**Doc says:** "By default, when an attribute being validated is not present or contains an empty string, normal validation rules, including custom rules, are not run." The doc's example observes this from the outside: an empty string against a rule that would fail it yields `Validator::make($input, $rules)->passes(); // true`.
+**Doc says:** "By default, when an attribute being validated is not present or contains an empty string, normal validation rules, including custom rules, are not run." The doc observes this from the outside with the built-in [unique](repos/laravel/docs/validation.md#rule-unique) rule: `$rules = ['name' => ['unique:users,name']]` against `$input = ['name' => '']` yields `Validator::make($input, $rules)->passes(); // true` — the rule was not run against the empty string.
 
-- **Given** the manifest of AT-01 — a declared `extend` rule that fails every value it is run against — with the request rule `slug: slug` (no `required`).
+- **Given** the manifest of AT-01 — a declared `extend` rule that fails the empty string (AT-01's `slug` rejects it: the empty string does not match `/^[a-z0-9-]+$/`) — with the request rule `slug: slug` (no `required`).
 - **When** data whose `slug` is an empty string is validated, and then data with no `slug` field at all.
 - **Then** both validations pass — the custom rule ran against neither input (an empty string would have failed it, so a pass proves the rule was skipped).
 
@@ -61,13 +61,13 @@ Sources: [validation.md — Implicit Rules](repos/laravel/docs/validation.md#imp
 
 ### AT-04 — invalidating a missing or empty attribute is the implicit rule's own choice
 
-**Doc says (warning):** "An 'implicit' rule only _implies_ that the attribute is required. Whether it actually invalidates a missing or empty attribute is up to you."
+**Doc says (warning):** An "implicit" rule only _implies_ that the attribute is required. Whether it actually invalidates a missing or empty attribute is up to you.
 
-- **Given** the manifest declares `validator.extendImplicit: {optionalPhone: 'App\Validation\OptionalPhone'}` — an implicit custom rule that passes absent and empty values.
-- **When** data with no `phone` field is validated.
-- **Then** validation passes — implying required did not itself invalidate anything; the rule chose not to fail the missing attribute.
+- **Given** the manifest declares `validator.extendImplicit: {optionalPhone: 'App\Validation\OptionalPhone'}` — an implicit custom rule that passes absent and empty values — and the request rule `phone: [optionalPhone]`.
+- **When** data with no `phone` field is validated, and then data whose `phone` is an empty string.
+- **Then** both validations pass — implying required did not itself invalidate anything; the rule chose not to fail the missing or empty attribute.
 
-Sources: [validation.md — Implicit Rules](repos/laravel/docs/validation.md#implicit-rules) (the warning blockquote).
+Sources: [validation.md — Implicit Rules](repos/laravel/docs/validation.md#implicit-rules) (the warning blockquote) — the doc states the missing and empty cases jointly; the two When branches observe each.
 
 ---
 
@@ -81,7 +81,7 @@ G-1–G-4: no acceptance test can be written from `docs/repos/laravel/docs/` for
 | G-2 | `extendDependent` | Dependent extensions have zero matches in the vendored docs; the docs' only absent/empty-attribute documentation for custom rules is [Implicit Rules](repos/laravel/docs/validation.md#implicit-rules) — the behavior `extendDependent` does *not* have (it is validated like an ordinary rule and skipped for absent fields; its native effect is wildcard-parameter rewriting for array attributes). In-repo mapping: [declarative-validator.md](declarative-validator.md) §2.7 ("`extendDependent` is not `extendImplicit`"), §5. |
 | G-3 | `replacer` | Replacers have zero matches in the vendored docs; the docs document placeholder replacement only for built-in messages (`:attribute` — [Customizing the Error Messages](repos/laravel/docs/validation.md#manual-customizing-the-error-messages); `:value` — [Specifying Values in Language Files](repos/laravel/docs/validation.md#specifying-values-in-language-files)), not application-defined replacers. In-repo mapping: [declarative-validator.md](declarative-validator.md) §1.3 (Replacers), §5. |
 | G-4 | `message` (the `extend*` map form) | Factory-wide fallback messages (`Factory::$fallbackMessages`) are undocumented; the docs document only per-validator custom messages (the third argument to `Validator::make` — [Customizing the Error Messages](repos/laravel/docs/validation.md#manual-customizing-the-error-messages)) and lang-file messages ([Specifying Custom Messages in Language Files](repos/laravel/docs/validation.md#specifying-custom-messages-in-language-files)). In-repo mapping: [declarative-validator.md](declarative-validator.md) §1.2, §2.2, §2.7 (Messages). |
-| G-5 | documented custom-rule forms with no declared expression (inverse) | The docs' `ValidationRule` objects (`$fail(...)`), inline closures ([Using Closures](repos/laravel/docs/validation.md#using-closures)), `$fail(...)->translate()` ([Translating Validation Messages](repos/laravel/docs/validation.md#translating-validation-messages)) and `DataAwareRule::setData`/`ValidatorAwareRule::setValidator` ([Accessing Additional Data](repos/laravel/docs/validation.md#accessing-additional-data)) cannot be declared in `validator:`: the declared value is a string reference dispatched as an extend callback — YAML cannot express a closure, and a class reference resolves through the framework's class-based dispatch, whose `($attribute, $value, $parameters, $validator)` call would bind the parsed-parameters array to a `ValidationRule::validate(string $attribute, mixed $value, Closure $fail)` signature's `$fail`. The docs' rule-object form remains declarable as a `requests.rules` class reference — a different surface ([declarative-validator.md](declarative-validator.md) §3.8). |
+| G-5 | documented custom-rule forms with no declared expression (inverse) | The docs' `ValidationRule` objects (`$fail(...)`), inline closures ([Using Closures](repos/laravel/docs/validation.md#using-closures)), `$fail(...)->translate()` ([Translating Validation Messages](repos/laravel/docs/validation.md#translating-validation-messages)) and `DataAwareRule::setData`/`ValidatorAwareRule::setValidator` ([Accessing Additional Data](repos/laravel/docs/validation.md#accessing-additional-data)) cannot be declared in `validator:`: the declared value is a string reference dispatched as an extend callback — YAML cannot express a closure, and a class reference resolves through the framework's class-based dispatch, whose `($attribute, $value, $parameters, $validator)` call would bind the parsed-parameters array to a `ValidationRule::validate(string $attribute, mixed $value, Closure $fail)` signature's `$fail`. The docs' rule-object form remains declarable as a `requests.rules` class reference — a different surface ([declarative-requests.md](declarative-requests.md) §2.2, "Value or reference, per rule": a class reference is `make()`d and the instance *is* the rule, ≙ `new Uppercase`). |
 
 ---
 
@@ -94,6 +94,7 @@ Vendored docs (**system of record**, relative to `docs/repos/laravel/docs/`) wit
 
 In-repo subject/mapping context (no tested behavior sourced from these):
 
-3. [manifest.schema.json](../manifest.schema.json) — the declared `validator`/`extension` definitions; the "absent or empty" phrasing cited in AT-03.
-4. [declarative-validator.md](declarative-validator.md) — the framework-verified mapping contract; cited for declared-surface mapping only.
-5. [src/Validator.php](../src/Validator.php), [src/Providers/ValidatorDeclarationServiceProvider.php](../src/Providers/ValidatorDeclarationServiceProvider.php) — subject-under-test context only.
+3. [declarative-requests.md](declarative-requests.md) — cited for the `requests.rules` class-reference mapping in G-5 only (§2.2).
+4. [manifest.schema.json](../manifest.schema.json) — the declared `validator`/`extension` definitions; the "absent or empty" phrasing cited in AT-03.
+5. [declarative-validator.md](declarative-validator.md) — the framework-verified mapping contract; cited for declared-surface mapping only.
+6. [src/Validator.php](../src/Validator.php), [src/Providers/ValidatorDeclarationServiceProvider.php](../src/Providers/ValidatorDeclarationServiceProvider.php) — subject-under-test context only.

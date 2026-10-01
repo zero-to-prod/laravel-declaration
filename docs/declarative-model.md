@@ -12,7 +12,7 @@ Goal: a `models:` block in `manifest/app.yml` whose **entries are the class bodi
 
 ```php
 // LaravelDeclarationProvider::register()
-//     resolveManifest()                      Manifest::$models hydrated; Model::validate() per entry   <- unknown key, non-DeclaredModel class: LogicException HERE
+//     resolveManifest()                      Manifest::$models hydrated                              <- missing class: PropertyRequiredException HERE; unknown keys: ignored
 //     instance(Manifest::class, $Manifest)
 // DatabaseServiceProvider::register()        Model::clearBootedModels(): every model boots again in this application
 // DatabaseServiceProvider::boot()            Model::setEventDispatcher($app['events'])
@@ -327,7 +327,7 @@ This is the rule `requests` follows (declarative-requests.md §2.1): a key is a 
 
 | Key | Value | Laravel does | Rules |
 |---|---|---|---|
-| `class` | `DeclaredModel` subclass | the entry is found by `static::class` | spelled as `static::class` spells it: no leading `\`, same case (§3.1 `validate()`) |
+| `class` | `DeclaredModel` subclass | the entry is found by `static::class` | spelled as `static::class` spells it: no leading `\`, same case — a leading `\` fails the schema (§3.4); other spellings are ignored at runtime (§2.5) |
 | `connection`, `table`, `primaryKey`, `keyType`, `dateFormat` | `string` | §1.2 | — |
 | `incrementing`, `timestamps` | `bool` | §1.2 | `timestamps: false` also stops touches from other models (§1.4.5) |
 | `perPage` | `int` ≥ 1 | `paginate()` page size | — |
@@ -499,7 +499,7 @@ final class Airline extends DeclaredModel {}
 | `addGlobalScope` | `addGlobalScope($scope)` | `list<class-string>` | `resolveGlobalScopeAttributes()` | `#[ScopedBy]` | `#[ScopedBy]` only |
 | `getRouteKeyName` | `getRouteKeyName()` | `string` | `getRouteKeyName()` | `#[RouteKey]` | `#[RouteKey]`, else the primary key |
 
-Order: the property keys are assigned in the table's order, all before `bootIfNotBooted()`. They are independent assignments, so the order has no effect. `addGlobalScope` is applied when the model boots, and `observe` after its `booted()`. An unknown key throws `LogicException` when the manifest is read in `register()`, and so does a `class` that is not a `DeclaredModel` subclass spelled as `static::class` spells it. `addGlobalScopes`, `collectionClass`, `builder` and `casts()` are unknown keys (§1.3, §2.6).
+Order: the property keys are assigned in the table's order, all before `bootIfNotBooted()`. They are independent assignments, so the order has no effect. `addGlobalScope` is applied when the model boots, and `observe` after its `booted()`. A missing `class` throws `PropertyRequiredException` when the manifest is read in `register()`. Unknown keys and entries whose `class` is not a `DeclaredModel` subclass spelled as `static::class` spells it are ignored at runtime — dead configuration; `laravel-declaration:validate` catches an unknown key at authoring time through the schema (`additionalProperties: false`). `addGlobalScopes`, `collectionClass`, `builder` and `casts()` are unknown keys (§1.3, §2.6).
 
 ### 2.5 Registration algorithm (for the provider)
 
@@ -605,18 +605,18 @@ That is the whole implementation: five members and one lookup. The provider is u
 - **Global Eloquent configuration is not a model's body.** `Model::shouldBeStrict()`, `preventLazyLoading()`, `preventSilentlyDiscardingAttributes()`, `preventAccessingMissingAttributes()`, `automaticallyEagerLoadRelationships()`, `unguard()` and `Relation::enforceMorphMap()` are static and change every model. A later `eloquent:` block keyed by those method names would mirror `router:`.
 - **`observe` covers the event registrars.** `Flight::created('App\Listeners\X')` has the same effect as an observer's `created()` method, so it is not a second key. `dispatchesEvents` covers event classes.
 - **Policies, factories, resources** (`#[UsePolicy]` / `Gate::policy()`, `#[UseFactory]`, `#[UseResource]`) are the Gate, factory and resource APIs, not `Model`.
-- **Only `DeclaredModel` subclasses.** A vendor model (`extends Model`) cannot read an entry, so declaring one would be dead configuration: `validate()` rejects it. Keep `Vendor\Model::observe(...)` in a provider.
+- **Only `DeclaredModel` subclasses.** A vendor model (`extends Model`) cannot read an entry, so declaring one would be dead configuration: nothing at runtime rejects it (commit `78e8637`). Keep `Vendor\Model::observe(...)` in a provider.
 - **Declare a model in one place.** YAML and class attributes compose by Laravel's precedence (§1.4.4), except that any `#[Table]` discards the declared `table`. A property the class body also declares is overwritten by the manifest, because the manifest assigns it in the constructor.
 - **Subclasses need their own entry** (§1.4.6). Use a YAML anchor (`- &flight {class: ..., table: ...}` / `- {<<: *flight, class: App\Models\Charter}`). Don't repeat `observe` in the child: it already inherits the parent's observers, and a repeated observer registers its listeners twice.
 - **Static analysis reads the class, not the manifest.** phpstan and Larastan read PHP, so keep `@property` tags on the class, as the fixture does.
-- **Not a validation layer.** Values pass through as YAML decoded them, and every failure is Laravel's own, at first use (§1.4.2). Through the schema, `laravel-declaration:validate` catches an unknown key, a missing `class`, a leading `\`, a scalar where a list is required, a non-string cast and `perPage: 0`. Only the runtime `validate()` can check that `class` extends `DeclaredModel`.
+- **Not a validation layer.** Values pass through as YAML decoded them, and every failure is Laravel's own, at first use (§1.4.2). Through the schema, `laravel-declaration:validate` catches an unknown key, a missing `class`, a leading `\`, a scalar where a list is required, a non-string cast and `perPage: 0`. Nothing at runtime checks that `class` extends `DeclaredModel` (commit `78e8637`); an entry naming a plain `Model` subclass is ignored — dead configuration the schema cannot see.
 - **Caching.** Nothing here is cached. The entry is read on each construction, so no `config:cache` or `route:cache` is needed after editing it. A long-lived worker keeps its booted observers and scopes until it restarts, as it does for attributes.
 
 ---
 
 ## 3. Implementation plan
 
-1. **`src/Model.php`** (new): one `const` + one nullable property per property key, in §2.4 order, then the three method keys. The `pre` hook sits on `class`. It runs before `required` is checked, so a missing `class` reaches `validate()` as `null` and then throws `PropertyRequiredException: Property `$class` is required.`
+1. **`src/Model.php`** (new): one `const` + one nullable property per property key, in §2.4 order, then the three method keys. A missing `class` throws `PropertyRequiredException: Property `$class` is required.` at hydration.
 
    ```php
    <?php
@@ -625,14 +625,17 @@ That is the whole implementation: five members and one lookup. The provider is u
 
    namespace ZeroToProd\LaravelDeclaration;
 
-use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ClassDefault;use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;use ZeroToProd\LaravelDeclaration\Internal\DataModel;
+use Zerotoprod\DataModel\Describe;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\ClassDefault;
+use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Key;
+use ZeroToProd\LaravelDeclaration\Internal\DataModel;
 
    final readonly class Model
    {
        use DataModel;
 
        /** @var class-string<DeclaredModel> */
-       #[Key, Describe([Describe::pre => [self::class, 'validate'], Describe::required => true])]
+       #[Key, Describe([Describe::required => true])]
        public string $class;
 
        public const string connection = 'connection';
@@ -770,26 +773,7 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
        #[Key, Describe([Describe::nullable => true])]
        public ?string $getRouteKeyName;
 
-       /** @param  array<array-key, mixed>  $context */
-       public static function validate(mixed $value, array $context): void
-       {
-           $unknown = array_diff(array_keys($context), self::selected(Key::class));
-
-           if ($unknown !== []) {
-               throw new LogicException(
-                   'The `models` entry declares unknown key(s): '.implode(', ', $unknown).
-                   '. Every key must be an `Illuminate\Database\Eloquent\Model` property or method name.'
-               );
-           }
-
-           if (is_string($value) && (! is_subclass_of($value, DeclaredModel::class) || new ReflectionClass($value)->name !== $value)) {
-               throw new LogicException(
-                   "The `models` class [$value] must extend ".DeclaredModel::class.', spelled as `static::class` spells it.'
-               );
-           }
-       }
-
-       /** @return array<string, mixed> The declared properties; an absent key keeps the class default. */
+       /** @return array<string, mixed> */
        public function properties(): array
        {
            return array_filter(
@@ -799,8 +783,6 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
        }
    }
    ```
-
-   Why the class check compares names: `is_subclass_of()` accepts `\App\Models\Flight` and `app\models\flight` (PHP class names are case-insensitive), but neither equals `static::class`. The lookup would miss silently. `ReflectionClass::$name` is the canonical spelling. The check autoloads each declared class while the manifest is read. That runs no model code: nothing is constructed or booted.
 
 2. **`src/DeclaredModel.php`** (new): the class in §2.5.
 
@@ -824,7 +806,7 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
      "items": { "type": "string" }
    },
    "model": {
-     "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key throws LogicException.",
+     "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key fails this schema (authoring-time guard) and is ignored at runtime.",
      "type": "object",
      "additionalProperties": false,
      "required": ["class"],
@@ -1239,7 +1221,7 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
            ->and($Flight->getCasts())->toBe(['id' => 'int', 'departed_at' => 'datetime']);
    });
 
-   it('rejects unknown model keys', function (): void {
+   it('ignores unknown model keys', function (): void {
        $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
        file_put_contents($file, <<<'YAML'
            models:
@@ -1247,16 +1229,14 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
                fillabel: [name]
            YAML);
 
-       expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-           ->toThrow(LogicException::class, 'unknown key(s): fillabel');
+       expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
    });
 
-   it('rejects a class that is not a DeclaredModel spelled as static::class', function (string $class): void {
+   it('ignores a class that is not a DeclaredModel spelled as static::class', function (string $class): void {
        $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
        file_put_contents($file, "models:\n  - class: '$class'\n");
 
-       expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-           ->toThrow(LogicException::class, 'must extend ZeroToProd\LaravelDeclaration\DeclaredModel');
+       expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
    })->with([
        'an Eloquent model' => User::class,
        'a leading backslash' => '\\'.Flight::class,
@@ -1283,12 +1263,11 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
    - `Flight::all()` has one row because `NotCancelled` ran. `Flight::withoutGlobalScopes()` counts both.
    - `/flights/AA100` binds through `getRouteKeyName` and serializes with `hidden`, `appends`, `casts` and `with`, plus `Airline`'s `visible` and `withCount`. `/flights/AA200` is a 404 because the scope applies to route binding (§1.4.3).
    - `does not touch` passes only with the `isIgnoringTouch()` override (§1.4.5).
-   - The last dataset covers each spelling `validate()` rejects.
+   - The last dataset covers each spelling that is ignored at runtime (commit `78e8637`).
 
-   Three mutations were checked, and each fails the tests:
+   Two mutations were checked, and each fails the tests:
    - Assigning after `parent::__construct()` fails the first test: `departed_at` is lost.
    - Removing `isIgnoringTouch()` fails four tests with `QueryException: ... no such column: updated_at`.
-   - Removing the `ReflectionClass` name check fails the leading-backslash and other-case datasets.
 
    Also add to `tests/Feature/ValidateCommandTest.php`, before the "reports each schema violation" test:
 
@@ -1305,7 +1284,7 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
    - `pest --coverage --min=100` passes 135 tests at 100.0%, with `DeclaredModel` and `Model` at 100.0%.
    - `bc-check` skips: `bin/bc-check.sh` exits early when no SemVer tag exists, and `git tag` lists none in this repository.
 
-   `require-check` was not run: it downloads a phar from GitHub. The new public API is `DeclaredModel` (abstract: `__construct()`, `resolveObserveAttributes()`, `resolveGlobalScopeAttributes()`, `getRouteKeyName()`, `isIgnoringTouch()`), `Model` (its properties, `validate()` and `properties()`) and `Manifest::$models`. All of it is additive. The MCP `api` tool reflects `src/`, so it lists `DeclaredModel` and `Model` with no change (`PublicApiToolTest` passes), and the `readme` tool serves the updated README.
+   `require-check` was not run: it downloads a phar from GitHub. The new public API is `DeclaredModel` (abstract: `__construct()`, `resolveObserveAttributes()`, `resolveGlobalScopeAttributes()`, `getRouteKeyName()`, `isIgnoringTouch()`), `Model` (its properties and `properties()`) and `Manifest::$models`. All of it is additive. The MCP `api` tool reflects `src/`, so it lists `DeclaredModel` and `Model` with no change (`PublicApiToolTest` passes), and the `readme` tool serves the updated README.
 
 10. **Other docs**. Make three edits:
     - In `docs/declarative-request-to-view-roadmap.md` §1, add this sentence below the pipeline table: "Stage 6 resolves Eloquent models. A model's table, key, route key and global scopes are the `models` block ([declarative-model.md](declarative-model.md))."
@@ -1326,6 +1305,6 @@ use LogicException;use ReflectionClass;use Zerotoprod\DataModel\Describe;use Zer
 8. `clearBootedModels()` in `register()`, `setEventDispatcher()` in `boot()` — [Database/DatabaseServiceProvider.php](https://github.com/laravel/framework/blob/v13.33.0/src/Illuminate/Database/DatabaseServiceProvider.php); `model:show` constructs the model — [Eloquent/ModelInspector.php](https://github.com/laravel/framework/blob/v13.33.0/src/Illuminate/Database/Eloquent/ModelInspector.php)
 9. `forModel()` → `resolveRouteBinding($value)` — [Routing/RouteBinding.php](https://github.com/laravel/framework/blob/v13.33.0/src/Illuminate/Routing/RouteBinding.php)
 10. Conventions, attributes, default attribute values, strictness in `AppServiceProvider::boot()`, observers, global scopes — [docs/repos/laravel/docs/eloquent.md](repos/laravel/docs/eloquent.md); casts — [eloquent-mutators.md](repos/laravel/docs/eloquent-mutators.md); `#[Hidden]`, `#[Visible]`, `#[Appends]` — [eloquent-serialization.md](repos/laravel/docs/eloquent-serialization.md); dynamic relationships, `#[Touches]` — [eloquent-relationships.md](repos/laravel/docs/eloquent-relationships.md#dynamic-relationships); `#[CollectedBy]` — [eloquent-collections.md](repos/laravel/docs/eloquent-collections.md); `#[RouteKey]` — [routing.md](repos/laravel/docs/routing.md); [laravel.com/docs/eloquent](https://laravel.com/docs/eloquent)
-11. `pre` runs before `required`; `PropertyRequiredException` — `zero-to-prod/data-model` `src/DataModel.php` in this repository; `key_by` — `zero-to-prod/data-model-helper` `src/DataModelHelper.php`
+11. `Describe::required` throws `PropertyRequiredException` — `zero-to-prod/data-model` `src/DataModel.php` in this repository; `key_by` — `zero-to-prod/data-model-helper` `src/DataModelHelper.php`
 12. YAML decoding of `"App\Observers\X"`, `datetime:Y-m-d`, `App\Casts\Hash:sha256,1`, `'[]'`, `[]` and a bare `*` — `symfony/yaml` v8.1.6, verified with `Yaml::parse()` in this repository
 13. Every consequence in §1.1 and §1.4, the §2.5 class, the §3.4 schema checks, the §3.7–§3.8 fixtures and tests, the mutations and the §3.9 `composer check` results — reproduced with Testbench in a scratch copy of this repository (scratch files, not committed)

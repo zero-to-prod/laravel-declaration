@@ -174,6 +174,8 @@ Custom cast **classes** remain usable as string cast values (`'completed' => App
 
 **Phase 2 consequence:** dynamic model synthesis (§2.7) inherits only the declared property/method keys — relational methods, accessors/mutators, local scopes, `casts()`, `booted()` and `prunable()` require PHP on disk. The roadmap Phase 2 "full feature parity" claim was scoped down accordingly.
 
+**Resolution**: resolved by [declarative-model.md](declarative-model.md) §2.6 as corrected by [declarative-model-configuration.md](declarative-model-configuration.md) — the six withdrawn keys (`relations`, `casts()` dispatch, `Attribute` accessors, local scopes, `booted()`, `prunable()`) are decided non-goals with v13.33.0 grounding, and the stale runtime-`validate()` claims of declarative-model.md are corrected there (commit `78e8637`). This §2.6 closes and §1 row 9 / §3 item 8 reclassify `[/]` → `[x]`.
+
 ### 2.7 Dynamic Model Synthesis — `DeclaredModel` (Tier 2, Phase 2 Active Scope)
 
 Verified: no `spl_autoload_register` / `class_alias` / synthesis code exists in `src/` — `LaravelDeclarationProvider::register()` only binds `Manifest` and registers the declared providers. `DeclaredModel` is abstract; every model must exist as a PHP file on disk. **Partial Phase 2 delivery:** `src/DeclaredModel.php`, [declarative-model.md](declarative-model.md), `tests/Feature/DeclaredModelTest.php` (fixture `tests/Fixtures/manifest/models.yml`) are shipped; the autoloader hook is not.

@@ -724,7 +724,7 @@
       "items": { "type": "string" }
     },
     "model": {
-      "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key throws LogicException.",
+      "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key fails this schema (authoring-time guard) and is ignored at runtime.",
       "type": "object",
       "additionalProperties": false,
       "required": ["class"],
