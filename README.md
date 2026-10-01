@@ -2,6 +2,88 @@
 
 A declarative plugin for Laravel.
 
+## Roadmap
+
+Tier 1 checklist — titles and statuses mapped line by line in
+[docs/declarative-framework-api-mapping.md](docs/declarative-framework-api-mapping.md).
+Legend: `[x]` implemented (Tier 1 API Map) · `[/]` partially mapped · `[ ]` missing.
+Implemented and partial features link to their section below; unchecked features are not
+yet implemented, so no section exists for them yet — their proposed manifest keys are
+inventoried in [docs/declarative-tier1-remaining.md](docs/declarative-tier1-remaining.md).
+Tier 2 seams (`DeclaredView`, `DeclaredRequest`, `DeclaredQuery`, `DeclaredModel`,
+`DeclaredAction`) are outside this checklist.
+
+### Domain 1: Core Architecture, Container & Configuration
+- [x] [Service Container & Application](#application) — `app:`
+- [x] [Configuration Repository](#config) — `config:`
+- [x] [Service Providers](#providers) — `providers:`
+
+### Domain 2: HTTP Kernel & Middleware Pipeline
+- [x] [HTTP Kernel & Middleware Pipeline](#kernel) — `kernel:`
+- [ ] CSRF Verification & Route Exclusions — `csrf:`
+- [ ] HTTP Precognition — `precognition:`
+
+### Domain 3: HTTP Routing, Pipeline, URLs & Throttling
+- [x] [Router Configuration & Binders](#router) — `router:`
+- [x] [Route Registration](#routes) — `routes:`
+- [ ] URL Generation & Signed URLs — `url:`
+- [ ] Rate Limiter — `rate_limiter:`
+
+### Domain 4: View Layer, Blade Engine & Presentation
+- [x] [View Factory & Namespaces](#view) — `view:`
+- [x] [Blade Compiler & Directives](#blade) — `blade:`
+- [/] [Pagination View Resolvers & Styling](#pagination) — `pagination:`
+
+### Domain 5: Request Lifecycle, Input Resolution & Validation
+- [x] [Form Request Declaration](#requests) — `requests:`
+- [x] [Validation Factory & Custom Rules](#requests) — `validator:` (documented under Requests)
+
+### Domain 6: Response Generation, Redirects & Transport
+- [/] [Response Factory & Macros](#response) — `responses:`
+- [ ] Redirector & Redirect Responses — `redirect:`
+- [ ] Cookies & Cookie Jar — `cookie:`
+- [ ] API Resources & JSON Serialization — `resources:`
+
+### Domain 7: Database Connection, Query Builder, Transactions & Seeding
+- [/] [Database Connection & Transactions](#database) — `db:`
+- [ ] Database Query Builder (Table-Level Queries) — `db_queries:` / `queries.table`
+- [x] [Database Schema & Blueprint](#schema) — `schema:`
+- [ ] Database Seeding & Factories — `seeds:`
+
+### Domain 8: Eloquent ORM & Query Builder
+- [x] [Eloquent Model Configuration & Lifecycle](#models) — `models:`
+- [/] [Eloquent Query Builder (Model Queries)](#queries) — `queries:`
+
+### Domain 9: Security, Identity & Access Control
+- [/] [Authorization Gates & Policies](#gate) — `gate:`
+- [ ] Authentication Manager & Guards — `auth:`
+- [ ] Session Store & Flash Data — `session:`
+- [ ] Hashing & Encryption — `hashing:`, `encryption:`
+- [ ] API Token Authentication (Sanctum) — `sanctum:`
+
+### Domain 10: Events, Async & Realtime Systems
+- [ ] Events & Dispatcher — `events:`
+- [ ] Queues, Workers & Bus — `queues:`, `bus:`
+- [ ] Mail & Mailables — `mail:`
+- [ ] Notifications & Channels — `notifications:`
+- [ ] Broadcasting & WebSockets — `broadcasting:`
+
+### Domain 11: Operations, Console, Storage & Systems
+- [ ] Artisan Console Commands — `commands:`
+- [ ] Task Scheduling — `schedule:`
+- [ ] Cache Repository & Stores — `cache:`
+- [ ] Filesystem & Storage Disks — `storage:`
+- [ ] Localization & Translation Loader — `lang:`
+- [ ] Logging & Context Repository — `logging:`, `context:`
+- [ ] Application Telemetry & Monitoring (Pulse) — `pulse:`
+
+### Domain 12: Processes, Concurrency & Extensibility
+- [ ] Processes & Concurrency — `process:`, `concurrency:`
+- [ ] HTTP Client Factory — `http:`
+- [ ] Exception Handling & Reporting — `exceptions:`
+- [ ] Feature Flags — `features:`
+- [ ] Full-Text Search (Scout) — `scout:`
+
 ## Requirements
 
 - PHP `^8.4`
@@ -215,6 +297,49 @@ view:
 ```
 
 View routes also declare a render-time Factory dispatch: `setDefaults.factory` maps one `Illuminate\View\Factory` method name to its argument list — `factory: {file: resources/legal/terms.html}` — dispatched as `$Factory->{$method}(...$arguments)` (docs/declarative-view-factory.md).
+
+## Blade
+
+Extend the shared `Illuminate\View\Compilers\BladeCompiler` in the `blade` object. Every key is a native compiler registry method, applied once when the compiler first resolves. Reference values resolve through the container.
+
+Complete structure:
+
+```yaml
+blade:
+  directive:                          # -> directive($name, $handler); receives $expression
+    uppercase: App\Blade\Directives@uppercase
+  if:                                 # -> if($name, $callback); declares @admin / @unlessadmin conditionals
+    admin: App\Blade\Conditions@isAdmin
+  component:                          # -> component($class, $alias); one call per entry
+    App\View\Components\Alert: alert
+  components:                         # -> components($aliases); one call with the whole map (alias -> class)
+    alert: App\View\Components\Alert
+  anonymousComponentPath:             # -> anonymousComponentPath($path, $prefix)
+    - path: resources/views/components
+      prefix: ui
+  anonymousComponentNamespace:        # -> anonymousComponentNamespace($directory, $prefix)
+    - directory: resources/views/namespaced
+      prefix: ns
+  stringable:                         # -> stringable($class, $handler); echo handler, receives $target
+    App\ValueObjects\Money: App\Blade\Money@render
+  withoutDoubleEncoding: true         # -> withoutDoubleEncoding(): {{ $html }} is not double-encoded
+```
+
+## Pagination
+
+Declare the global pagination view presets in the `pagination` object. Each key is a native `Illuminate\Pagination\Paginator` static preset.
+
+Complete structure:
+
+```yaml
+pagination:
+  useTailwind: true                   # -> Paginator::useTailwind()
+  useBootstrapFive: true              # -> Paginator::useBootstrapFive()
+  defaultView: pagination::custom     # -> Paginator::defaultView($view)
+  defaultSimpleView: pagination::simple-custom   # -> Paginator::defaultSimpleView($view)
+```
+
+`useBootstrapThree()` / `useBootstrapFour()` / `useBootstrap()` are not yet declarable (docs/declarative-tier1-remaining.md).
 
 ## Kernel
 
@@ -538,6 +663,87 @@ routes:
         title: User Articles                     # literal string
         posts: user-posts                        # declared query handle!
 ```
+
+## Database
+
+Declare database query listeners in the `db` object. `connection` scopes every listener to one connection — `~` or absent is the default connection. Each `listen` item is a reference invoked with the `$query` object on every executed query.
+
+Complete structure:
+
+```yaml
+db:
+  connection: ~                       # -> DatabaseManager::connection($name); ~ = default connection
+  listen:                             # -> connection(...)->listen($callback), one call per item
+    - App\Listeners\LogQueries@handle
+```
+
+## Schema
+
+Declare your database schema in the `schema` object (docs/declarative-schema.md,
+docs/declarative-schema-table-operations.md). The keys are the native
+`Illuminate\Database\Schema\Builder` operations — `connection`, `create`, `table`,
+`rename`, `drop`, `dropIfExists` — executed by `php artisan declaration:migrate` in
+that order with guard-derived idempotency. A table body is a `Blueprint`: every key
+is a `Blueprint` method name and its value is that method's argument(s) — `~` for no
+arguments, a list for one action per item, a map for named parameters followed by
+fluent modifiers (`unique: true` -> `->unique()`).
+
+Complete structure:
+
+```yaml
+schema:
+  connection: ~                       # the connection every operation runs on; ~ = default
+
+  create:                             # -> create($table, $callback); skipped when the table exists
+    users:
+      id: ~                           # -> $table->id()
+      string:
+        - name                        # -> $table->string('name')
+        - column: email               # named parameters match the native method's parameters
+          unique: true                # -> ->unique() modifier
+        - password
+      timestamp:
+        column: email_verified_at
+        nullable: true                # -> ->nullable() modifier
+      rememberToken: ~
+      timestamps: ~
+
+  table:                              # -> table($table, $callback); every action is guard-checked
+    users:
+      renameColumn:
+        from: login                   # -> $table->renameColumn('login', 'email')
+        to: email
+      dropColumn: [obsolete]          # -> $table->dropColumn('obsolete')
+      dropTimestamps: ~               # -> $table->dropTimestamps()
+
+  rename:                             # -> rename($from, $to); one call per entry
+    - from: old_users
+      to: users
+  drop:                               # -> drop($table); unguarded: fails loudly when the table is missing
+    - legacy
+  dropIfExists:                       # -> dropIfExists($table); one call per entry
+    - scratch
+```
+
+Run it:
+
+```bash
+php artisan declaration:migrate       # alias: laravel-declaration:migrate
+```
+
+## Response
+
+Register macros on the shared `Illuminate\Routing\ResponseFactory` in the `responses` object. Each `macro` entry is one native `ResponseFactory::macro($name, $handler)` call; the handler reference resolves through the container with the macro's arguments.
+
+Complete structure:
+
+```yaml
+responses:
+  macro:                              # -> ResponseFactory::macro($name, $handler)
+    csv: App\Http\Responses\Csv@make # response()->csv() -> app()->call(Csv@make, ...)
+```
+
+Declarative response *forms* — `make`, `view`, `json`, `noContent`, `stream`, `download` — are not yet manifest surfaces (docs/declarative-tier1-remaining.md).
 
 ## License
 
