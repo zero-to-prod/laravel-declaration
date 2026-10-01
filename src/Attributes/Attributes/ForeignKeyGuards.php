@@ -10,6 +10,7 @@ use ZeroToProd\LaravelDeclaration\Internal\ActionGuard;
 use ZeroToProd\LaravelDeclaration\Internal\GuardKind;
 use ZeroToProd\LaravelDeclaration\Internal\Guards;
 
+/** @internal */
 #[Attribute(Attribute::TARGET_CLASS_CONSTANT)]
 final class ForeignKeyGuards extends Guards
 {

@@ -8,6 +8,7 @@ use Attribute;
 use Illuminate\Database\Schema\Builder;
 use ZeroToProd\LaravelDeclaration\Internal\Guard;
 
+/** @internal */
 #[Attribute(Attribute::TARGET_CLASS_CONSTANT)]
 final class ForeignKeyMissing extends Guard
 {

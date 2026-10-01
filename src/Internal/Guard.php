@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration\Internal;
 
 use Illuminate\Database\Schema\Builder;
 
+/** @internal */
 abstract class Guard
 {
     /** @param  string|list<string>|null  $target */

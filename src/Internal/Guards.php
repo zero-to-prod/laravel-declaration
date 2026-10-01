@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelDeclaration\Internal;
 
 use ZeroToProd\LaravelDeclaration\BlueprintAction;
 
+/** @internal */
 abstract class Guards
 {
     /** Conventional column targets for zero-argument / void-returning factories and droppers. */
