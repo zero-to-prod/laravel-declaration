@@ -9,6 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Override;
 use Symfony\Component\Yaml\Yaml;
+use ZeroToProd\LaravelDeclaration\Internal\Commands\GenerateSchemaCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\MigrateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\ValidateCommand;
@@ -48,6 +49,7 @@ class LaravelDeclarationProvider extends ServiceProvider
                 InstallCommand::class,
                 ValidateCommand::class,
                 MigrateCommand::class,
+                GenerateSchemaCommand::class,
             ]);
 
             $this->publishes([

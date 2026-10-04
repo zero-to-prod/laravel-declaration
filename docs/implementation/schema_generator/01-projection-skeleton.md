@@ -6,7 +6,7 @@ task: >-
 plan: docs/declarative-schema-generator.md §4.1, §4.2 (setter row + fallback), §4.3 (scalars), §4.4 (setter), §4.5, §4.6, §5.2 (print mode)
 depends_on: none
 delivers:
-  - src/Internal/SchemaGenerator.php (render core: filter, envelope, setter keys, scalar value schemas, skipped())
+  - src/Internal/SchemaGenerator.php (render core: filter, envelope, setter keys, scalar value schemas, skipped(), minimal encode())
   - src/Internal/Commands/GenerateSchemaCommand.php (print mode)
   - registration in src/LaravelDeclarationProvider.php
 ---
@@ -23,7 +23,7 @@ delivers:
 
 ## Spec carried by this unit
 
-### Method filter (§4.1) — identical rules to `Api::classes()`/`Api::methods()`
+### Method filter (§4.1) — rules 1–3 are `Api::methods()`'s filter; rules 4–5 are the generator's
 
 A native method becomes a manifest key iff all of these hold; `getMethods()` preserves native declaration order, which becomes the fragment's key order (Rule 8.1, vertical alignment with `src/Router.php`):
 
@@ -33,7 +33,7 @@ A native method becomes a manifest key iff all of these hold; `getMethods()` pre
 4. name does not start with `__` (a manifest cannot construct);
 5. **declarable**: at least one parameter and no by-reference parameter (STYLE 2.1 — a YAML scalar cannot be a PHP reference). Violations of rule 5 land in the skipped report, not in silence.
 
-> Verified PHP semantics (evidence for the overview's reconciliation 1): rules 2 excludes **parent-class** methods (`Application::bind` declares `Illuminate\Container\Container`) but **includes trait-provided** methods (`Router::macro` declares `Illuminate\Routing\Router`), because `getDeclaringClass()` reports the using class for trait imports. The filter is implemented exactly as stated; fixtures prove both behaviors.
+> Verified PHP semantics (evidence for the overview's reconciliation 1): rule 2 excludes **parent-class** methods (`Application::bind` declares `Illuminate\Container\Container`) but **includes trait-provided** methods (`Router::macro` declares `Illuminate\Routing\Router`), because `getDeclaringClass()` reports the using class for trait imports. The filter is implemented exactly as stated; the `Basic` fixture proves the parent exclusion and the `Router` command test proves trait inclusion.
 
 ### Block key (§4.6)
 
@@ -46,7 +46,7 @@ A native method becomes a manifest key iff all of these hold; `getMethods()` pre
   "description": "<class FQCN> methods: every key is a method name, its value the argument(s).",
   "type": ["object", "null"],
   "additionalProperties": false,
-  "properties": { }
+  "properties": {}
 }
 ```
 
@@ -87,8 +87,8 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration\Internal;
 
-use Closure;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -100,7 +100,7 @@ final class SchemaGenerator
      * Renders the `definitions.<block>` fragment for one native class.
      *
      * @param  class-string  $class  the native Laravel class to project
-     * @param  string  $block       the manifest block key (`router`, `app`, …)
+     * @param  string  $block  the manifest block key (`router`, `app`, …)
      * @return array<string, mixed> the JSON-decodable definition object (not encoded — the caller encodes)
      *
      * @throws ReflectionException when $class does not exist (native failure, Rule 3.3)
@@ -180,13 +180,16 @@ final class SchemaGenerator
         return [$methods, $skipped];
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * §4.2 setter row — unit 02 inserts the append/append-to/binding kind rows
+     * above it in the precedence chain; a 3+-param method stays undecided.
+     *
+     * @return array<string, mixed>
+     */
     private static function key(ReflectionMethod $method): array
     {
         $parameters = $method->getParameters();
 
-        // §4.2 setter row — kind rows for append/append-to/binding are inserted
-        // above this line by units 02/03; a 3+-param method stays undecided.
         if (count($parameters) === 1 && ! $parameters[0]->isVariadic()) {
             return self::setter($method, $parameters[0]);
         }
@@ -194,12 +197,14 @@ final class SchemaGenerator
         return self::undecided($method);
     }
 
-    /** §4.4 setter → the whole value in one call. @return array<string, mixed> */
+    /**
+     * §4.4 setter → the whole value in one call.
+     *
+     * @return array<string, mixed>
+     */
     private static function setter(ReflectionMethod $method, ReflectionParameter $parameter): array
     {
         [$schema, $unknown] = self::paramSchema($parameter);
-
-        $unknown = [...$unknown];
 
         return self::withDescription($schema, self::stub($method, [$parameter->getName()], ' when the key is present', $unknown));
     }
@@ -231,31 +236,22 @@ final class SchemaGenerator
             return [true, [$parameter->getName()]]; // untyped, union, intersection — unit 03 completes unions
         }
 
-        if ($type->isBuiltin()) {
-            $json = match ($type->getName()) {
-                'string' => 'string',
-                'int' => 'integer',
-                'float' => 'number',
-                'bool' => 'boolean',
-                default => null, // `array`, `mixed`, `iterable`, `callable`, … — unit 03
-            };
+        $json = ['string' => 'string', 'int' => 'integer', 'float' => 'number', 'bool' => 'boolean'][$type->getName()] ?? null;
 
-            if ($json !== null) {
-                return [$type->allowsNull() ? ['type' => [$json, 'null']] : ['type' => $json], []];
-            }
+        if ($json === null) {
+            // class/interface/enum/Closure/mixed — the generator refuses to invent
+            // semantics it cannot read from the signature (§4.3, Rules 1.4, 3.4).
+            return [true, [$parameter->getName()]];
         }
 
-        // class/interface/enum/Closure/mixed — the generator refuses to invent
-        // semantics it cannot read from the signature (§4.3, Rules 1.4, 3.4).
-        return [true, [$parameter->getName()]];
+        return [$type->allowsNull() ? ['type' => [$json, 'null']] : ['type' => $json], []];
     }
 
     /**
      * §4.5 stub: `-> method($a, $b)` + suffix + ` TODO(<method>: $<param>)`.
      *
-     * @param  list<string>  $params      params to render into the call
-     * @param  list<string>  $undecided   params whose type surfaced as unknown
-     * @return string
+     * @param  list<string>  $params  params to render into the call
+     * @param  list<string>  $undecided  params whose type surfaced as unknown
      */
     private static function stub(ReflectionMethod $method, array $params, string $suffix, array $undecided): string
     {
@@ -264,15 +260,16 @@ final class SchemaGenerator
         return '-> '.$method->getName().'('.implode(', ', array_map(static fn (string $param): string => '$'.$param, $params)).')'.$suffix.$todo;
     }
 
-    /** @param  mixed  $schema  value schema; `true` collapses into a description-only property object */
+    /**
+     * @param  mixed  $schema  value schema; `true` collapses into a description-only property object
+     * @return array<string, mixed>
+     */
     private static function withDescription(mixed $schema, string $description): array
     {
         return is_array($schema) ? ['description' => $description, ...$schema] : ['description' => $description];
     }
 }
 ```
-
-> The `Closure` import is only needed from unit 02 (fixtures use it); drop it here if pint flags it — the class above compiles without touching it only when no signature mentions `Closure`.
 
 `src/Internal/Commands/GenerateSchemaCommand.php` — thin shell, print mode only in this unit (`--out` arrives in unit 05):
 
@@ -284,7 +281,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Internal\Commands;
 
 use Illuminate\Console\Command;
-use ReflectionException;
 use ZeroToProd\LaravelDeclaration\Internal\SchemaGenerator;
 
 /** @internal */
@@ -303,8 +299,10 @@ class GenerateSchemaCommand extends Command
 
     public function handle(): int
     {
+        /** @var class-string $class */
         $class = $this->argument('class');
-        $block = lcfirst(substr($class, (int) (strrpos($class, '\\') + 1))); // §4.6
+        $basename = strrpos($class, '\\');
+        $block = lcfirst($basename === false ? $class : substr($class, $basename + 1)); // §4.6
 
         $this->components->info("Block: $block"); // §4.6 — a wrong derivation is visible immediately
 
@@ -335,11 +333,11 @@ public static function encode(array $schema): string
 {
     $json = json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
-    return preg_replace_callback('/^( +)/m', static fn (array $m): string => str_repeat(' ', intdiv(strlen($m[1]), 2)), $json)."\n";
+    return (preg_replace_callback('/^( +)/m', static fn (array $m): string => str_repeat(' ', intdiv(strlen($m[1]), 2)), $json) ?? $json)."\n";
 }
 ```
 
-Registration — one entry in the existing list, `src/LaravelDeclarationProvider.php::boot()`:
+Registration — one entry in the existing `$this->commands([...])` list inside `src/LaravelDeclarationProvider.php::boot()`'s `runningInConsole()` guard, plus the matching `use ZeroToProd\LaravelDeclaration\Internal\Commands\GenerateSchemaCommand;` import:
 
 ```php
 $this->commands([
@@ -482,6 +480,7 @@ it('encodes in the repos 2-space json style', function (): void {
 ```php
 <?php
 
+use Illuminate\Foundation\Application;
 use Illuminate\Routing\Router;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\SchemaGenerator\Basic;
 
@@ -504,10 +503,7 @@ it('derives the block key from the class basename', function (): void {
 
 it('excludes parent methods from the projection (Rule 0.4)', function (): void {
     // Illuminate\Foundation\Application extends Container: bind/singleton declare Container.
-    $fragment = SchemaGenerator::render(
-        Illuminate\Foundation\Application::class,
-        'application',
-    );
+    $fragment = SchemaGenerator::render(Application::class, 'application');
 
     expect($fragment['properties'])
         ->not->toHaveKey('bind')
