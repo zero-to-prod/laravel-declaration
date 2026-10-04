@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Application;
 use Illuminate\Routing\Router;
+use JsonException;
 use ReflectionException;
+use RuntimeException;
 use ZeroToProd\LaravelDeclaration\Internal\SchemaGenerator;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\SchemaGenerator\Basic;
 
@@ -44,4 +46,112 @@ it('includes trait-provided methods (declaring class is the using class)', funct
 it('fails natively for an unknown class (Rule 3.3)', function (): void {
     expect(fn (): array => SchemaGenerator::render('ZeroToProd\Nope'))
         ->toThrow(ReflectionException::class);
+});
+
+function tempSchema(string $json): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'schema-').'.json';
+
+    file_put_contents($path, $json);
+
+    return $path;
+}
+
+const MINIMAL_SCHEMA = <<<'JSON'
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": [],
+      "definitions": {
+        "basic": {
+          "description": "curated basic prose",
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "description": "curated label prose: it wins over the stub",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+
+    JSON;
+
+it('merges the fragment into the schema file in place', function (): void {
+    $path = tempSchema(MINIMAL_SCHEMA);
+
+    $this->artisan('declaration:generate-schema', ['class' => Basic::class, '--out' => $path])
+        ->expectsOutputToContain('Block: basic')
+        ->expectsOutputToContain('Added [3]: retries, handler, register')
+        ->assertSuccessful()
+        ->run();
+
+    $schema = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($schema['definitions']['basic']['properties']['label']['description'])
+        ->toBe('curated label prose: it wins over the stub') // curation preserved
+        ->and($schema['definitions']['basic']['properties'])->toHaveKey('handler')
+        ->and(file_get_contents($path))->toContain('  "type": ['); // 2-space canonical style
+});
+
+it('is idempotent: the second write changes nothing', function (): void {
+    $path = tempSchema(MINIMAL_SCHEMA);
+
+    $this->artisan('declaration:generate-schema', ['class' => Basic::class, '--out' => $path])
+        ->assertSuccessful()
+        ->run();
+
+    $afterFirst = file_get_contents($path);
+
+    $this->artisan('declaration:generate-schema', ['class' => Basic::class, '--out' => $path])
+        ->expectsOutputToContain('Added [0]')
+        ->assertSuccessful()
+        ->run();
+
+    expect(file_get_contents($path))->toBe($afterFirst);
+});
+
+it('fails when the schema file is missing', function (): void {
+    $this->artisan('declaration:generate-schema', [
+        'class' => Basic::class,
+        '--out' => sys_get_temp_dir().'/does-not-exist.json',
+    ])
+        ->expectsOutputToContain('Schema not found')
+        ->assertFailed()
+        ->run();
+});
+
+it('fails natively when the schema file is not valid json (Rule 3.3)', function (): void {
+    $path = tempSchema('not json');
+
+    expect(fn () => $this->artisan('declaration:generate-schema', ['class' => Basic::class, '--out' => $path])->run())
+        ->toThrow(JsonException::class);
+});
+
+it('leaves the file untouched in print mode', function (): void {
+    $path = tempSchema(MINIMAL_SCHEMA);
+
+    $this->artisan('declaration:generate-schema', ['class' => Basic::class])
+        ->expectsOutputToContain('-> label($label) when the key is present')
+        ->assertSuccessful()
+        ->run();
+
+    expect(file_get_contents($path))->toBe(MINIMAL_SCHEMA);
+});
+
+it('fails natively when the write fails (Rule 3.3)', function (): void {
+    $path = tempSchema(MINIMAL_SCHEMA);
+    chmod($path, 0444);
+
+    // Laravel converts the underlying E_WARNING to ErrorException; silence it
+    // so the native RuntimeException from the `false` check propagates.
+    $previous = error_reporting(E_ALL & ~E_WARNING);
+
+    expect(fn () => $this->artisan('declaration:generate-schema', ['class' => Basic::class, '--out' => $path])->run())
+        ->toThrow(RuntimeException::class);
+
+    error_reporting($previous);
 });
