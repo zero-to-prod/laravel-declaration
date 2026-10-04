@@ -9,3 +9,5 @@ composer.lock
 .idea
 .claude/settings.local.json
 /docs/repos/
+/.env
+/.pi/

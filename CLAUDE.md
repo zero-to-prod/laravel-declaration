@@ -1,7 +1,3 @@
-# Instructions
-
-Run `composer check` at the end of a sessions to verify correctness.
-
 ## Commands
 
 ```shell
