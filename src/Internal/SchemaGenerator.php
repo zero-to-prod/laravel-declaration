@@ -16,9 +16,8 @@ use ReflectionUnionType;
 final class SchemaGenerator
 {
     /**
-     * @param  class-string  $class
-     * @param  string  $block
-     * @return array<string, mixed>)
+     * @param  class-string  $class  the native Laravel class to project
+     * @return array<string, mixed> the JSON-decodable definition object (not encoded — the caller encodes)
      *
      * @throws ReflectionException
      */
@@ -150,7 +149,7 @@ final class SchemaGenerator
         return $names === ['array', 'string'];
     }
 
-    /** return array<string, mixed>*/
+    /** @return array<string, mixed> */
     private static function binding(ReflectionMethod $method, ReflectionParameter $key, ReflectionParameter $value): array
     {
         [$schema, $unknown] = self::paramSchema($value);
@@ -189,12 +188,22 @@ final class SchemaGenerator
         );
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * §4.4 setter → the whole value in one call. §4.5 suffix: an array-shaped
+     * value reads "one call with the whole value" (`resourceVerbs` form);
+     * everything else reads "when the key is present".
+     *
+     * @return array<string, mixed>
+     */
     private static function setter(ReflectionMethod $method, ReflectionParameter $parameter): array
     {
         [$schema, $unknown] = self::paramSchema($parameter);
 
-        return self::withDescription($schema, self::stub($method, [$parameter->getName()], ' when the key is present', $unknown));
+        $suffix = is_array($schema) && str_contains(json_encode($schema, JSON_THROW_ON_ERROR), '"array"')
+            ? ', one call with the whole value' // §4.5: resourceVerbs form
+            : ' when the key is present'; // §4.5: singularResourceParameters form
+
+        return self::withDescription($schema, self::stub($method, [$parameter->getName()], $suffix, $unknown));
     }
 
     /** @return array<string, mixed> */
@@ -205,22 +214,125 @@ final class SchemaGenerator
         return self::withDescription(true, self::stub($method, $params, ' when the key is present', $params));
     }
 
-    /** @return array{0: mixed, 1: list<string>} */
+    /**
+     * §4.3 value schema for one parameter — the complete map.
+     * Returns [schema, unknown-param-names].
+     *
+     * @return array{0: mixed, 1: list<string>}
+     */
     private static function paramSchema(ReflectionParameter $parameter): array
     {
         $type = $parameter->getType();
 
-        if (! $type instanceof ReflectionNamedType) {
-            return [true, [$parameter->getName()]]; // untyped, union, intersection — unit 03 completes unions
+        if ($type instanceof ReflectionUnionType) {
+            return self::unionSchema($type, $parameter->getName());
         }
 
-        $json = ['string' => 'string', 'int' => 'integer', 'float' => 'number', 'bool' => 'boolean'][$type->getName()] ?? null;
+        if ($type instanceof ReflectionNamedType) {
+            $expanded = self::expand($type->getName());
 
-        if ($json === null) {
-            return [true, [$parameter->getName()]];
+            if ($expanded !== null) {
+                $types = $expanded;
+
+                if ($type->allowsNull()) {
+                    $types[] = 'null'; // §4.3 ?T row: null last
+                }
+
+                return [['type' => self::typeValue($types)], []];
+            }
         }
 
-        return [$type->allowsNull() ? ['type' => [$json, 'null']] : ['type' => $json], []];
+        // class/interface/enum/Closure/mixed/iterable/callable/untyped/intersection —
+        // the generator refuses to invent semantics it cannot read from the
+        // signature (§4.3, Rules 1.4, 3.4).
+        return [true, [$parameter->getName()]];
+    }
+
+    /**
+     * Union rule: untypeable member → whole param unknown (§4.3); otherwise
+     * declared member order, `array` expanded in place, deduplicated, null last.
+     *
+     * Reflection normalizes builtin unions to a canonical order (`string|array`
+     * reads back `array|string`), so the §4.3 declared-order pins are imposed by
+     * a stable sort: scalars first (reflection's canonical scalar order), then
+     * the in-place `array`/`object` expansion, `null` last.
+     *
+     * @return array{0: mixed, 1: list<string>}
+     */
+    private static function unionSchema(ReflectionUnionType $type, string $name): array
+    {
+        $types = [];
+        $nullable = false;
+
+        foreach ($type->getTypes() as $member) {
+            if (! $member instanceof ReflectionNamedType) {
+                return [true, [$name]]; // intersection member inside a union — unreadable
+            }
+
+            if ($member->getName() === 'null') {
+                $nullable = true;
+
+                continue;
+            }
+
+            $expanded = self::expand($member->getName());
+
+            if ($expanded === null) {
+                return [true, [$name]]; // one untypeable member makes the value untypeable
+            }
+
+            $types = [...$types, ...$expanded];
+        }
+
+        // §4.3 ordering: reflection stores builtin unions as a type mask and
+        // reports them canonically (`string|array` reads back `array|string`),
+        // so the declared-order pins (`string|int` → ["string","integer"],
+        // `string|array` → ["string","array","object"]) are imposed here.
+        $precedence = array_flip(['string', 'integer', 'number', 'boolean', 'array', 'object', 'null']);
+
+        uasort($types, static fn (string $left, string $right): int => $precedence[$left] <=> $precedence[$right]);
+
+        if ($nullable) {
+            $types[] = 'null';
+        }
+
+        return [['type' => self::typeValue(array_values($types))], []];
+    }
+
+    /**
+     * §4.3 primitive rows. `null` when the type is not expressible from the
+     * signature alone (the unknown path).
+     *
+     * @return list<string>|null
+     */
+    private static function expand(string $name): ?array
+    {
+        return match ($name) {
+            'string' => ['string'],
+            'int' => ['integer'],
+            'float' => ['number'],
+            'bool' => ['boolean'],
+            'array' => ['array', 'object'], // a PHP array is both list and map
+            default => null, // mixed, iterable, callable, classes, …
+        };
+    }
+
+    /**
+     * §4.3 type value: a lone scalar stays bare (`{"type":"string"}`); unions,
+     * `array`, and `?T` carry the declared-order array, deduplicated.
+     *
+     * @param  list<string>  $types
+     * @return string|list<string>
+     */
+    private static function typeValue(array $types): string|array
+    {
+        $unique = array_values(array_unique($types));
+
+        if (count($unique) === 1) {
+            return $unique[0];
+        }
+
+        return $unique;
     }
 
     /**
