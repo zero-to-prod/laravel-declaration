@@ -175,3 +175,90 @@ it('refuses a union that carries an intersection member', function (): void {
         'description' => '-> either($either) when the key is present TODO(either: $either)',
     ]);
 });
+
+function curatedSchema(): array
+{
+    return [
+        '$schema' => 'http://json-schema.org/draft-07/schema#',
+        'type' => 'object',
+        'additionalProperties' => false,
+        'properties' => [
+            'app' => ['$ref' => '#/definitions/app'],
+        ],
+        'definitions' => [
+            'app' => [
+                'description' => 'curated app prose',
+                'type' => ['object', 'null'],
+                'additionalProperties' => false,
+                'properties' => [
+                    'bind' => [
+                        'description' => 'curated bind prose',
+                        'type' => 'object',
+                        'additionalProperties' => ['type' => 'string', 'pattern' => '^App\\\\'],
+                    ],
+                    'stale' => ['description' => 'no longer native'],
+                ],
+            ],
+        ],
+    ];
+}
+
+it('appends only missing keys and preserves every curated byte of a key', function (): void {
+    $fragment = SchemaGenerator::render(Basic::class, 'app');
+
+    $merged = SchemaGenerator::merge(curatedSchema(), 'app', $fragment);
+    $app = $merged['definitions']['app'];
+
+    expect($app['description'])->toBe('curated app prose') // envelope untouched
+        ->and($app['properties']['bind'])->toBe(curatedSchema()['definitions']['app']['properties']['bind'])
+        ->and($app['properties']['stale'])->toBe(['description' => 'no longer native']) // never deleted
+        ->and(array_keys($app['properties']))->toBe(['bind', 'stale', 'label', 'retries', 'handler', 'register']) // native order
+        ->and($merged['definitions'])->toHaveKey('app') // sibling definitions untouched
+        ->and($merged['properties'])->toBe(curatedSchema()['properties']); // root untouched for an existing block
+});
+
+it('wires a new block into definitions and the root properties', function (): void {
+    $fragment = SchemaGenerator::render(Kinds::class, 'kinds');
+
+    $merged = SchemaGenerator::merge(curatedSchema(), 'kinds', $fragment);
+
+    expect($merged['definitions']['kinds'])->toBe($fragment)
+        ->and($merged['properties']['kinds'])->toBe(['$ref' => '#/definitions/kinds'])
+        ->and(array_keys($merged['properties']))->toBe(['app', 'kinds']); // appended at the end
+});
+
+it('merges idempotently', function (): void {
+    $fragment = SchemaGenerator::render(Kinds::class, 'kinds');
+
+    $once = SchemaGenerator::merge(curatedSchema(), 'kinds', $fragment);
+    $twice = SchemaGenerator::merge($once, 'kinds', $fragment);
+
+    expect($twice)->toBe($once);
+});
+
+it('encodes with 2-space indentation, unescaped unicode and a trailing newline', function (): void {
+    $encoded = SchemaGenerator::encode([
+        'description' => 'curated — prose ≈ here',
+        'type' => 'object',
+    ]);
+
+    expect($encoded)->toBe(<<<'JSON'
+        {
+          "description": "curated — prose ≈ here",
+          "type": "object"
+        }
+
+        JSON);
+});
+
+it('re-encodes the shipped schema idempotently', function (): void {
+    $raw = file_get_contents(dirname(__DIR__, 2).'/manifest.schema.json');
+
+    $schema = json_decode((string) $raw, true, 512, JSON_THROW_ON_ERROR);
+    $once = SchemaGenerator::encode($schema);
+    $twice = SchemaGenerator::encode(json_decode($once, true, 512, JSON_THROW_ON_ERROR));
+
+    expect($once)->toBe($twice) // deterministic + idempotent
+        ->and($once)->toContain('—') // unicode preserved
+        ->and($once)->toEndWith("}\n");
+});

@@ -53,7 +53,54 @@ final class SchemaGenerator
         );
     }
 
-    /** @param  array<string, mixed>  $schema */
+    /**
+     * @param  array<string, mixed>  $schema  parsed manifest.schema.json
+     * @param  array<string, mixed>  $fragment  from render()
+     * @return array<string, mixed> the updated schema, ready to re-encode
+     */
+    public static function merge(array $schema, string $block, array $fragment): array
+    {
+        $definitions = is_array($schema['definitions'] ?? null) ? $schema['definitions'] : [];
+
+        if (array_key_exists($block, $definitions)) {
+            $curated = is_array($definitions[$block] ?? null) ? $definitions[$block] : [];
+
+            $existing = is_array($curated['properties'] ?? null) ? $curated['properties'] : [];
+
+            $incoming = is_array($fragment['properties'] ?? null) ? $fragment['properties'] : [];
+
+            foreach ($incoming as $key => $keySchema) {
+                if (! array_key_exists($key, $existing)) {
+                    $existing[$key] = $keySchema; // appended in native declaration order
+                }
+            }
+
+            $curated['properties'] = $existing;
+            $definitions[$block] = $curated;
+            $schema['definitions'] = $definitions;
+
+            return $schema;
+        }
+
+        $definitions[$block] = $fragment;
+        $schema['definitions'] = $definitions;
+
+        $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
+        $properties[$block] = ['$ref' => "#/definitions/$block"];
+        $schema['properties'] = $properties;
+
+        return $schema;
+    }
+
+    /**
+     * Encodes a schema array in the repo's 2-space JSON style (§5.1).
+     *
+     * JSON_PRETTY_PRINT indents in exact multiples of 4, so halving reproduces
+     * 2-space; JSON_UNESCAPED_UNICODE keeps the file's curated prose (`—`, `≈`)
+     * readable; the trailing newline matches the shipped file.
+     *
+     * @param  array<string, mixed>  $schema
+     */
     public static function encode(array $schema): string
     {
         $json = json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
@@ -188,20 +235,14 @@ final class SchemaGenerator
         );
     }
 
-    /**
-     * §4.4 setter → the whole value in one call. §4.5 suffix: an array-shaped
-     * value reads "one call with the whole value" (`resourceVerbs` form);
-     * everything else reads "when the key is present".
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private static function setter(ReflectionMethod $method, ReflectionParameter $parameter): array
     {
         [$schema, $unknown] = self::paramSchema($parameter);
 
         $suffix = is_array($schema) && str_contains(json_encode($schema, JSON_THROW_ON_ERROR), '"array"')
-            ? ', one call with the whole value' // §4.5: resourceVerbs form
-            : ' when the key is present'; // §4.5: singularResourceParameters form
+            ? ', one call with the whole value'
+            : ' when the key is present';
 
         return self::withDescription($schema, self::stub($method, [$parameter->getName()], $suffix, $unknown));
     }
@@ -214,12 +255,7 @@ final class SchemaGenerator
         return self::withDescription(true, self::stub($method, $params, ' when the key is present', $params));
     }
 
-    /**
-     * §4.3 value schema for one parameter — the complete map.
-     * Returns [schema, unknown-param-names].
-     *
-     * @return array{0: mixed, 1: list<string>}
-     */
+    /** @return array{0: mixed, 1: list<string>} */
     private static function paramSchema(ReflectionParameter $parameter): array
     {
         $type = $parameter->getType();
@@ -235,30 +271,17 @@ final class SchemaGenerator
                 $types = $expanded;
 
                 if ($type->allowsNull()) {
-                    $types[] = 'null'; // §4.3 ?T row: null last
+                    $types[] = 'null';
                 }
 
                 return [['type' => self::typeValue($types)], []];
             }
         }
 
-        // class/interface/enum/Closure/mixed/iterable/callable/untyped/intersection —
-        // the generator refuses to invent semantics it cannot read from the
-        // signature (§4.3, Rules 1.4, 3.4).
         return [true, [$parameter->getName()]];
     }
 
-    /**
-     * Union rule: untypeable member → whole param unknown (§4.3); otherwise
-     * declared member order, `array` expanded in place, deduplicated, null last.
-     *
-     * Reflection normalizes builtin unions to a canonical order (`string|array`
-     * reads back `array|string`), so the §4.3 declared-order pins are imposed by
-     * a stable sort: scalars first (reflection's canonical scalar order), then
-     * the in-place `array`/`object` expansion, `null` last.
-     *
-     * @return array{0: mixed, 1: list<string>}
-     */
+    /** @return array{0: mixed, 1: list<string>} */
     private static function unionSchema(ReflectionUnionType $type, string $name): array
     {
         $types = [];
@@ -266,7 +289,7 @@ final class SchemaGenerator
 
         foreach ($type->getTypes() as $member) {
             if (! $member instanceof ReflectionNamedType) {
-                return [true, [$name]]; // intersection member inside a union — unreadable
+                return [true, [$name]];
             }
 
             if ($member->getName() === 'null') {
@@ -278,16 +301,12 @@ final class SchemaGenerator
             $expanded = self::expand($member->getName());
 
             if ($expanded === null) {
-                return [true, [$name]]; // one untypeable member makes the value untypeable
+                return [true, [$name]];
             }
 
             $types = [...$types, ...$expanded];
         }
 
-        // §4.3 ordering: reflection stores builtin unions as a type mask and
-        // reports them canonically (`string|array` reads back `array|string`),
-        // so the declared-order pins (`string|int` → ["string","integer"],
-        // `string|array` → ["string","array","object"]) are imposed here.
         $precedence = array_flip(['string', 'integer', 'number', 'boolean', 'array', 'object', 'null']);
 
         uasort($types, static fn (string $left, string $right): int => $precedence[$left] <=> $precedence[$right]);
@@ -299,12 +318,7 @@ final class SchemaGenerator
         return [['type' => self::typeValue(array_values($types))], []];
     }
 
-    /**
-     * §4.3 primitive rows. `null` when the type is not expressible from the
-     * signature alone (the unknown path).
-     *
-     * @return list<string>|null
-     */
+    /** @return list<string>|null */
     private static function expand(string $name): ?array
     {
         return match ($name) {
@@ -312,15 +326,12 @@ final class SchemaGenerator
             'int' => ['integer'],
             'float' => ['number'],
             'bool' => ['boolean'],
-            'array' => ['array', 'object'], // a PHP array is both list and map
-            default => null, // mixed, iterable, callable, classes, …
+            'array' => ['array', 'object'],
+            default => null,
         };
     }
 
     /**
-     * §4.3 type value: a lone scalar stays bare (`{"type":"string"}`); unions,
-     * `array`, and `?T` carry the declared-order array, deduplicated.
-     *
      * @param  list<string>  $types
      * @return string|list<string>
      */
