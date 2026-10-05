@@ -6,7 +6,6 @@
         "config",
         "config_path",
         "storage_path",
-        "Composer\\Autoload\\ClassLoader",
         "Laravel\\Mcp\\Facades\\Mcp",
         "Laravel\\Mcp\\Request",
         "Laravel\\Mcp\\Response",
@@ -34,6 +33,9 @@
         "Illuminate\\Routing\\ViewController",
         "request",
         "Illuminate\\Foundation\\Http\\FormRequest",
-        "Symfony\\Component\\Yaml\\Yaml"
+        "Symfony\\Component\\Yaml\\Yaml",
+        "Illuminate\\Database\\Connection",
+        "Illuminate\\Database\\Schema\\ColumnDefinition",
+        "Illuminate\\Support\\Fluent"
     ]
 }

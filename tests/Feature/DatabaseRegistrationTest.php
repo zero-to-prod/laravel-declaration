@@ -11,9 +11,9 @@ it('registers database query listeners from manifest', function (): void {
     file_put_contents($file, <<<'YAML'
         booted:
           make:
-            Illuminate\Database\Connection:
-              listen:
-                - ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery
+            abstract: Illuminate\Database\Connection
+            listen:
+              - ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery
         YAML);
 
     try {

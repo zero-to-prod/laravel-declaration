@@ -18,6 +18,20 @@ it('exposes the raw manifest and its blocks', function (): void {
         ->and((new ManifestStore)->all())->toBeEmpty();
 });
 
+it('strips exactly the data keys from the body the interpreter applies', function (): void {
+    $store = new ManifestStore([
+        'registered' => ['bind' => []],
+        'requests' => [['name' => 'a']],
+        'models' => [['class' => 'X']],
+        'queries' => [['name' => 'q']],
+        'schema' => ['create' => []],
+        'extra' => ['x' => 1],
+    ]);
+
+    expect($store->body())->toBe(['registered' => ['bind' => []]])
+        ->and($store->all())->toHaveKeys(['registered', 'requests', 'models', 'queries', 'schema', 'extra']);
+});
+
 it('is bound from the configured manifest and empty without one', function (): void {
     expect(app(ManifestStore::class)->all())->toBeEmpty();
 

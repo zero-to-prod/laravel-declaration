@@ -18,7 +18,7 @@ fi
 rm -rf "$TREE"
 mkdir -p "$TREE"
 cp composer.json composer-require-checker.json "$TREE/"
-cp -R src "$TREE/"
+cp -R src interpreter "$TREE/"
 
 php -r '
 $file = $argv[1];

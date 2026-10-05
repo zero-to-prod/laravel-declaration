@@ -193,8 +193,3 @@ it('applies nothing without a kernel body', function (): void {
 
     expect($kernel->hasMiddleware(GlobalFirstMiddleware::class))->toBeFalse();
 });
-
-it('laravel-declaration:validate accepts the kernel body', function () use ($manifest): void {
-    $this->artisan('laravel-declaration:validate', ['--manifest' => $manifest])
-        ->assertSuccessful();
-});

@@ -74,10 +74,10 @@ it('injects a different implementation into each class that needs the same inter
     $file = $this->manifest(<<<'YAML'
         registered:
           when:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\PhotoController:
+            - concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\PhotoController
               needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem
               give: app/acceptance/local-disk.php
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UploadController:
+            - concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UploadController
               needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem
               give: app/acceptance/s3-disk.php
         YAML);
@@ -95,9 +95,9 @@ it('injects a primitive from the contextual give closure', function (): void {
     $file = $this->manifest(<<<'YAML'
         registered:
           when:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UserController:
-              needs: '$userId'
-              give: app/acceptance/user-id.php
+            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UserController
+            needs: '$userId'
+            give: app/acceptance/user-id.php
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -110,9 +110,10 @@ it('resolves typed variadics from an array of declared class names', function ()
     $file = $this->manifest(<<<'YAML'
         registered:
           when:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Firewall:
-              needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filter
-              give:
+            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Firewall
+            needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filter
+            give:
+              implementation:
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\NullFilter
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\ProfanityFilter
         YAML);

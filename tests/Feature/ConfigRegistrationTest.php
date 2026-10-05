@@ -9,10 +9,10 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider;
 it('merges the declared values over the file array, YAML winning', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              app.name: Tenant Console
-              app.timezone: UTC
+          - abstract: Illuminate\Config\Repository
+            set: {app.name: Tenant Console}
+          - abstract: Illuminate\Config\Repository
+            set: {app.timezone: UTC}
         YAML)]);
 
     expect(config('app.name'))->toBe('Tenant Console')
@@ -23,9 +23,10 @@ it('merges the declared values over the file array, YAML winning', function (): 
 it('sets per dotted key, replacing nested maps whole', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
+          - abstract: Illuminate\Config\Repository
+            set: {cache.default: redis}
+          - abstract: Illuminate\Config\Repository
             set:
-              cache.default: redis
               database.redis:
                 host: redis-host
         YAML)]);
@@ -41,9 +42,9 @@ it('sets per dotted key, replacing nested maps whole', function (): void {
 it('sets a deep dotted key as a config() path, keeping its siblings', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              cache.stores.array.serialize: true
+          abstract: Illuminate\Config\Repository
+          set:
+            cache.stores.array.serialize: true
         YAML)]);
 
     expect(config('cache.stores.array.serialize'))->toBeTrue()
@@ -53,9 +54,9 @@ it('sets a deep dotted key as a config() path, keeping its siblings', function (
 it('configures this package before its own boot', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              laravel-declaration.mcp.enabled: false
+          abstract: Illuminate\Config\Repository
+          set:
+            laravel-declaration.mcp.enabled: false
         YAML)]);
 
     expect($this->app->make(Registrar::class)->getLocalServer('laravel-declaration'))->toBeNull();
@@ -64,10 +65,10 @@ it('configures this package before its own boot', function (): void {
 it('gains keys no file declares, with typed YAML values', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              sentinel.meters: true
-              sentinel.limit: 10
+          - abstract: Illuminate\Config\Repository
+            set: {sentinel.meters: true}
+          - abstract: Illuminate\Config\Repository
+            set: {sentinel.limit: 10}
         YAML)]);
 
     expect(config('sentinel.meters'))->toBeTrue()
@@ -78,10 +79,10 @@ it('gains keys no file declares, with typed YAML values', function (): void {
 it('sets a list value through the row form', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              key: sentinel.hosts
-              value: [alpha, beta]
+          abstract: Illuminate\Config\Repository
+          set:
+            key: sentinel.hosts
+            value: [alpha, beta]
         YAML)]);
 
     expect(config('sentinel.hosts'))->toBe(['alpha', 'beta']);
@@ -105,9 +106,9 @@ it('sets nothing without a manifest', function (): void {
 it('declared providers see the set values in register and boot', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         make:
-          Illuminate\Config\Repository:
-            set:
-              app.name: Tenant Console
+          abstract: Illuminate\Config\Repository
+          set:
+            app.name: Tenant Console
         register:
           - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
         YAML)]);

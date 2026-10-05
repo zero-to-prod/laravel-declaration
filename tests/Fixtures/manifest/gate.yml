@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 
 afterResolving:
   Illuminate\Auth\Access\Gate:

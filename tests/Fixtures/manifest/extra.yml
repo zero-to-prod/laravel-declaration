@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 
 register:
   - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Plugins\SitemapServiceProvider

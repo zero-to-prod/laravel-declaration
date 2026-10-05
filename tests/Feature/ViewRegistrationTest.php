@@ -53,10 +53,12 @@ it('flushes stale finder entries when the factory resolved before the body appli
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
             booted:
-              make:
-                Illuminate\View\Factory:
+              - make:
+                  abstract: Illuminate\View\Factory
                   prependLocation:
                     - resources/declared-views/theme
+              - make:
+                  abstract: Illuminate\View\Factory
                   flushFinderCache: ~
             YAML),
         'laravel-declaration.warm-views' => true,
@@ -70,9 +72,9 @@ it('keeps stale finder entries without flushFinderCache', function (): void {
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
             booted:
               make:
-                Illuminate\View\Factory:
-                  prependLocation:
-                    - resources/declared-views/theme
+                abstract: Illuminate\View\Factory
+                prependLocation:
+                  - resources/declared-views/theme
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -85,8 +87,8 @@ it('resets render bookkeeping when flushState is declared', function (): void {
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
             booted:
               make:
-                Illuminate\View\Factory:
-                  flushState: ~
+                abstract: Illuminate\View\Factory
+                flushState: ~
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -96,7 +98,7 @@ it('resets render bookkeeping when flushState is declared', function (): void {
 
 it('keeps render bookkeeping without flushState', function (): void {
     $this->withConfig([
-        'laravel-declaration.manifest' => $this->manifest('booted: {make: {Illuminate\View\Factory: {}}}'),
+        'laravel-declaration.manifest' => $this->manifest('booted: {make: {abstract: Illuminate\View\Factory}}'),
         'laravel-declaration.warm-views' => true,
     ]);
 

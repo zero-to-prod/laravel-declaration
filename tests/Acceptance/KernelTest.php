@@ -318,8 +318,8 @@ it('runs middleware prepended to a group when the group is assigned to a route',
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
             prependMiddlewareToGroup:
               group-name:
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupPrepended
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupPrepended
           Illuminate\Routing\Router:
             addRoute:
               - uri: grouped

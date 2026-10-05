@@ -8,10 +8,8 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Override;
-use ZeroToProd\LaravelDeclaration\Internal\Commands\GenerateManifestSchemaCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\InstallCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Commands\MigrateCommand;
-use ZeroToProd\LaravelDeclaration\Internal\Commands\ValidateCommand;
 use ZeroToProd\LaravelDeclaration\Internal\Mcp\Server;
 use ZeroToProd\LaravelDeclaration\Providers\ManifestServiceProvider;
 
@@ -31,9 +29,7 @@ class LaravelDeclarationProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
-                ValidateCommand::class,
                 MigrateCommand::class,
-                GenerateManifestSchemaCommand::class,
             ]);
 
             $this->publishes([

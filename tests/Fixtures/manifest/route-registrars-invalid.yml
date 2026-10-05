@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 
 # An unknown key riding a PendingResourceRegistration fails at boot with Laravel's
 # own BadMethodCallException (STYLE 3.3) — Macroable::__call.

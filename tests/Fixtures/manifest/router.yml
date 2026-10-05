@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 
 afterResolving:
   Illuminate\Routing\Router:
@@ -17,8 +16,8 @@ afterResolving:
       subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
     prependMiddlewareToGroup:
       tenant:
-        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst
         - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst
     pushMiddlewareToGroup:
       tenant:
         - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPushed

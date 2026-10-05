@@ -37,15 +37,13 @@ final class Installer
     public static function manifest(): string
     {
         return <<<'YAML'
-            # yaml-language-server: $schema=./../vendor/zero-to-prod/laravel-declaration/manifest.schema.json
-            #
             # The manifest is a body on Illuminate\Foundation\Application: every root key is one of its
             # methods, applied in order when the package registers. Timing is written with the
             # application's own lifecycle methods.
 
-            make:                                   # services already resolved at register() (config)
-              Illuminate\Config\Repository:
-                set: {}                             # app.name: Tenant Console
+            make:                                   # a service already resolved at register(): make(abstract: …)->set(…)
+              abstract: Illuminate\Config\Repository
+              set: {}                               # app.name: Tenant Console
 
             registered:                             # a body on the application once every provider has registered
               bind: {}                              # App\Contracts\Pdf: App\Services\DomPdf

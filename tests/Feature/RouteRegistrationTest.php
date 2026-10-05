@@ -287,7 +287,7 @@ it('rides every row key onto the pending registration', function (): void {
             apiResource:
               - name: things
                 controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                only: [index, show]                                      # the list IS the argument
+                only: {methods: [index, show]}                           # the row names the parameter
                 whereIn:                                                 # the native two-parameter row
                   parameters: thing
                   values: [a, b]

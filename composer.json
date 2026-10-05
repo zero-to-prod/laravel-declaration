@@ -1,6 +1,6 @@
 {
     "name": "zero-to-prod/laravel-declaration",
-    "description": "A general-purpose manifest engine for Laravel: a YAML body on the application, validated by a schema projected from the framework classes",
+    "description": "A general-purpose manifest engine for Laravel: a YAML body on the application, read by a pure-PHP interpreter against the framework's own method signatures",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -12,9 +12,7 @@
     "require": {
         "php": "^8.4",
         "illuminate/console": "^13.0",
-        "illuminate/support": "^13.0",
-        "justinrainbow/json-schema": "^6.13",
-        "nikic/php-parser": "^5.9"
+        "illuminate/support": "^13.0"
     },
     "require-dev": {
         "laravel/mcp": "^0.9",
@@ -33,7 +31,7 @@
     "autoload": {
         "psr-4": {
             "ZeroToProd\\LaravelDeclaration\\": "src/",
-            "ZeroToProd\\Manifest\\": "manifest/"
+            "ZeroToProd\\Manifest\\": "interpreter/"
         }
     },
     "autoload-dev": {
@@ -42,7 +40,7 @@
         },
         "files": [
             "tests/Fixtures/App/Requests/functions.php",
-            "tests/Fixtures/Engine/functions.php"
+            "tests/Fixtures/Interpreter/functions.php"
         ]
     },
     "extra": {
@@ -71,14 +69,13 @@
             "@rector-lint",
             "@analyse",
             "@coverage",
-            "@schema-check"
+            "@interpreter-check"
         ],
         "fix": [
             "@rector",
             "@format"
         ],
-        "schema": "testbench declaration:generate-manifest-schema",
-        "schema-check": "testbench declaration:generate-manifest-schema --check"
+        "interpreter-check": "bin/interpreter-check.sh"
     },
     "config": {
         "sort-packages": true,

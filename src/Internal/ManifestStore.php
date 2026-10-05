@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Internal;
 
 /**
- * The raw manifest as YAML decoded it. The data keys (`requests`, `models`, `queries`, `schema`, `extra`) are
- * read from here by the seams and by `declaration:migrate`; the schema is the only validation layer.
+ * The raw manifest as YAML decoded it. The data keys are read from here by the seams and by `declaration:migrate`;
+ * `body()` is what the interpreter applies to the application.
  *
  * @internal
  */
 final readonly class ManifestStore
 {
+    /** Root keys the host reads itself; the interpreter never sees them. */
+    public const array DATA = ['requests', 'models', 'queries', 'schema', 'extra'];
+
     /** @param  array<string, mixed>  $manifest */
     public function __construct(private array $manifest = []) {}
 
@@ -19,6 +22,12 @@ final readonly class ManifestStore
     public function all(): array
     {
         return $this->manifest;
+    }
+
+    /** @return array<string, mixed> the manifest minus the data keys: a body on Illuminate\Foundation\Application */
+    public function body(): array
+    {
+        return array_diff_key($this->manifest, array_flip(self::DATA));
     }
 
     public function block(string $block): mixed

@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 registered:                                          # a body on the application once every provider has registered
   bind:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf

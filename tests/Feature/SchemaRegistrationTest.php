@@ -258,6 +258,46 @@ test('it alters an existing table idempotently through the guard table', functio
     expect(SchemaFacade::getColumnListing('people'))->toBe($before);
 });
 
+test('it applies an index on a column added earlier in the same table body', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        schema:
+          table:
+            sequence:
+              string:
+                - column: owner_id
+              index:
+                - columns: [owner_id]
+        YAML)]);
+
+    SchemaFacade::create('sequence', fn (Blueprint $table) => $table->id());
+
+    $this->artisan('declaration:migrate')
+        ->expectsOutputToContain('Altered')
+        ->assertSuccessful();
+
+    expect(SchemaFacade::hasColumn('sequence', 'owner_id'))->toBeTrue()
+        ->and(collect(SchemaFacade::getIndexes('sequence'))->first(
+            fn (array $index): bool => $index['columns'] === ['owner_id']
+        ))->not->toBeNull();
+});
+
+test('it skips a change declaration on a column the table does not have', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        schema:
+          table:
+            late:
+              string:
+                - column: ghost
+                  change: ~
+        YAML)]);
+
+    SchemaFacade::create('late', fn (Blueprint $table) => $table->id());
+
+    $this->artisan('declaration:migrate')->assertSuccessful();
+
+    expect(SchemaFacade::hasColumn('late', 'ghost'))->toBeFalse();
+});
+
 test('it dispatches the standalone foreign method onto ForeignKeyDefinition modifiers', function (): void {
     SchemaFacade::dropIfExists('users');
     SchemaFacade::dropIfExists('audits');

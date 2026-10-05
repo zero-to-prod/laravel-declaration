@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=./../../../manifest.schema.json
 
 # The route-registrar surface spelled with the test fixtures' class-strings. Every key
 # under the Router is one Router method; a row's extra keys ride the returned Route or
@@ -76,7 +75,7 @@ afterResolving:
     resource:
       - name: photos
         controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PhotoController
-        only: [index, show, store, update, destroy]
+        only: {methods: [index, show, store, update, destroy]}
         middleware: [web]
         whereNumber: photo                     # -> whereNumber('photo')
         scoped: ~                              # -> scoped()             (bindingFields: [])
@@ -90,7 +89,7 @@ afterResolving:
     apiResource:
       - name: posts
         controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        except: [destroy]
+        except: {methods: [destroy]}
 
     # Router::singleton() / apiSingleton() — show/edit/update defaults
     singleton:

@@ -238,9 +238,9 @@ it('applies contextual when binding', function (): void {
     $file = $this->manifest(<<<'YAML'
         registered:
           when:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
-              needs: '$name'
-              give: contextual-value
+            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
+            needs: '$name'
+            give: contextual-value
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

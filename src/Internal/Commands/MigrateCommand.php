@@ -6,14 +6,15 @@ namespace ZeroToProd\LaravelDeclaration\Internal\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use ZeroToProd\LaravelDeclaration\Internal\Engine\Engine;
-use ZeroToProd\LaravelDeclaration\Internal\Engine\Guards;
+use ZeroToProd\LaravelDeclaration\Internal\GuardedBlueprint;
 use ZeroToProd\LaravelDeclaration\Internal\ManifestStore;
+use ZeroToProd\Manifest\Interpreter;
 
 /**
- * Drives the `schema` data key through the engine onto the schema builder with the guard table (§2.4). The fixed
- * lifecycle order — dropIfExists → drop → rename → create → table — is the command's orchestration, expressed as
- * the order it feeds keys to `body()`; a table body is fed one key at a time so each guard sees committed state.
+ * Drives the `schema` data key through the interpreter onto the schema builder with the guard installed. The
+ * fixed lifecycle order — dropIfExists → drop → rename → create → table — is the command's orchestration,
+ * expressed as the order it feeds keys to `body()`; a table body is fed one key at a time so each blueprint
+ * is pruned against committed state.
  *
  * @internal
  */
@@ -28,7 +29,7 @@ class MigrateCommand extends Command
     /** @var string */
     protected $description = 'Execute declarative database schema actions declared in manifest';
 
-    public function handle(ManifestStore $store, Engine $engine): int
+    public function handle(ManifestStore $store, Interpreter $interpreter): int
     {
         $schema = $store->block('schema');
 
@@ -41,16 +42,13 @@ class MigrateCommand extends Command
         $connection = $this->option('connection');
         $builder = SchemaFacade::connection(is_string($connection) ? $connection : null);
 
-        $guards = new Guards($builder, fn (string $subject, string $message) => $this->components->twoColumnDetail($subject, $message));
-        $engine = $engine->withGuard($guards(...));
+        $tally = GuardedBlueprint::install($builder, fn (string $subject, string $message) => $this->components->twoColumnDetail($subject, $message));
 
         foreach (['dropIfExists', 'drop', 'rename', 'create'] as $verb) {
             if (array_key_exists($verb, $schema)) {
-                $engine->body($builder, [$verb => $schema[$verb]]);
+                $interpreter->body($builder, [$verb => $schema[$verb]]);
             }
         }
-
-        $guards->resetAltered();                                                        // only the alter phase reports actions
 
         $tables = $schema['table'] ?? [];
 
@@ -58,15 +56,15 @@ class MigrateCommand extends Command
             $table = (string) $table;
 
             foreach (is_array($body) ? $body : [] as $method => $value) {
-                $engine->body($builder, ['table' => [$table => [$method => $value]]]);
+                $interpreter->body($builder, ['table' => [$table => [$method => $value]]]);
             }
 
-            if ($guards->altered($table) > 0) {
-                $this->components->twoColumnDetail($table, "<fg=green;options=bold>Altered [{$guards->altered($table)}] action(s)</>");
+            if (($tally->altered[$table] ?? 0) > 0) {
+                $this->components->twoColumnDetail($table, "<fg=green;options=bold>Altered [{$tally->altered[$table]}] action(s)</>");
             }
         }
 
-        $this->components->info("Schema migration complete. [$guards->created] table(s) created.");
+        $this->components->info("Schema migration complete. [$tally->created] table(s) created.");
 
         return self::SUCCESS;
     }
