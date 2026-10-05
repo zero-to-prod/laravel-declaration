@@ -2,10 +2,11 @@
 name: schema-generator-php-parser
 task: >-
   Re-platform the schema generator's extraction layer from PHP Reflection to the
-  nikic/PHP-Parser AST: identical §4.1–§4.6 derivation algorithm, identical
-  merge/encode, file-based source of truth, and trait flattening verified to
-  reproduce Reflection truth (Router 65/65, order included).
-plan: docs/declarative-schema-generator.md (§4 algorithm unchanged)
+  nikic/PHP-Parser AST: §4.1–§4.5 derivation unchanged, definitions keyed by the
+  class FQCN (§4.6 superseded), identical encode, file-based source of truth, and
+  trait flattening verified to reproduce Reflection truth (Router 65/65, order
+  included).
+plan: docs/declarative-schema-generator.md (§4.1–§4.5 unchanged; §4.6 superseded — FQCN keys)
 replaces: docs/implementation/schema_generator/ (reflection engine; units 01–04 implemented)
 parser: docs/repos/nikic/PHP-Parser (v5.9 vendored; doc/ read in full)
 units:
@@ -22,8 +23,9 @@ units:
 A script that generates the **schema** fragment for a YAML **manifest** block directly from a native Laravel class — now derived from the class's **source file** with [nikic/PHP-Parser](../repos/nikic/PHP-Parser/doc/0_Introduction.markdown) instead of PHP Reflection.
 
 - Input: one native Laravel class FQCN, e.g. `Illuminate\Routing\Router`.
-- Output: the `manifest.schema.json` `definitions.<block>` entry for that class.
-- The derivation algorithm (§4.1–§4.6), `merge()`, `encode()`, and the command UX are **unchanged** — see [declarative-schema-generator.md](../declarative-schema-generator.md) and the reflection-engine units ([00-overview.md](schema_generator/00-overview.md)). This plan re-specifies only the extraction mechanism, grounded in the PHP-Parser docs under `docs/repos/nikic/PHP-Parser/doc/` and verified empirically against this repo's vendor tree.
+- Output: the `manifest.schema.json` `definitions.<class>` entry for that class — **keyed by the FQCN verbatim** (`definitions["Illuminate\\Routing\\Router"]`).
+- The derivation algorithm (§4.1–§4.5), `encode()`, and the command UX are **unchanged** — see [declarative-schema-generator.md](../declarative-schema-generator.md) and the reflection-engine units ([00-overview.md](schema_generator/00-overview.md)). This plan re-specifies only the extraction mechanism, grounded in the PHP-Parser docs under `docs/repos/nikic/PHP-Parser/doc/` and verified empirically against this repo's vendor tree.
+- **One deliberate output change, superseding plan §4.6**: the schema key is the FQCN itself — identity mapping, nothing derived. This deletes the block-key derivation, shrinks `merge()`, and removes the basename-collision/alias-block complexity (§2.3). The ideal shape is the goal; no compatibility with the old derived keys is kept.
 
 ## 0. Why PHP-Parser (and what it changes)
 
@@ -36,6 +38,7 @@ A script that generates the **schema** fragment for a YAML **manifest** block di
 | Declaring-class filter | `getDeclaringClass()` reports the *using* class for trait methods (reconciliation 1 of the reflection plan) | `Class_::getMethods()` is **own-body only**; trait methods must be flattened explicitly (unit 04 — verified rule, §2.4) |
 | Native failure for bad source | impossible (PHP would not have loaded the file) | `PhpParser\Error` ([error-handling doc](../repos/nikic/PHP-Parser/doc/component/Error_handling.markdown)) |
 | Defaults | reflection may fail on non-constant defaults | `$param->default` is the raw AST `Expr`, **never evaluated** (verified: `Scalar\String_`) |
+| Schema key | derived `lcfirst(<basename>)` (plan §4.6) | the **FQCN verbatim** — `definitions["Illuminate\\Routing\\Router"]`; nothing derived, merge touches only `definitions.<class>` (§2.3) |
 
 Not derivable remains not derivable: the **attribute kind**, curated prose, and PHP-type-inexpressible refinements are still curation (§3 of the plan) — merge and encoding are carried over byte-for-byte from the reflection units.
 
@@ -58,7 +61,7 @@ Every PHP-Parser-specific claim below was checked against the vendored `nikic/ph
 
 ## 2. Derivation specification — AST mapping
 
-The §4.1–§4.6 semantics are the algorithm (plan doc). Here is each rule's AST mechanism.
+The §4.1–§4.5 semantics are the algorithm (plan doc); §4.6's derived block key is superseded by the FQCN key (§2.3). Here is each rule's AST mechanism.
 
 ### 2.1 Pipeline
 
@@ -66,7 +69,7 @@ The §4.1–§4.6 semantics are the algorithm (plan doc). Here is each rule's AS
 FQCN ──findFile──▶ path ──file_get_contents──▶ code
         │ (I/O — command layer only)
         ▼
-SchemaGenerator::render($class, $block, $source)        # pure statics, no I/O
+SchemaGenerator::render($class, $source)                # pure statics, no I/O — the FQCN is the schema key
   parse(code) ──NameResolver──▶ stmts
   select ClassLike by namespacedName === $class          # NodeFinder (§1.7)
   flatten ClassMethod list (§2.4)                        # own body + traits (unit 04)
@@ -76,7 +79,7 @@ SchemaGenerator::render($class, $block, $source)        # pure statics, no I/O
   build key schemas + stub descriptions (§4.4, §4.5)
 ```
 
-- **Source seam**: `render(string $class, string $block, Closure $source): array` and `skipped(string $class, Closure $source): list<string>`, where `@param Closure(string): (string|null) $source` returns file contents for an FQCN or `null` when the file cannot be read. The **command** injects `findFile + file_get_contents` (the only I/O); **tests** inject a map-backed closure — the core stays I/O-free and deterministic. (The reflection engine's `render()` performed autoload implicitly; the new seam makes the file dependency explicit and injectable.)
+- **Source seam**: `render(string $class, Closure $source): array` and `skipped(string $class, Closure $source): list<string>`, where `@param Closure(string): (string|null) $source` returns file contents for an FQCN or `null` when the file cannot be read. The **command** injects `findFile + file_get_contents` (the only I/O); **tests** inject a map-backed closure — the core stays I/O-free and deterministic. (The reflection engine's `render()` performed autoload implicitly; the new seam makes the file dependency explicit and injectable.)
 - Parser + traverser are constructed once per `render()` call and reused for target + traits (§1.1).
 
 Complete seam (final state — unit 01 lands own-body only, unit 04 swaps the `flatten()` call):
@@ -103,15 +106,14 @@ use RuntimeException;
 final class SchemaGenerator
 {
     /**
-     * @param  class-string  $class  the native Laravel class to project
-     * @param  string  $block  the manifest block key — reported by the command, unused by the shape
+     * @param  class-string  $class  the native Laravel class to project — also the schema key, verbatim (§2.3)
      * @param  Closure(string): (string|null)  $source  file contents per FQCN, null when unreadable (the command injects the I/O)
      * @return array<string, mixed> the JSON-decodable definition object (not encoded — the caller encodes)
      *
      * @throws Error               the source is not valid PHP (Rule 3.3, native)
      * @throws RuntimeException  no readable source for $class, or $class is not declared in it (§2.5)
      */
-    public static function render(string $class, string $block, Closure $source): array
+    public static function render(string $class, Closure $source): array
     {
         [$parser, $traverser] = self::pipeline();
         $classNode = self::selectClass($class, $source, $parser, $traverser);
@@ -460,7 +462,14 @@ Types::either((Stringable&Countable)|string $either)  → description-only + TOD
 
 **Stub descriptions (§4.5)** — unchanged text, names extracted from nodes: method `$method->name->toString()`; param names `$param->var->name` (a method param's `var` is always a plain `Node\Expr\Variable` with a string name — parser guarantee; phpstan-narrowed by `instanceof`, no defensive branch).
 
-**Block key (§4.6)** — unchanged: `lcfirst(<class basename>)`; the FQCN for the envelope description is the requested class string (matches the class node's `namespacedName`, which is asserted in the pipeline).
+**Schema key (supersedes §4.6)** — the definitions key is the requested class string **verbatim**: `Illuminate\Routing\Router` → `definitions["Illuminate\Routing\Router"]` (it matches the class node's `namespacedName`, which is asserted in the pipeline). Identity mapping — nothing derived:
+
+- No basename math to test, report, or get wrong; no collisions between same-basename classes.
+- One definition per class. Alias manifest blocks (`routes` alongside `router`) `$ref` the same FQCN-keyed definition — the block→class map stays curation (`src/Manifest.php`), never a derivation.
+- Legal JSON Pointer: a token splits on `/` and escapes `~` only, and the FQCN contains neither — `{"$ref": "#/definitions/Illuminate\\Routing\\Router"}` (the raw file encodes each `\` as `\\`; the JSON string decodes before pointer resolution).
+- Envelope description unchanged — it already names the FQCN: `$class.' methods: every key is a method name…'`.
+- **`merge()` shrinks**: it writes only `definitions.<class>` — curated `description` prose preserved, new keys appended, nothing deleted. The root-`properties` wiring branch is deleted: manifest block names are fixed by `src/Manifest.php`, not derivable from a class, so the one `$ref` line per block is hand-written curation.
+- The shipped `manifest.schema.json` is rekeyed to this shape (generated definitions move from `router`/`app`/… to their FQCNs; the `properties.*` refs point at them) — no compatibility shim is kept.
 
 ### 2.4 Trait flattening (the new engine capability — replaces reconciliation 1)
 
@@ -609,7 +618,7 @@ Same six-unit decomposition as the reflection engine ([00-overview.md](schema_ge
 - `composer.json`: `"nikic/php-parser": "^5.9"` in `require` (§1.11).
 - `SchemaGenerator::selectClass(string $class, Closure $source, Parser $parser, NodeTraverser $traverser)`-style private pipeline (§2.1 code): `pipeline()` (`ParserFactory::createForNewestSupportedVersion()` + `NameResolver`), `NodeFinder` selection by `namespacedName` (§1.6–1.7).
 - `declarable(list<ClassMethod>)` rewritten over nodes (§2.2 code) — **own-body only at this unit**; unit 04 inserts flattening *before* the filter without changing the filter.
-- `render()/skipped()` gain the `Closure $source` parameter; `key()/setter()/undecided()/paramSchema()/stub()` minimally ported to `ClassMethod`/`Param` (their full node semantics land in units 02–03; output must already match).
+- `render()/skipped()` gain the `Closure $source` parameter; `render()` drops the `$block` parameter — the FQCN is the schema key (§2.3). `key()/setter()/undecided()/paramSchema()/stub()` minimally ported to `ClassMethod`/`Param` (their full node semantics land in units 02–03; output must already match).
 - `GenerateSchemaCommand::handle()` builds the source resolver (`ClassLoader::getRegisteredLoaders()` → `findFile` → `is_file` → `file_get_contents`), pre-checks the target (`components->error` + FAILURE per §2.5), and keeps print mode byte-identical:
 
 ```php
@@ -617,10 +626,8 @@ public function handle(): int
 {
     /** @var class-string $class */
     $class = $this->argument('class');
-    $basename = strrpos($class, '\\');
-    $block = lcfirst($basename === false ? $class : substr($class, $basename + 1)); // §4.6
 
-    $this->components->info("Block: $block");
+    $this->components->info("Schema key: $class"); // the FQCN verbatim — nothing derived (§2.3)
 
     $locate = static function (string $fqcn): ?string {
         foreach (\Composer\Autoload\ClassLoader::getRegisteredLoaders() as $loader) { // keyed by vendor dir (§1.8)
@@ -650,7 +657,7 @@ public function handle(): int
         $this->components->warn('Skipped: '.implode(', ', $skipped));
     }
 
-    foreach (explode("\n", rtrim(SchemaGenerator::encode(SchemaGenerator::render($class, $block, $source)))) as $line) {
+    foreach (explode("\n", rtrim(SchemaGenerator::encode(SchemaGenerator::render($class, $source)))) as $line) {
         $this->line($line);
     }
 
@@ -660,6 +667,7 @@ public function handle(): int
 
 **Tests** (updated, in the existing files):
 - All current fixture fragment assertions pass unchanged (`Basic`, `Kinds`, `Types`, `Suit`).
+- Definitions key = the input FQCN verbatim (`definitions["Illuminate\Routing\Router"]`) — identity, nothing derived (§2.3).
 - Parent exclusion (`Application` projection) passes naturally (§1.4).
 - Unknown class: core test asserts `RuntimeException`; command test asserts `error` + `assertFailed()` (replaces the `ReflectionException` tests).
 - `phpstan`: `Closure(string): (string|null)` phpdoc on the seam; `PhpParser\Error` tagged `@throws`.
@@ -681,7 +689,7 @@ Swap `paramSchema()`, `unionSchema()`, `expand()` to the node map (§2.3). The `
 **Delivers**: `flatten()` (§2.4) wired between pipeline and filter; recursive source resolution through the injected closure (traits of traits); seen-set guard.
 
 **Tests** (headless, map-backed source closures over inline heredoc sources + the real vendor traits):
-1. **Golden order lock**: `render('Illuminate\Routing\Router', 'router', …)` key list equals the 65-key list pinned in old unit 06 (`ROUTER_KEYS`) — the equivalence proof (§1.9), re-homing the two Router command tests (parent exclusion stays in unit 01; trait inclusion lands here).
+1. **Golden order lock**: `render('Illuminate\Routing\Router', …)` key list equals the 65-key list pinned in old unit 06 (`ROUTER_KEYS`) — the equivalence proof (§1.9), re-homing the two Router command tests (parent exclusion stays in unit 01; trait inclusion lands here).
 2. Alias: a fixture `use T { T::__call as macroCall; }` yields `macroCall` positioned right after `T`'s methods; visibility-only `as public` adds no key.
 3. Precedence: `use A, B { B::m insteadof A; }` fixture — `m` comes from `B` regardless of statement order.
 4. Diamond: `class uses T1, T2; T2 uses T1` — `T1`'s methods splice once.
@@ -726,7 +734,7 @@ function mapSource(array $map): Closure
 }
 
 it('appends an as alias right after the trait\'s methods, per statement', function (): void {
-    $properties = SchemaGenerator::render('C\UsesAlias', 'usesAlias', mapSource(TRAIT_FIXTURES))['properties'];
+    $properties = SchemaGenerator::render('C\UsesAlias', mapSource(TRAIT_FIXTURES))['properties'];
 
     expect(array_keys($properties))->toBe(['ping', 'pong', 'knock']); // knock directly after T\Alias's methods
 });
@@ -769,7 +777,7 @@ it('resolves insteadof to the winner, whatever the statement order', function ()
             PHP,
     ];
 
-    $m = SchemaGenerator::render('C\Prefers', 'prefers', mapSource($map))['properties']['m'];
+    $m = SchemaGenerator::render('C\Prefers', mapSource($map))['properties']['m'];
 
     expect($m['type'])->toBe('integer'); // Second's m won — the distinguishing signatures prove the direction (§2.4)
 });
@@ -782,15 +790,16 @@ it('inlines a diamond once', function (): void {
 
 ### Unit 05 — Command write path (`--out`)
 
-Unchanged from old [05-command-write-path.md](schema_generator/05-command-write-path.md) — read → `merge()` → `encode()` → write → report `Added [N]`, idempotent — with two engine adjustments: the resolver closure is built once per run (target + traits share it), and the target pre-check (§2.5) precedes rendering. `merge()`/`encode()` are untouched (unit 04 of the reflection engine, already implemented and green). All old unit-05 tests land as written.
+Old [05-command-write-path.md](schema_generator/05-command-write-path.md) — read → `merge()` → `encode()` → write → report `Added [N]`, idempotent — with three engine adjustments: the resolver closure is built once per run (target + traits share it), the target pre-check (§2.5) precedes rendering, and `merge()` runs under the FQCN key with its root-`properties` branch deleted (§2.3) — it touches only `definitions.<class>`, so the old new-block-wiring tests become `properties`-untouched assertions. `encode()` is untouched.
 
 ### Unit 06 — Acceptance: `Illuminate\Routing\Router`
 
-As old [06-acceptance-router.md](schema_generator/06-acceptance-router.md): golden 65-key set and order, per-key shape spot checks (`bind`, `middlewareGroup`, `matched`, `resourceVerbs`, `is`, `model`, `view`), merge round trip into a copy of the shipped `manifest.schema.json` (`Added [53]`, curated bytes preserved), idempotency, shipped file untouched. The §6.1 delta table carries over unchanged (untyped vendor params still produce honest `TODO`s) — the AST engine reproduces the reflection engine's honest output because both read the same signatures; only the extraction mechanism differs.
+As old [06-acceptance-router.md](schema_generator/06-acceptance-router.md), on the FQCN-keyed shape (§2.3): golden 65-key set and order, per-key shape spot checks (`bind`, `middlewareGroup`, `matched`, `resourceVerbs`, `is`, `model`, `view`), merge round trip into a copy of the rekeyed shipped `manifest.schema.json` under `definitions["Illuminate\Routing\Router"]` (`Added [53]`, curated bytes preserved, root `properties` untouched), idempotency, shipped file untouched. The §6.1 delta table carries over unchanged (untyped vendor params still produce honest `TODO`s) — the AST engine reproduces the reflection engine's honest output because both read the same signatures; only the extraction mechanism differs.
 
 ## 4. Acceptance checklist
 
 - [ ] Existing fixture fragments (`Basic`, `Kinds`, `Types`, `Suit`) byte-identical after the swap (units 01–03).
+- [ ] Definitions keyed by the class FQCN verbatim (`definitions["Illuminate\Routing\Router"]`); `merge()` touches only `definitions.<class>`, root `properties` untouched (§2.3).
 - [ ] Keys in native declaration order — flattened order verified equal to reflection's on `Router` (unit 04, §2.4).
 - [ ] Parent methods excluded, trait methods included (with `as`-alias and `insteadof` semantics), `@internal`/`__`/by-ref/zero-param rules unchanged (§2.2, §2.4).
 - [ ] Types from the signature only — node-class map, docblocks consulted solely for `@internal` (Rule 2.5); union member order matches reflection's precedence sort (§2.3) — byte-parity guard.
@@ -804,4 +813,4 @@ As old [06-acceptance-router.md](schema_generator/06-acceptance-router.md): gold
 - **Reflection-engine plan + units** (algorithm baseline): [declarative-schema-generator.md](../declarative-schema-generator.md); [schema_generator/00-overview.md](schema_generator/00-overview.md) … [06-acceptance-router.md](schema_generator/06-acceptance-router.md).
 - **Verified in this repo** (evidence for §1, §2.4): `vendor/nikic/php-parser` v5.9.0 (AST behaviors reproduced empirically); `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`use Macroable { __call as macroCall; }` line 40, `use Tappable` line 43, own `__call` line 1497); `vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php` (declares `namespace Illuminate\Support\Traits`); `vendor/laravel/framework/composer.json` (multi-prefix PSR-4 for `Illuminate\Support\`); `vendor/laravel/framework/src/Illuminate/Console/GeneratorCommand.php` (the only `insteadof` grep hit — a reserved-word list, not usage); `composer.lock`/`composer why` (php-parser is transitive-dev only); `composer-require-checker.json` (symbol gate).
 - **Existing implementation** (regression harness): [../../src/Internal/SchemaGenerator.php](../../src/Internal/SchemaGenerator.php), [../../src/Internal/Commands/GenerateSchemaCommand.php](../../src/Internal/Commands/GenerateSchemaCommand.php), [../../tests/Feature/SchemaGeneratorTest.php](../../tests/Feature/SchemaGeneratorTest.php), [../../tests/Feature/GenerateSchemaCommandTest.php](../../tests/Feature/GenerateSchemaCommandTest.php), `tests/Fixtures/SchemaGenerator/`.
-- **House patterns**: [../../src/Internal/Commands/ValidateCommand.php](../../src/Internal/Commands/ValidateCommand.php) (missing-file error+FAILURE), [../../src/LaravelDeclarationProvider.php](../../src/LaravelDeclarationProvider.php) (registration), [../../STYLE.md](../../STYLE.md) Rules 1–9.
+- **House patterns**: [../../src/Internal/Commands/ValidateCommand.php](../../src/Internal/Commands/ValidateCommand.php) (missing-file error+FAILURE), [../../src/LaravelDeclarationProvider.php](../../src/LaravelDeclarationProvider.php) (registration), [../../src/Manifest.php](../../src/Manifest.php) (the fixed manifest block names the hand-written `properties.*` refs wire to — curation, not derivation), [../../STYLE.md](../../STYLE.md) Rules 1–9.

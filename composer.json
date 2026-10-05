@@ -14,6 +14,7 @@
         "illuminate/console": "^13.0",
         "illuminate/support": "^13.0",
         "justinrainbow/json-schema": "^6.13",
+        "nikic/php-parser": "^5.9",
         "zero-to-prod/data-model": "^81.20",
         "zero-to-prod/data-model-helper": "^82.1"
     },
@@ -21,6 +22,7 @@
         "laravel/mcp": "^0.9",
         "laravel/pint": "^1.30",
         "orchestra/testbench": "^11.0",
+        "orchestra/workbench": "^11.3",
         "pestphp/pest": "^5.0",
         "pestphp/pest-plugin-rector": "^5.0",
         "phpstan/phpstan": "^2.2",

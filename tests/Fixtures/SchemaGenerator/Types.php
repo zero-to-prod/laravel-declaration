@@ -39,4 +39,10 @@ final class Types
     public function shape(string|Suit $shape): void {}
 
     public function either((Stringable&Countable)|string $either): void {}
+
+    public function halt(never $halt): void {}
+
+    public function container(object $container): void {}
+
+    public function closure(string|Closure $closure): void {}
 }

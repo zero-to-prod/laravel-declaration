@@ -2,41 +2,78 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Laravel Declaration manifest",
   "description": "The YAML file at `laravel-declaration.manifest` (default `manifest/app.yml`). See README.md#manifest.",
-  "type": ["object", "null"],
+  "type": [
+    "object",
+    "null"
+  ],
   "additionalProperties": false,
   "properties": {
-    "app": { "$ref": "#/definitions/app" },
-    "config": { "$ref": "#/definitions/config" },
-    "kernel": { "$ref": "#/definitions/kernel" },
-    "router": { "$ref": "#/definitions/router" },
-    "routes": { "$ref": "#/definitions/routes" },
-    "view": { "$ref": "#/definitions/view" },
-    "blade": { "$ref": "#/definitions/blade" },
-    "responses": { "$ref": "#/definitions/responses" },
-    "pagination": { "$ref": "#/definitions/pagination" },
-    "db": { "$ref": "#/definitions/db" },
+    "app": {
+      "$ref": "#/definitions/Illuminate\\Foundation\\Application"
+    },
+    "config": {
+      "$ref": "#/definitions/config"
+    },
+    "kernel": {
+      "$ref": "#/definitions/kernel"
+    },
+    "router": {
+      "$ref": "#/definitions/Illuminate\\Routing\\Router"
+    },
+    "routes": {
+      "$ref": "#/definitions/routes"
+    },
+    "view": {
+      "$ref": "#/definitions/Illuminate\\View\\Factory"
+    },
+    "blade": {
+      "$ref": "#/definitions/blade"
+    },
+    "responses": {
+      "$ref": "#/definitions/responses"
+    },
+    "pagination": {
+      "$ref": "#/definitions/pagination"
+    },
+    "db": {
+      "$ref": "#/definitions/db"
+    },
     "providers": {
       "type": "array",
-      "items": { "$ref": "#/definitions/provider" }
+      "items": {
+        "$ref": "#/definitions/provider"
+      }
     },
     "requests": {
       "type": "array",
-      "items": { "$ref": "#/definitions/request" }
+      "items": {
+        "$ref": "#/definitions/request"
+      }
     },
     "validator": {
-      "$ref": "#/definitions/validator"
+      "$ref": "#/definitions/Illuminate\\Validation\\Factory"
     },
-    "gate": { "$ref": "#/definitions/gate" },
+    "gate": {
+      "$ref": "#/definitions/Illuminate\\Contracts\\Auth\\Access\\Gate"
+    },
     "models": {
       "type": "array",
-      "items": { "$ref": "#/definitions/model" }
+      "items": {
+        "$ref": "#/definitions/model"
+      }
     },
     "queries": {
       "type": "array",
-      "items": { "$ref": "#/definitions/query" }
+      "items": {
+        "$ref": "#/definitions/query"
+      }
     },
-    "schema": { "$ref": "#/definitions/schema" },
-    "extra": { "type": "object" }
+    "schema": {
+      "$ref": "#/definitions/schema"
+    },
+    "extra": {
+      "type": "object"
+    }
   },
   "definitions": {
     "classString": {
@@ -57,29 +94,45 @@
     "closure": {
       "description": "A PHP reference, or a `.php` file returning a Closure.",
       "anyOf": [
-        { "$ref": "#/definitions/reference" },
-        { "$ref": "#/definitions/phpFile" }
+        {
+          "$ref": "#/definitions/reference"
+        },
+        {
+          "$ref": "#/definitions/phpFile"
+        }
       ]
     },
     "closureList": {
       "type": "array",
-      "items": { "$ref": "#/definitions/closure" }
+      "items": {
+        "$ref": "#/definitions/closure"
+      }
     },
     "concrete": {
       "description": "A class-string or another bound abstract (not `Class@method`), `~` for a self-binding, or a `.php` file returning a Closure called as ($app, $parameters).",
-      "type": ["string", "null"],
-      "not": { "type": "string", "pattern": "@" }
+      "type": [
+        "string",
+        "null"
+      ],
+      "not": {
+        "type": "string",
+        "pattern": "@"
+      }
     },
     "binding": {
       "description": "A map is one call per `abstract: concrete` entry; a list is one call per item, each self-binding (a `.php` item binds under its Closure's return types).",
       "oneOf": [
         {
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/concrete" }
+          "additionalProperties": {
+            "$ref": "#/definitions/concrete"
+          }
         },
         {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       ]
     },
@@ -88,11 +141,18 @@
       "oneOf": [
         {
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/concrete" }
+          "additionalProperties": {
+            "$ref": "#/definitions/concrete"
+          }
         },
         {
           "type": "array",
-          "items": { "type": "string", "not": { "pattern": "\\.php$" } }
+          "items": {
+            "type": "string",
+            "not": {
+              "pattern": "\\.php$"
+            }
+          }
         }
       ]
     },
@@ -104,9 +164,12 @@
         "type": "object"
       }
     },
-    "app": {
+    "Illuminate\\Foundation\\Application": {
       "description": "Illuminate\\Foundation\\Application methods: every key is a method name, its value the argument(s). Applied in a fixed order, not document order. An unknown key throws LogicException.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "bind": {
@@ -140,12 +203,16 @@
         "alias": {
           "description": "-> alias($abstract, $alias); abstract first",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "extend": {
           "description": "-> extend($abstract, Closure); parameters `$instance` and `$app` match by name",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/closure" }
+          "additionalProperties": {
+            "$ref": "#/definitions/closure"
+          }
         },
         "tag": {
           "description": "-> tag($abstracts, $tags)",
@@ -218,23 +285,208 @@
         "terminating": {
           "description": "-> terminating(); after the response, injected by type-hint only",
           "$ref": "#/definitions/closureList"
+        },
+        "configure": {
+          "description": "-> configure($basePath) when the key is present",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bootstrapWith": {
+          "description": "-> bootstrapWith($bootstrappers), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "afterLoadingEnvironment": {
+          "description": "-> afterLoadingEnvironment($callback) when the key is present TODO(afterLoadingEnvironment: $callback)"
+        },
+        "beforeBootstrapping": {
+          "description": "-> beforeBootstrapping($bootstrapper, $callback), one call per entry TODO(beforeBootstrapping: $callback)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "afterBootstrapping": {
+          "description": "-> afterBootstrapping($bootstrapper, $callback), one call per entry TODO(afterBootstrapping: $callback)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "setBasePath": {
+          "description": "-> setBasePath($basePath) when the key is present TODO(setBasePath: $basePath)"
+        },
+        "path": {
+          "description": "-> path($path) when the key is present TODO(path: $path)"
+        },
+        "basePath": {
+          "description": "-> basePath($path) when the key is present TODO(basePath: $path)"
+        },
+        "bootstrapPath": {
+          "description": "-> bootstrapPath($path) when the key is present TODO(bootstrapPath: $path)"
+        },
+        "configPath": {
+          "description": "-> configPath($path) when the key is present TODO(configPath: $path)"
+        },
+        "databasePath": {
+          "description": "-> databasePath($path) when the key is present TODO(databasePath: $path)"
+        },
+        "langPath": {
+          "description": "-> langPath($path) when the key is present TODO(langPath: $path)"
+        },
+        "publicPath": {
+          "description": "-> publicPath($path) when the key is present TODO(publicPath: $path)"
+        },
+        "storagePath": {
+          "description": "-> storagePath($path) when the key is present TODO(storagePath: $path)"
+        },
+        "resourcePath": {
+          "description": "-> resourcePath($path) when the key is present TODO(resourcePath: $path)"
+        },
+        "viewPath": {
+          "description": "-> viewPath($path) when the key is present TODO(viewPath: $path)"
+        },
+        "joinPaths": {
+          "description": "-> joinPaths($basePath, $path), one call per entry TODO(joinPaths: $path)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "loadEnvironmentFrom": {
+          "description": "-> loadEnvironmentFrom($file) when the key is present TODO(loadEnvironmentFrom: $file)"
+        },
+        "environment": {
+          "description": "-> environment($environments), one call per item TODO(environment: $environments)",
+          "type": "array",
+          "items": true
+        },
+        "detectEnvironment": {
+          "description": "-> detectEnvironment($callback) when the key is present TODO(detectEnvironment: $callback)"
+        },
+        "runningConsoleCommand": {
+          "description": "-> runningConsoleCommand($commands), one call per item TODO(runningConsoleCommand: $commands)",
+          "type": "array",
+          "items": true
+        },
+        "register": {
+          "description": "-> register($provider, $force), one call per entry TODO(register: $force)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "getProvider": {
+          "description": "-> getProvider($provider) when the key is present TODO(getProvider: $provider)"
+        },
+        "getProviders": {
+          "description": "-> getProviders($provider) when the key is present TODO(getProviders: $provider)"
+        },
+        "resolveProvider": {
+          "description": "-> resolveProvider($provider) when the key is present TODO(resolveProvider: $provider)"
+        },
+        "loadDeferredProvider": {
+          "description": "-> loadDeferredProvider($service) when the key is present TODO(loadDeferredProvider: $service)"
+        },
+        "registerDeferredProvider": {
+          "description": "-> registerDeferredProvider($provider, $service), one call per entry TODO(registerDeferredProvider: $service)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "make": {
+          "description": "-> make($abstract, $parameters), one call per entry",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "array",
+              "object"
+            ]
+          }
+        },
+        "bound": {
+          "description": "-> bound($abstract) when the key is present TODO(bound: $abstract)"
+        },
+        "handle": {
+          "description": "-> handle($request, $type, $catch) when the key is present TODO(handle: $request, $type, $catch)"
+        },
+        "handleRequest": {
+          "description": "-> handleRequest($request) when the key is present TODO(handleRequest: $request)"
+        },
+        "handleCommand": {
+          "description": "-> handleCommand($input) when the key is present TODO(handleCommand: $input)"
+        },
+        "addAbsoluteCachePathPrefix": {
+          "description": "-> addAbsoluteCachePathPrefix($prefix) when the key is present TODO(addAbsoluteCachePathPrefix: $prefix)"
+        },
+        "abort": {
+          "description": "-> abort($code, $message, $headers) when the key is present TODO(abort: $code, $message, $headers)"
+        },
+        "providerIsLoaded": {
+          "description": "-> providerIsLoaded($provider) when the key is present",
+          "type": "string"
+        },
+        "setDeferredServices": {
+          "description": "-> setDeferredServices($services), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "isDeferredService": {
+          "description": "-> isDeferredService($service) when the key is present TODO(isDeferredService: $service)"
+        },
+        "addDeferredServices": {
+          "description": "-> addDeferredServices($services), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "removeDeferredServices": {
+          "description": "-> removeDeferredServices($services), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "provideFacades": {
+          "description": "-> provideFacades($namespace) when the key is present TODO(provideFacades: $namespace)"
+        },
+        "isLocale": {
+          "description": "-> isLocale($locale) when the key is present TODO(isLocale: $locale)"
+        },
+        "macro": {
+          "description": "-> macro($name, $macro), one call per entry TODO(macro: $macro)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "mixin": {
+          "description": "-> mixin($mixin, $replace), one call per entry TODO(mixin: $replace)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "hasMacro": {
+          "description": "-> hasMacro($name) when the key is present TODO(hasMacro: $name)"
         }
       }
     },
-    "router": {
+    "Illuminate\\Routing\\Router": {
       "description": "Illuminate\\Routing\\Router methods: every key is a method name, its value the argument(s). Applied first in boot(), before `providers` and `routes`. An unknown key throws LogicException.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "pattern": {
           "description": "-> pattern($key, $pattern), one call per entry: a global `where`, merged into every route created afterwards (URI and domain parameters). A route's own `where` wins. Single-quote the regex: `[` starts a YAML list.",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "model": {
           "description": "-> model($key, $class), one call per entry: {key} resolves through $class::resolveRouteBinding($value) in SubstituteBindings (`web`/`api` groups), on every route. 404 when null; a route's `missing` handles it. Ignores {key:field} and scopeBindings.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/classString" }
+          "additionalProperties": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "bind": {
           "description": "-> bind($key, $binder), one call per entry: `Class` (method `bind`) or `Class@method`, make()d and called ($value, $route) in SubstituteBindings. Not an invokable, not `Class::method`.",
@@ -249,21 +501,32 @@
           "type": "object",
           "additionalProperties": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           }
         },
         "aliasMiddleware": {
           "description": "-> aliasMiddleware($name, $class): Registers a route middleware alias on the router, usable in any route's `middleware` list (with an optional `:params` suffix).",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/classString" }
+          "additionalProperties": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "prependMiddlewareToGroup": {
           "description": "-> prependMiddlewareToGroup($group, $middleware): One call per item, reversed so declared order lands at the group head. Silent no-op when the group is missing.",
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "type": "string" },
-              { "type": "array", "items": { "type": "string" } }
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             ]
           }
         },
@@ -272,8 +535,15 @@
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "type": "string" },
-              { "type": "array", "items": { "type": "string" } }
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             ]
           }
         },
@@ -282,8 +552,15 @@
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "type": "string" },
-              { "type": "array", "items": { "type": "string" } }
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             ]
           }
         },
@@ -293,14 +570,24 @@
         },
         "resourceParameters": {
           "description": "-> resourceParameters($parameters): One call with the whole map; replaces the global resource parameter map ({resource: paramName}). Baked into route:cache.",
-          "type": ["object", "null"],
-          "additionalProperties": { "type": "string" }
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "resourceVerbs": {
           "description": "-> resourceVerbs($verbs): One call with the whole map; array_merges the resource verbs (create/edit) used in resource URIs. Baked into route:cache.",
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "minProperties": 1,
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "matched": {
           "description": "-> matched($callback): One call per item; registers a RouteMatched listener (fires at dispatch, before route middleware). `Class` (method `handle`, bare invokables fall back to `__invoke`) or `Class@method`, called with ($event).",
@@ -309,43 +596,261 @@
             "type": "string",
             "pattern": "^\\\\?[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*(@[A-Za-z_][A-Za-z0-9_]*)?$"
           }
+        },
+        "get": {
+          "description": "-> get($uri, $action), one call per entry TODO(get: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "post": {
+          "description": "-> post($uri, $action), one call per entry TODO(post: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "put": {
+          "description": "-> put($uri, $action), one call per entry TODO(put: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "patch": {
+          "description": "-> patch($uri, $action), one call per entry TODO(patch: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "delete": {
+          "description": "-> delete($uri, $action), one call per entry TODO(delete: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "options": {
+          "description": "-> options($uri, $action), one call per entry TODO(options: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "any": {
+          "description": "-> any($uri, $action), one call per entry TODO(any: $action)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "fallback": {
+          "description": "-> fallback($action) when the key is present TODO(fallback: $action)"
+        },
+        "redirect": {
+          "description": "-> redirect($uri, $destination, $status) when the key is present TODO(redirect: $uri, $destination, $status)"
+        },
+        "permanentRedirect": {
+          "description": "-> permanentRedirect($uri, $destination), one call per entry TODO(permanentRedirect: $destination)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "view": {
+          "description": "-> view($uri, $view, $data, $status, $headers) when the key is present TODO(view: $uri, $view, $data, $status, $headers)"
+        },
+        "match": {
+          "description": "-> match($methods, $uri, $action) when the key is present TODO(match: $methods, $uri, $action)"
+        },
+        "resources": {
+          "description": "-> resources($resources, $options) when the key is present TODO(resources: $resources, $options)"
+        },
+        "softDeletableResources": {
+          "description": "-> softDeletableResources($resources, $options) when the key is present TODO(softDeletableResources: $resources, $options)"
+        },
+        "resource": {
+          "description": "-> resource($name, $controller, $options) when the key is present TODO(resource: $name, $controller, $options)"
+        },
+        "apiResources": {
+          "description": "-> apiResources($resources, $options) when the key is present TODO(apiResources: $resources, $options)"
+        },
+        "apiResource": {
+          "description": "-> apiResource($name, $controller, $options) when the key is present TODO(apiResource: $name, $controller, $options)"
+        },
+        "singletons": {
+          "description": "-> singletons($singletons, $options) when the key is present TODO(singletons: $singletons, $options)"
+        },
+        "singleton": {
+          "description": "-> singleton($name, $controller, $options) when the key is present TODO(singleton: $name, $controller, $options)"
+        },
+        "apiSingletons": {
+          "description": "-> apiSingletons($singletons, $options) when the key is present TODO(apiSingletons: $singletons, $options)"
+        },
+        "apiSingleton": {
+          "description": "-> apiSingleton($name, $controller, $options) when the key is present TODO(apiSingleton: $name, $controller, $options)"
+        },
+        "group": {
+          "description": "-> group($attributes, $routes) when the key is present TODO(group: $attributes, $routes)"
+        },
+        "mergeWithLastGroup": {
+          "description": "-> mergeWithLastGroup($new, $prependExistingPrefix), one call per entry TODO(mergeWithLastGroup: $prependExistingPrefix)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "addRoute": {
+          "description": "-> addRoute($methods, $uri, $action) when the key is present TODO(addRoute: $methods, $uri, $action)"
+        },
+        "newRoute": {
+          "description": "-> newRoute($methods, $uri, $action) when the key is present TODO(newRoute: $methods, $uri, $action)"
+        },
+        "respondWithRoute": {
+          "description": "-> respondWithRoute($name) when the key is present TODO(respondWithRoute: $name)"
+        },
+        "dispatch": {
+          "description": "-> dispatch($request) when the key is present TODO(dispatch: $request)"
+        },
+        "dispatchToRoute": {
+          "description": "-> dispatchToRoute($request) when the key is present TODO(dispatchToRoute: $request)"
+        },
+        "gatherRouteMiddleware": {
+          "description": "-> gatherRouteMiddleware($route) when the key is present TODO(gatherRouteMiddleware: $route)"
+        },
+        "resolveMiddleware": {
+          "description": "-> resolveMiddleware($middleware, $excluded) when the key is present TODO(resolveMiddleware: $middleware, $excluded)"
+        },
+        "prepareResponse": {
+          "description": "-> prepareResponse($request, $response), one call per entry TODO(prepareResponse: $response)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "toResponse": {
+          "description": "-> toResponse($request, $response), one call per entry TODO(toResponse: $response)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "substituteBindings": {
+          "description": "-> substituteBindings($route) when the key is present TODO(substituteBindings: $route)"
+        },
+        "substituteImplicitBindings": {
+          "description": "-> substituteImplicitBindings($route) when the key is present TODO(substituteImplicitBindings: $route)"
+        },
+        "substituteImplicitBindingsUsing": {
+          "description": "-> substituteImplicitBindingsUsing($callback) when the key is present TODO(substituteImplicitBindingsUsing: $callback)"
+        },
+        "hasMiddlewareGroup": {
+          "description": "-> hasMiddlewareGroup($name) when the key is present TODO(hasMiddlewareGroup: $name)"
+        },
+        "getBindingCallback": {
+          "description": "-> getBindingCallback($key) when the key is present TODO(getBindingCallback: $key)"
+        },
+        "patterns": {
+          "description": "-> patterns($patterns) when the key is present TODO(patterns: $patterns)"
+        },
+        "input": {
+          "description": "-> input($key, $default), one call per entry TODO(input: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "has": {
+          "description": "-> has($name) when the key is present TODO(has: $name)"
+        },
+        "is": {
+          "description": "-> is($patterns), one call per item TODO(is: $patterns)",
+          "type": "array",
+          "items": true
+        },
+        "currentRouteNamed": {
+          "description": "-> currentRouteNamed($patterns), one call per item TODO(currentRouteNamed: $patterns)",
+          "type": "array",
+          "items": true
+        },
+        "uses": {
+          "description": "-> uses($patterns), one call per item TODO(uses: $patterns)",
+          "type": "array",
+          "items": true
+        },
+        "currentRouteUses": {
+          "description": "-> currentRouteUses($action) when the key is present TODO(currentRouteUses: $action)"
+        },
+        "setRoutes": {
+          "description": "-> setRoutes($routes) when the key is present TODO(setRoutes: $routes)"
+        },
+        "setCompiledRoutes": {
+          "description": "-> setCompiledRoutes($routes), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "uniqueMiddleware": {
+          "description": "-> uniqueMiddleware($middleware), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "setContainer": {
+          "description": "-> setContainer($container) when the key is present TODO(setContainer: $container)"
+        },
+        "macro": {
+          "description": "-> macro($name, $macro), one call per entry TODO(macro: $macro)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "mixin": {
+          "description": "-> mixin($mixin, $replace), one call per entry TODO(mixin: $replace)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "hasMacro": {
+          "description": "-> hasMacro($name) when the key is present TODO(hasMacro: $name)"
+        },
+        "macroCall": {
+          "description": "-> macroCall($method, $parameters), one call per entry TODO(macroCall: $parameters)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "tap": {
+          "description": "-> tap($callback) when the key is present TODO(tap: $callback)"
         }
       }
     },
-    "view": {
+    "Illuminate\\View\\Factory": {
       "description": "Illuminate\\View\\Factory methods: every key is a method name, its value the argument(s). Applied when Laravel first resolves `view` (callAfterResolving, queued in boot()). An unknown key throws LogicException.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "addLocation": {
           "description": "-> addLocation($location), one call per item: searched after config('view.paths'). A relative path resolves under basePath().",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "prependLocation": {
           "description": "-> prependLocation($location), one call per item: searched before every other location. A relative path resolves under basePath().",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "addNamespace": {
           "description": "-> addNamespace($namespace, $hints), one call per entry: `namespace::view` searches these paths after the hints already registered.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+          "additionalProperties": {
+            "$ref": "#/definitions/stringOrList"
+          }
         },
         "prependNamespace": {
           "description": "-> prependNamespace($namespace, $hints), one call per entry: searched before the hints already registered, so it overrides a package's views.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+          "additionalProperties": {
+            "$ref": "#/definitions/stringOrList"
+          }
         },
         "replaceNamespace": {
           "description": "-> replaceNamespace($namespace, $hints), one call per entry: discards the hints already registered. Laravel replaces `errors` and `mail` itself at render.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/stringOrList" }
+          "additionalProperties": {
+            "$ref": "#/definitions/stringOrList"
+          }
         },
         "addExtension": {
           "description": "-> addExtension($extension, $engine), one call per entry: `.$extension` files render with $engine (blade, php, file) and are found before every other extension.",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "share": {
           "description": "-> share($key) with the whole map: every entry reaches every view as YAML decoded it. View data, creators and composers override it. Never share `__env` or `app`.",
@@ -354,12 +859,16 @@
         "composer": {
           "description": "-> composer($views, $callback), key is view name or comma-separated list of views, value is callback/class.",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "creator": {
           "description": "-> creator($views, $callback), key is view name or comma-separated list of views, value is callback/class.",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "flushFinderCache": {
           "description": "-> flushFinderCache(): true empties the finder's resolved-view cache after the block applies, so declared locations, namespaces and extensions win over finds cached before the provider booted.",
@@ -368,88 +877,348 @@
         "flushState": {
           "description": "-> flushState(): true resets renderCount, renderedOnce, sections, stacks, components and fragments after the block applies (worker and test isolation).",
           "type": "boolean"
+        },
+        "file": {
+          "description": "-> file($path, $data, $mergeData) when the key is present TODO(file: $path, $data, $mergeData)"
+        },
+        "make": {
+          "description": "-> make($view, $data, $mergeData) when the key is present TODO(make: $view, $data, $mergeData)"
+        },
+        "first": {
+          "description": "-> first($views, $data, $mergeData) when the key is present TODO(first: $views, $data, $mergeData)"
+        },
+        "renderWhen": {
+          "description": "-> renderWhen($condition, $view, $data, $mergeData) when the key is present TODO(renderWhen: $condition, $view, $data, $mergeData)"
+        },
+        "renderUnless": {
+          "description": "-> renderUnless($condition, $view, $data, $mergeData) when the key is present TODO(renderUnless: $condition, $view, $data, $mergeData)"
+        },
+        "renderEach": {
+          "description": "-> renderEach($view, $data, $iterator, $empty) when the key is present TODO(renderEach: $view, $data, $iterator, $empty)"
+        },
+        "exists": {
+          "description": "-> exists($view) when the key is present TODO(exists: $view)"
+        },
+        "getEngineFromPath": {
+          "description": "-> getEngineFromPath($path) when the key is present TODO(getEngineFromPath: $path)"
+        },
+        "hasRenderedOnce": {
+          "description": "-> hasRenderedOnce($id) when the key is present",
+          "type": "string"
+        },
+        "markAsRenderedOnce": {
+          "description": "-> markAsRenderedOnce($id) when the key is present",
+          "type": "string"
+        },
+        "setFinder": {
+          "description": "-> setFinder($finder) when the key is present TODO(setFinder: $finder)"
+        },
+        "setDispatcher": {
+          "description": "-> setDispatcher($events) when the key is present TODO(setDispatcher: $events)"
+        },
+        "setContainer": {
+          "description": "-> setContainer($container) when the key is present TODO(setContainer: $container)"
+        },
+        "shared": {
+          "description": "-> shared($key, $default), one call per entry TODO(shared: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "macro": {
+          "description": "-> macro($name, $macro), one call per entry TODO(macro: $macro)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "mixin": {
+          "description": "-> mixin($mixin, $replace), one call per entry TODO(mixin: $replace)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "hasMacro": {
+          "description": "-> hasMacro($name) when the key is present TODO(hasMacro: $name)"
+        },
+        "startComponent": {
+          "description": "-> startComponent($view, $data), one call per entry",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "array",
+              "object"
+            ]
+          }
+        },
+        "startComponentFirst": {
+          "description": "-> startComponentFirst($names, $data) when the key is present TODO(startComponentFirst: $names, $data)"
+        },
+        "getConsumableComponentData": {
+          "description": "-> getConsumableComponentData($key, $default), one call per entry TODO(getConsumableComponentData: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "slot": {
+          "description": "-> slot($name, $content, $attributes) when the key is present TODO(slot: $name, $content, $attributes)"
+        },
+        "composers": {
+          "description": "-> composers($composers), one call with the whole value",
+          "type": [
+            "array",
+            "object"
+          ]
+        },
+        "callComposer": {
+          "description": "-> callComposer($view) when the key is present TODO(callComposer: $view)"
+        },
+        "callCreator": {
+          "description": "-> callCreator($view) when the key is present TODO(callCreator: $view)"
+        },
+        "startFragment": {
+          "description": "-> startFragment($fragment) when the key is present TODO(startFragment: $fragment)"
+        },
+        "getFragment": {
+          "description": "-> getFragment($name, $default), one call per entry TODO(getFragment: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "startSection": {
+          "description": "-> startSection($section, $content), one call per entry TODO(startSection: $content)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "inject": {
+          "description": "-> inject($section, $content), one call per entry TODO(inject: $content)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "stopSection": {
+          "description": "-> stopSection($overwrite) when the key is present TODO(stopSection: $overwrite)"
+        },
+        "yieldContent": {
+          "description": "-> yieldContent($section, $default), one call per entry TODO(yieldContent: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "parentPlaceholder": {
+          "description": "-> parentPlaceholder($section) when the key is present TODO(parentPlaceholder: $section)"
+        },
+        "hasSection": {
+          "description": "-> hasSection($name) when the key is present TODO(hasSection: $name)"
+        },
+        "sectionMissing": {
+          "description": "-> sectionMissing($name) when the key is present TODO(sectionMissing: $name)"
+        },
+        "getSection": {
+          "description": "-> getSection($name, $default), one call per entry TODO(getSection: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "addLoop": {
+          "description": "-> addLoop($data) when the key is present TODO(addLoop: $data)"
+        },
+        "startPush": {
+          "description": "-> startPush($section, $content), one call per entry TODO(startPush: $content)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "startPrepend": {
+          "description": "-> startPrepend($section, $content), one call per entry TODO(startPrepend: $content)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "yieldPushContent": {
+          "description": "-> yieldPushContent($section, $default), one call per entry TODO(yieldPushContent: $default)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "isStackEmpty": {
+          "description": "-> isStackEmpty($section) when the key is present",
+          "type": "string"
+        },
+        "startTranslation": {
+          "description": "-> startTranslation($replacements) when the key is present TODO(startTranslation: $replacements)"
         }
       }
     },
     "blade": {
       "description": "Illuminate\\View\\Compilers\\BladeCompiler configuration.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "directive": { "type": "object", "additionalProperties": { "type": "string" } },
-        "if": { "type": "object", "additionalProperties": { "type": "string" } },
-        "component": { "type": "object", "additionalProperties": { "type": "string" } },
-        "components": { "type": "object", "additionalProperties": { "type": "string" } },
-        "anonymousComponentPath": { "type": "array" },
-        "anonymousComponentNamespace": { "type": "array" },
-        "stringable": { "type": "object", "additionalProperties": { "type": "string" } },
-        "withoutDoubleEncoding": { "type": "boolean" }
+        "directive": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "if": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "component": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "components": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "anonymousComponentPath": {
+          "type": "array"
+        },
+        "anonymousComponentNamespace": {
+          "type": "array"
+        },
+        "stringable": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "withoutDoubleEncoding": {
+          "type": "boolean"
+        }
       }
     },
     "responses": {
       "description": "Illuminate\\Contracts\\Routing\\ResponseFactory configuration.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "macro": { "type": "object", "additionalProperties": { "type": "string" } }
+        "macro": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
     "pagination": {
       "description": "Illuminate\\Pagination\\Paginator configuration.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "defaultView": { "type": ["string", "null"] },
-        "defaultSimpleView": { "type": ["string", "null"] },
-        "useTailwind": { "type": "boolean" },
-        "useBootstrap": { "type": "boolean" },
-        "useBootstrapThree": { "type": "boolean" },
-        "useBootstrapFour": { "type": "boolean" },
-        "useBootstrapFive": { "type": "boolean" }
+        "defaultView": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "defaultSimpleView": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "useTailwind": {
+          "type": "boolean"
+        },
+        "useBootstrap": {
+          "type": "boolean"
+        },
+        "useBootstrapThree": {
+          "type": "boolean"
+        },
+        "useBootstrapFour": {
+          "type": "boolean"
+        },
+        "useBootstrapFive": {
+          "type": "boolean"
+        }
       }
     },
     "db": {
       "description": "Illuminate\\Database\\DatabaseManager configuration.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
-        "connection": { "type": ["string", "null"] },
-        "listen": { "type": "array", "items": { "type": "string" } }
+        "connection": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "listen": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "stringOrList": {
       "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
       ]
     },
     "kernel": {
       "description": "HTTP Kernel configuration mapped 1:1 onto Illuminate\\Foundation\\Http\\Kernel methods.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "pushMiddleware": {
           "description": "-> pushMiddleware($middleware): Appends to the global middleware stack.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "prependMiddleware": {
           "description": "-> prependMiddleware($middleware): Prepends to the global middleware stack.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "setGlobalMiddleware": {
           "description": "-> setGlobalMiddleware($middleware): Replaces the global middleware stack.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "appendMiddlewareToGroup": {
           "description": "-> appendMiddlewareToGroup($group, $middleware): Appends to a route middleware group.",
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "$ref": "#/definitions/classString" },
-              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+              {
+                "$ref": "#/definitions/classString"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/classString"
+                }
+              }
             ]
           }
         },
@@ -458,8 +1227,15 @@
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "$ref": "#/definitions/classString" },
-              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+              {
+                "$ref": "#/definitions/classString"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/classString"
+                }
+              }
             ]
           }
         },
@@ -468,36 +1244,53 @@
           "type": "object",
           "additionalProperties": {
             "type": "array",
-            "items": { "$ref": "#/definitions/classString" }
+            "items": {
+              "$ref": "#/definitions/classString"
+            }
           }
         },
         "setMiddlewareAliases": {
           "description": "-> setMiddlewareAliases($aliases): Defines or overrides middleware aliases.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/classString" }
+          "additionalProperties": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "setMiddlewarePriority": {
           "description": "-> setMiddlewarePriority($priority): Replaces the priority order of route middleware.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "prependToMiddlewarePriority": {
           "description": "-> prependToMiddlewarePriority($middleware): Prepends to middleware priority list.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "appendToMiddlewarePriority": {
           "description": "-> appendToMiddlewarePriority($middleware): Appends to middleware priority list.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "addToMiddlewarePriorityBefore": {
           "description": "-> addToMiddlewarePriorityBefore($before, $middleware): Inserts middleware before target anchor.",
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "$ref": "#/definitions/classString" },
-              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+              {
+                "$ref": "#/definitions/classString"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/classString"
+                }
+              }
             ]
           }
         },
@@ -506,21 +1299,32 @@
           "type": "object",
           "additionalProperties": {
             "anyOf": [
-              { "$ref": "#/definitions/classString" },
-              { "type": "array", "items": { "$ref": "#/definitions/classString" } }
+              {
+                "$ref": "#/definitions/classString"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/classString"
+                }
+              }
             ]
           }
         },
         "whenRequestLifecycleIsLongerThan": {
           "description": "-> whenRequestLifecycleIsLongerThan($threshold, $handler): Registers duration threshold handler.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/closure" }
+          "additionalProperties": {
+            "$ref": "#/definitions/closure"
+          }
         }
       }
     },
     "provider": {
       "type": "object",
-      "required": ["class"],
+      "required": [
+        "class"
+      ],
       "additionalProperties": false,
       "properties": {
         "class": {
@@ -533,21 +1337,40 @@
     },
     "route": {
       "type": "object",
-      "required": ["uri", "action"],
+      "required": [
+        "uri",
+        "action"
+      ],
       "properties": {
         "uri": {
           "type": "string"
         },
         "methods": {
           "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } }
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ]
         },
         "action": {
           "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 }
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
           ]
         }
       },
@@ -558,15 +1381,60 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "addRoute": { "type": "array", "items": { "$ref": "#/definitions/route" } },
-        "group": { "type": "array", "items": { "$ref": "#/definitions/routeGroup" } },
-        "resource": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
-        "apiResource": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
-        "singleton": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
-        "apiSingleton": { "type": "array", "items": { "$ref": "#/definitions/routeResource" } },
-        "view": { "type": "array", "items": { "$ref": "#/definitions/routeView" } },
-        "redirect": { "type": "array", "items": { "$ref": "#/definitions/routeRedirect" } },
-        "permanentRedirect": { "type": "array", "items": { "$ref": "#/definitions/routePermanentRedirect" } }
+        "addRoute": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/route"
+          }
+        },
+        "group": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeGroup"
+          }
+        },
+        "resource": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeResource"
+          }
+        },
+        "apiResource": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeResource"
+          }
+        },
+        "singleton": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeResource"
+          }
+        },
+        "apiSingleton": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeResource"
+          }
+        },
+        "view": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeView"
+          }
+        },
+        "redirect": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeRedirect"
+          }
+        },
+        "permanentRedirect": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routePermanentRedirect"
+          }
+        }
       }
     },
     "routeGroup": {
@@ -574,65 +1442,140 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "prefix": { "type": "string" },
-        "as": { "type": "string" },
-        "namespace": { "type": "string" },
-        "domain": { "type": "string" },
-        "controller": { "type": "string" },
-        "middleware": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
-        "where": { "type": "object", "additionalProperties": { "type": "string" } },
-        "metadata": { "type": "object" },
-        "routes": { "$ref": "#/definitions/routes" }
+        "prefix": {
+          "type": "string"
+        },
+        "as": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "controller": {
+          "type": "string"
+        },
+        "middleware": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "where": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "routes": {
+          "$ref": "#/definitions/routes"
+        }
       }
     },
     "routeResource": {
       "description": "Router::resource/apiResource/singleton/apiSingleton($name, $controller): one RESTful controller per entry. Every options key is one PendingResourceRegistration / PendingSingletonResourceRegistration fluent method call (only, except, names, name, parameters, parameter, middleware, middlewareFor, withoutMiddleware, withoutMiddlewareFor, where, metadata, shallow, missing, scoped, withTrashed, creatable, destroyable, whereNumber/whereAlpha/whereAlphaNumeric/whereUuid/whereUlid/whereIn); unknown options fail at boot with BadMethodCallException.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "controller"],
+      "required": [
+        "name",
+        "controller"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "controller": { "type": "string" },
-        "options": { "type": "object", "additionalProperties": true }
+        "name": {
+          "type": "string"
+        },
+        "controller": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": true
+        }
       }
     },
     "routeView": {
       "description": "Router::view($uri, $view, $data, $status, $headers): GET|HEAD ViewController shortcut. Any other key is a Route builder on the returned route (open shape; unknown builders fail at boot with BadMethodCallException).",
       "type": "object",
       "additionalProperties": true,
-      "required": ["uri", "view"],
+      "required": [
+        "uri",
+        "view"
+      ],
       "properties": {
-        "uri": { "type": "string" },
-        "view": { "type": "string" },
-        "data": { "type": "object" },
-        "status": { "type": "integer" },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+        "uri": {
+          "type": "string"
+        },
+        "view": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "status": {
+          "type": "integer"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
       }
     },
     "routeRedirect": {
       "description": "Router::redirect($uri, $destination, $status): all-seven-verbs RedirectController shortcut; the URI may carry parameters the destination reuses. Any other key is a Route builder on the returned route.",
       "type": "object",
       "additionalProperties": true,
-      "required": ["uri", "destination"],
+      "required": [
+        "uri",
+        "destination"
+      ],
       "properties": {
-        "uri": { "type": "string" },
-        "destination": { "type": "string" },
-        "status": { "type": "integer" }
+        "uri": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer"
+        }
       }
     },
     "routePermanentRedirect": {
       "description": "Router::permanentRedirect($uri, $destination): a 301 redirect. No status argument exists natively — declare a status under a redirect entry instead. Any other key is a Route builder on the returned route.",
       "type": "object",
       "additionalProperties": true,
-      "required": ["uri", "destination"],
+      "required": [
+        "uri",
+        "destination"
+      ],
       "properties": {
-        "uri": { "type": "string" },
-        "destination": { "type": "string" }
+        "uri": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        }
       }
     },
     "request": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": true,
       "properties": {
         "name": {
@@ -644,8 +1587,12 @@
         "authorize": {
           "description": "FormRequest::authorize(): bool|Response. A boolean passes through; a string is a PHP reference resolved via Container::call; a map declares one native Gate call — the key is the Illuminate\\Contracts\\Auth\\Access\\Gate method name (check, any, none, allows, denies, inspect, authorize, raw) and the value is a map of that method's native parameter names (ability|abilities, arguments). `arguments` follows Authorize::getGateArguments(): a class-string passes through, a route parameter name resolves to its bound value, a quoted literal unquotes.",
           "oneOf": [
-            { "type": "boolean" },
-            { "$ref": "#/definitions/reference" },
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/reference"
+            },
             {
               "type": "object",
               "minProperties": 1,
@@ -654,9 +1601,41 @@
                 "type": "object",
                 "additionalProperties": true,
                 "properties": {
-                  "ability": { "type": "string" },
-                  "abilities": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
-                  "arguments": { "oneOf": [{ "type": ["string", "number"] }, { "type": "array", "items": { "type": ["string", "number"] } }] }
+                  "ability": {
+                    "type": "string"
+                  },
+                  "abilities": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "arguments": {
+                    "oneOf": [
+                      {
+                        "type": [
+                          "string",
+                          "number"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "number"
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 }
               }
             }
@@ -664,124 +1643,297 @@
         }
       }
     },
-    "validator": {
+    "Illuminate\\Validation\\Factory": {
       "description": "Illuminate\\Validation\\Factory registry methods: every key is a method name, its value the registry content. Applied when Laravel first resolves `validator` (callAfterResolving, queued in boot()). An unknown key throws no error (DataModel drops it) but fails this schema.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "extend": {
           "description": "-> extend($rule, $extension, $message = null), one call per entry: the key is the rule name, the value the extension reference string or a map of the native parameter names {extension, message}.",
           "type": "object",
-          "additionalProperties": {"$ref": "#/definitions/extension"}
+          "additionalProperties": {
+            "$ref": "#/definitions/extension"
+          }
         },
         "extendImplicit": {
           "description": "-> extendImplicit($rule, $extension, $message = null): the rule runs even when the field is absent or empty.",
           "type": "object",
-          "additionalProperties": {"$ref": "#/definitions/extension"}
+          "additionalProperties": {
+            "$ref": "#/definitions/extension"
+          }
         },
         "extendDependent": {
           "description": "-> extendDependent($rule, $extension, $message = null): the parsed rule lands in dependentRules, so its parameters may reference other fields.",
           "type": "object",
-          "additionalProperties": {"$ref": "#/definitions/extension"}
+          "additionalProperties": {
+            "$ref": "#/definitions/extension"
+          }
         },
         "replacer": {
           "description": "-> replacer($rule, $replacer), one call per entry: the value replaces message placeholders; a bare class-string resolves to its `replace` method.",
           "type": "object",
-          "additionalProperties": {"$ref": "#/definitions/reference"}
+          "additionalProperties": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "make": {
+          "description": "-> make($data, $rules, $messages, $attributes) when the key is present TODO(make: $data, $rules, $messages, $attributes)"
+        },
+        "validate": {
+          "description": "-> validate($data, $rules, $messages, $attributes) when the key is present TODO(validate: $data, $rules, $messages, $attributes)"
+        },
+        "fakeDnsLookups": {
+          "description": "-> fakeDnsLookups($value) when the key is present TODO(fakeDnsLookups: $value)"
+        },
+        "resolver": {
+          "description": "-> resolver($resolver) when the key is present TODO(resolver: $resolver)"
+        },
+        "setPresenceVerifier": {
+          "description": "-> setPresenceVerifier($presenceVerifier) when the key is present TODO(setPresenceVerifier: $presenceVerifier)"
+        },
+        "setContainer": {
+          "description": "-> setContainer($container) when the key is present TODO(setContainer: $container)"
         }
       }
     },
-    "gate": {
+    "Illuminate\\Contracts\\Auth\\Access\\Gate": {
       "description": "Illuminate\\Contracts\\Auth\\Access\\Gate registry methods: every key is a method name, its value the registry content — one call per entry. Applied when the Gate first resolves (callAfterResolving).",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "policy": {
           "description": "≈ Gate::policy($class, $policy), one call per entry: the key is the model class-string, the value the policy class-string.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/reference" }
+          "additionalProperties": {
+            "$ref": "#/definitions/reference"
+          }
         },
         "define": {
           "description": "≈ Gate::define($ability, $callback), one call per entry: the key is the ability name, the value the 'Class@method' or invokable class-string reference, passed through untouched.",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/reference" }
+          "additionalProperties": {
+            "$ref": "#/definitions/reference"
+          }
+        },
+        "has": {
+          "description": "-> has($ability) when the key is present TODO(has: $ability)"
+        },
+        "resource": {
+          "description": "-> resource($name, $class, $abilities) when the key is present TODO(resource: $name, $class, $abilities)"
+        },
+        "before": {
+          "description": "-> before($callback) when the key is present TODO(before: $callback)"
+        },
+        "after": {
+          "description": "-> after($callback) when the key is present TODO(after: $callback)"
+        },
+        "allows": {
+          "description": "-> allows($ability, $arguments), one call per entry TODO(allows: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "denies": {
+          "description": "-> denies($ability, $arguments), one call per entry TODO(denies: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "check": {
+          "description": "-> check($abilities, $arguments), one call per entry TODO(check: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "any": {
+          "description": "-> any($abilities, $arguments), one call per entry TODO(any: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "authorize": {
+          "description": "-> authorize($ability, $arguments), one call per entry TODO(authorize: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "inspect": {
+          "description": "-> inspect($ability, $arguments), one call per entry TODO(inspect: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "raw": {
+          "description": "-> raw($ability, $arguments), one call per entry TODO(raw: $arguments)",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "getPolicyFor": {
+          "description": "-> getPolicyFor($class) when the key is present TODO(getPolicyFor: $class)"
+        },
+        "forUser": {
+          "description": "-> forUser($user) when the key is present TODO(forUser: $user)"
         }
       }
     },
     "extension": {
       "oneOf": [
-        {"$ref": "#/definitions/reference"},
+        {
+          "$ref": "#/definitions/reference"
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["extension"],
+          "required": [
+            "extension"
+          ],
           "properties": {
-            "extension": {"$ref": "#/definitions/reference"},
-            "message": {"type": "string", "description": "The factory-wide fallback message (Factory::$fallbackMessages)."}
+            "extension": {
+              "$ref": "#/definitions/reference"
+            },
+            "message": {
+              "type": "string",
+              "description": "The factory-wide fallback message (Factory::$fallbackMessages)."
+            }
           }
         }
       ]
     },
     "columns": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "model": {
       "description": "Every key except the reserved `class` is an Illuminate\\Database\\Eloquent\\Model property, assigned before Laravel initializes the model as if written in the class body, or a Model method. An unknown key fails this schema (authoring-time guard) and is ignored at runtime.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["class"],
+      "required": [
+        "class"
+      ],
       "properties": {
         "class": {
           "description": "Reserved: the DeclaredModel subclass, spelled as static::class spells it (no leading `\\`).",
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$"
         },
-        "connection": { "description": "-> $connection (#[Connection]): a database.connections name. Absent: the default connection.", "type": "string" },
-        "table": { "description": "-> $table (#[Table(name)]). Absent: the snake-case plural of the class basename.", "type": "string" },
-        "primaryKey": { "description": "-> $primaryKey (#[Table(key)]). Absent: id.", "type": "string" },
-        "keyType": { "description": "-> $keyType (#[Table(keyType)]): int or string. Absent: int.", "type": "string" },
-        "incrementing": { "description": "-> $incrementing (#[WithoutIncrementing]). Absent: true.", "type": "boolean" },
-        "timestamps": { "description": "-> $timestamps (#[WithoutTimestamps]). Absent: true. false also makes other models skip touching this one.", "type": "boolean" },
-        "dateFormat": { "description": "-> $dateFormat (#[DateFormat]): how date columns are stored. Absent: the connection grammar's format.", "type": "string" },
-        "attributes": { "description": "-> $attributes: raw, storable default values of a new model.", "type": "object" },
+        "connection": {
+          "description": "-> $connection (#[Connection]): a database.connections name. Absent: the default connection.",
+          "type": "string"
+        },
+        "table": {
+          "description": "-> $table (#[Table(name)]). Absent: the snake-case plural of the class basename.",
+          "type": "string"
+        },
+        "primaryKey": {
+          "description": "-> $primaryKey (#[Table(key)]). Absent: id.",
+          "type": "string"
+        },
+        "keyType": {
+          "description": "-> $keyType (#[Table(keyType)]): int or string. Absent: int.",
+          "type": "string"
+        },
+        "incrementing": {
+          "description": "-> $incrementing (#[WithoutIncrementing]). Absent: true.",
+          "type": "boolean"
+        },
+        "timestamps": {
+          "description": "-> $timestamps (#[WithoutTimestamps]). Absent: true. false also makes other models skip touching this one.",
+          "type": "boolean"
+        },
+        "dateFormat": {
+          "description": "-> $dateFormat (#[DateFormat]): how date columns are stored. Absent: the connection grammar's format.",
+          "type": "string"
+        },
+        "attributes": {
+          "description": "-> $attributes: raw, storable default values of a new model.",
+          "type": "object"
+        },
         "casts": {
           "description": "-> $casts: attribute => cast string (boolean, array, datetime:Y-m-d, encrypted:array, an enum, a cast class, Class:arg). A casts() method in the class is merged over it.",
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "fillable": { "description": "-> $fillable (#[Fillable]): mass-assignable attributes.", "$ref": "#/definitions/columns" },
-        "guarded": { "description": "-> $guarded (#[Guarded]). Absent: ['*']. [] is #[Unguarded].", "$ref": "#/definitions/columns" },
-        "hidden": { "description": "-> $hidden (#[Hidden]): left out of toArray() and toJson().", "$ref": "#/definitions/columns" },
-        "visible": { "description": "-> $visible (#[Visible]): when non-empty, the only attributes in toArray() and toJson().", "$ref": "#/definitions/columns" },
-        "appends": { "description": "-> $appends (#[Appends]): accessors added to toArray() and toJson(). The accessor is a method in the class.", "$ref": "#/definitions/columns" },
-        "with": { "description": "-> $with: relations eager loaded by every query. The relation is a method in the class.", "$ref": "#/definitions/columns" },
-        "withCount": { "description": "-> $withCount: relation counts ({relation}_count) loaded by every query.", "$ref": "#/definitions/columns" },
-        "touches": { "description": "-> $touches (#[Touches]): relations whose updated_at is touched when this model saves.", "$ref": "#/definitions/columns" },
-        "refreshes": { "description": "-> $refreshes (#[Refreshes]): columns re-read from the database after each save.", "$ref": "#/definitions/columns" },
-        "perPage": { "description": "-> $perPage: the paginate() page size. Absent: 15.", "type": "integer", "minimum": 1 },
+        "fillable": {
+          "description": "-> $fillable (#[Fillable]): mass-assignable attributes.",
+          "$ref": "#/definitions/columns"
+        },
+        "guarded": {
+          "description": "-> $guarded (#[Guarded]). Absent: ['*']. [] is #[Unguarded].",
+          "$ref": "#/definitions/columns"
+        },
+        "hidden": {
+          "description": "-> $hidden (#[Hidden]): left out of toArray() and toJson().",
+          "$ref": "#/definitions/columns"
+        },
+        "visible": {
+          "description": "-> $visible (#[Visible]): when non-empty, the only attributes in toArray() and toJson().",
+          "$ref": "#/definitions/columns"
+        },
+        "appends": {
+          "description": "-> $appends (#[Appends]): accessors added to toArray() and toJson(). The accessor is a method in the class.",
+          "$ref": "#/definitions/columns"
+        },
+        "with": {
+          "description": "-> $with: relations eager loaded by every query. The relation is a method in the class.",
+          "$ref": "#/definitions/columns"
+        },
+        "withCount": {
+          "description": "-> $withCount: relation counts ({relation}_count) loaded by every query.",
+          "$ref": "#/definitions/columns"
+        },
+        "touches": {
+          "description": "-> $touches (#[Touches]): relations whose updated_at is touched when this model saves.",
+          "$ref": "#/definitions/columns"
+        },
+        "refreshes": {
+          "description": "-> $refreshes (#[Refreshes]): columns re-read from the database after each save.",
+          "$ref": "#/definitions/columns"
+        },
+        "perPage": {
+          "description": "-> $perPage: the paginate() page size. Absent: 15.",
+          "type": "integer",
+          "minimum": 1
+        },
         "dispatchesEvents": {
           "description": "-> $dispatchesEvents: model event => event class, dispatched as new $class($model).",
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/classString" }
+          "additionalProperties": {
+            "$ref": "#/definitions/classString"
+          }
         },
-        "observables": { "description": "-> $observables: custom event names an observer method may handle.", "$ref": "#/definitions/columns" },
+        "observables": {
+          "description": "-> $observables: custom event names an observer method may handle.",
+          "$ref": "#/definitions/columns"
+        },
         "observe": {
           "description": "-> observe($classes) when the model boots, where Laravel applies #[ObservedBy]: one listener per observer method named after an observable event.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
         "addGlobalScope": {
           "description": "-> addGlobalScope($scope), one call per item when the model boots, where Laravel applies #[ScopedBy]: an Illuminate\\Database\\Eloquent\\Scope class.",
           "type": "array",
-          "items": { "$ref": "#/definitions/classString" }
+          "items": {
+            "$ref": "#/definitions/classString"
+          }
         },
-        "getRouteKeyName": { "description": "-> getRouteKeyName() (#[RouteKey]): the column router.model and route() use. Absent: the primary key.", "type": "string" }
+        "getRouteKeyName": {
+          "description": "-> getRouteKeyName() (#[RouteKey]): the column router.model and route() use. Absent: the primary key.",
+          "type": "string"
+        }
       }
     },
     "query": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -797,12 +1949,18 @@
     },
     "schema": {
       "description": "Declarative database schema definition. Verb keys are native Illuminate\\Database\\Schema\\Builder method names.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
       "properties": {
         "connection": {
           "description": "The database connection name. If omitted or null, the default connection is used.",
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "create": {
           "description": "Builder::create($table, $callback) — one guarded call per entry; body = Blueprint methods.",
@@ -824,36 +1982,62 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["from", "to"],
+            "required": [
+              "from",
+              "to"
+            ],
             "properties": {
-              "from": { "type": "string" },
-              "to": { "type": "string" }
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              }
             }
           }
         },
         "drop": {
           "description": "Builder::drop($table) — one call per entry (unguarded: fails loudly if the table is missing).",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "dropIfExists": {
           "description": "Builder::dropIfExists($table) — one call per entry.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "tableDefinition": {
       "description": "Declarative table schema definition containing Blueprint column methods, indexes, and table options.",
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": {
         "anyOf": [
-          { "type": "null" },
-          { "type": "string" },
-          { "type": "number" },
-          { "type": "boolean" },
-          { "type": "array" },
-          { "type": "object" }
+          {
+            "type": "null"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array"
+          },
+          {
+            "type": "object"
+          }
         ]
       }
     }

@@ -4,35 +4,46 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelDeclaration\Internal;
 
-use ReflectionClass;
-use ReflectionException;
-use ReflectionMethod;
-use ReflectionNamedType;
-use ReflectionParameter;
-use ReflectionType;
-use ReflectionUnionType;
+use Closure;
+use PhpParser\Error;
+use PhpParser\Node;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt\ClassLike;
+use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\TraitUseAdaptation;
+use PhpParser\NodeFinder;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\Parser;
+use PhpParser\ParserFactory;
+use RuntimeException;
 
 /** @internal */
 final class SchemaGenerator
 {
     /**
-     * @param  class-string  $class  the native Laravel class to project
+     * @param  string  $class  the native Laravel class FQCN to project — also the schema key, verbatim (§2.3)
+     * @param  Closure(string): (string|null)  $source  file contents per FQCN, null when unreadable (the command injects the I/O)
      * @return array<string, mixed> the JSON-decodable definition object (not encoded — the caller encodes)
      *
-     * @throws ReflectionException
+     * @throws Error the source is not valid PHP (Rule 3.3, native)
+     * @throws RuntimeException no readable source for $class, or $class is not declared in it (§2.5)
      */
-    public static function render(string $class, string $block = ''): array
+    public static function render(string $class, Closure $source): array
     {
-        $Reflection = new ReflectionClass($class);
+        [$parser, $traverser] = self::pipeline();
+        $classNode = self::selectClass($class, $source, $parser, $traverser);
+        $seen = []; // one seen-set per run — the cycle/diamond guard is scoped to the projection (§2.4)
 
         $properties = [];
 
-        foreach (self::declarable($Reflection)[0] as $method) {
-            $properties[$method->getName()] = self::key($method);
+        foreach (self::declarable(self::flatten($classNode, $source, $parser, $traverser, $seen))[0] as $method) {
+            $properties[$method->name->toString()] = self::key($method);
         }
 
         return [
-            'description' => $Reflection->getName().' methods: every key is a method name, its value the argument(s).',
+            'description' => $class.' methods: every key is a method name, its value the argument(s).',
             'type' => ['object', 'null'],
             'additionalProperties' => false,
             'properties' => $properties,
@@ -40,30 +51,41 @@ final class SchemaGenerator
     }
 
     /**
-     * @param  class-string  $class
+     * @param  string  $class  the native class FQCN
+     * @param  Closure(string): (string|null)  $source
      * @return list<string>
      *
-     * @throws ReflectionException
+     * @throws Error|RuntimeException the same failure surface as render()
      */
-    public static function skipped(string $class): array
+    public static function skipped(string $class, Closure $source): array
     {
+        [$parser, $traverser] = self::pipeline();
+        $classNode = self::selectClass($class, $source, $parser, $traverser);
+        $seen = [];
+
         return array_map(
-            static fn (ReflectionMethod $method): string => $method->getName(),
-            self::declarable(new ReflectionClass($class))[1],
+            static fn (ClassMethod $method): string => $method->name->toString(),
+            self::declarable(self::flatten($classNode, $source, $parser, $traverser, $seen))[1],
         );
     }
 
     /**
+     * Appends only the missing native keys under `definitions.<class>` — curated
+     * `description` prose and key objects are preserved byte-for-byte, nothing is
+     * deleted, and the root `properties` are untouched (the block→class `$ref` wiring
+     * is hand-written curation in `src/Manifest.php`, not derivable — §2.3).
+     *
      * @param  array<string, mixed>  $schema  parsed manifest.schema.json
+     * @param  string  $class  the schema key — the FQCN verbatim (§2.3)
      * @param  array<string, mixed>  $fragment  from render()
      * @return array<string, mixed> the updated schema, ready to re-encode
      */
-    public static function merge(array $schema, string $block, array $fragment): array
+    public static function merge(array $schema, string $class, array $fragment): array
     {
         $definitions = is_array($schema['definitions'] ?? null) ? $schema['definitions'] : [];
 
-        if (array_key_exists($block, $definitions)) {
-            $curated = is_array($definitions[$block] ?? null) ? $definitions[$block] : [];
+        if (array_key_exists($class, $definitions)) {
+            $curated = is_array($definitions[$class] ?? null) ? $definitions[$class] : [];
 
             $existing = is_array($curated['properties'] ?? null) ? $curated['properties'] : [];
 
@@ -76,18 +98,14 @@ final class SchemaGenerator
             }
 
             $curated['properties'] = $existing;
-            $definitions[$block] = $curated;
+            $definitions[$class] = $curated;
             $schema['definitions'] = $definitions;
 
             return $schema;
         }
 
-        $definitions[$block] = $fragment;
+        $definitions[$class] = $fragment;
         $schema['definitions'] = $definitions;
-
-        $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
-        $properties[$block] = ['$ref' => "#/definitions/$block"];
-        $schema['properties'] = $properties;
 
         return $schema;
     }
@@ -109,225 +127,327 @@ final class SchemaGenerator
     }
 
     /**
-     * @param  ReflectionClass<object>  $Reflection
-     * @return array{0: list<ReflectionMethod>, 1: list<ReflectionMethod>}
+     * Built once per render()/skipped() call, reused for target + traits (§1.1).
+     *
+     * @return array{0: Parser, 1: NodeTraverser}
      */
-    private static function declarable(ReflectionClass $Reflection): array
+    private static function pipeline(): array
     {
-        $methods = [];
-        $skipped = [];
+        $parser = (new ParserFactory)->createForNewestSupportedVersion(); // widest acceptance (§1.1)
+        $traverser = new NodeTraverser;
+        $traverser->addVisitor(new NameResolver); // namespacedName on declarations + resolved trait imports (§1.6)
 
-        foreach ($Reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-            if ($method->getDeclaringClass()->getName() !== $Reflection->getName()) {
-                continue;
-            }
+        return [$parser, $traverser];
+    }
 
-            if (str_contains((string) $method->getDocComment(), '@internal')) {
-                continue;
-            }
+    /**
+     * @param  string  $class  the FQCN to select — the target or a trait during flattening
+     * @param  Closure(string): (string|null)  $source
+     * @return ClassLike Class_|Interface_|Enum_|Trait_
+     *
+     * @throws Error|RuntimeException
+     */
+    private static function selectClass(string $class, Closure $source, Parser $parser, NodeTraverser $traverser): ClassLike
+    {
+        $code = $source($class);
 
-            if (str_starts_with($method->getName(), '__')) {
-                continue;
-            }
-
-            $parameters = $method->getParameters();
-
-            if ($parameters === [] || array_any($parameters, static fn (ReflectionParameter $parameter): bool => $parameter->isPassedByReference())) {
-                $skipped[] = $method;
-
-                continue;
-            }
-
-            $methods[] = $method;
+        if ($code === null) {
+            throw new RuntimeException("No readable source for $class"); // vanished after the command's pre-check (§2.5)
         }
 
-        return [$methods, $skipped];
+        $stmts = $traverser->traverse($parser->parse($code) ?? []);
+
+        $classNode = (new NodeFinder)->findFirst($stmts, static fn (Node $node): bool => $node instanceof ClassLike
+            && $node->namespacedName?->toString() === $class); // NameResolver sets the property on every ClassLike (§1.7)
+
+        if (! $classNode instanceof Node) {
+            throw new RuntimeException("$class is not declared in its resolved source"); // e.g. an alias-only shim (§2.5)
+        }
+
+        assert($classNode instanceof ClassLike); // parser guarantee — house narrowing style
+
+        return $classNode;
+    }
+
+    /**
+     * §4.1 over nodes. Rules 1–4 exclude *silently* (reflection parity: `__construct`, `@internal`,
+     * protected/private and parent methods never appear anywhere); rule-5 violations are the only
+     * ones *reported* — they land in skipped(), never dropped silently (§2.5).
+     *
+     * @param  array<string, ClassMethod>  $methods  flattened own-body + trait methods, keyed by name, in reflection order (§2.4)
+     * @return array{0: list<ClassMethod>, 1: list<ClassMethod>} [declarable, skipped]
+     */
+    private static function declarable(array $methods): array
+    {
+        $declarable = [];
+        $skipped = [];
+
+        foreach ($methods as $method) {
+            $name = $method->name->toString();
+
+            if (! $method->isPublic()                                                 // rule 1 — implicit-public is public (§1.3)
+                || str_contains($method->getDocComment()?->getText() ?? '', '@internal') // rule 3 — Doc node or null (§1.2)
+                || str_starts_with($name, '__')) {                                     // rule 4
+                continue;                                                              // rule 2 is satisfied by the input list itself
+            }
+
+            if ($method->params === []                                                 // rule 5 — zero params
+                || array_any($method->params, static fn (Node\Param $param): bool => $param->byRef)) {
+                $skipped[] = $method;                                                  // reported, never silent
+
+                continue;
+            }
+
+            $declarable[] = $method;
+        }
+
+        return [$declarable, $skipped];
+    }
+
+    /**
+     * Own methods first (source order; own wins over traits), then per `TraitUse` statement in body
+     * order: `insteadof`-excluded methods removed, splice in trait order, `as` aliases appended
+     * immediately after their statement. Reproduces `ReflectionClass::getMethods()` order —
+     * verified 65/65 on Illuminate\Routing\Router (§1.9).
+     *
+     * @param  ClassLike  $class  the ClassLike node to inline
+     * @param  Closure(string): (string|null)  $source
+     * @param  array<string, true>  $seen  FQCNs already inlined (cycle/diamond guard)
+     * @return array<string, ClassMethod> keyed by method name, in reflection's order
+     *
+     * @throws Error|RuntimeException a trait's source is missing, unreadable, not declared, or an adaptation dangles
+     */
+    private static function flatten(ClassLike $class, Closure $source, Parser $parser, NodeTraverser $traverser, array &$seen): array
+    {
+        $self = (string) $class->namespacedName?->toString();
+
+        if (isset($seen[$self])) {
+            return [];                                                       // diamond/cycle: already inlined
+        }
+
+        $seen[$self] = true;
+
+        $out = [];
+
+        foreach ($class->getMethods() as $method) {                          // own body only, source order (§1.4)
+            $out[$method->name->toString()] = $method;
+        }
+
+        foreach ($class->getTraitUses() as $use) {
+            $shadowed = [];
+
+            foreach ($use->adaptations as $adaptation) {
+                if ($adaptation instanceof TraitUseAdaptation\Precedence) {
+                    foreach ($adaptation->insteadof as $overwritten) {       // the traits that LOSE (§2.4)
+                        $shadowed[$overwritten->toString()][$adaptation->method->toString()] = true;
+                    }
+                }
+            }
+
+            $perTrait = [];                                                  // list of {name, methods} — trait order (§2.4)
+
+            foreach ($use->traits as $trait) {
+                $fqcn = $trait->toString();                              // NameResolver resolved this to FullyQualified (§1.6)
+                $traitNode = self::selectClass($fqcn, $source, $parser, $traverser);
+                $perTrait[] = ['name' => $fqcn, 'methods' => array_diff_key(self::flatten($traitNode, $source, $parser, $traverser, $seen), $shadowed[$fqcn] ?? [])];
+            }
+
+            foreach ($perTrait as $traitMethods) {                           // splice in trait order, skipping own-wins names
+                foreach ($traitMethods['methods'] as $name => $method) {
+                    if (! array_key_exists($name, $out)) {
+                        $out[$name] = $method;
+                    }
+                }
+            }
+
+            foreach ($use->adaptations as $adaptation) {                     // aliases appended NOW, per statement (§1.9)
+                if (! $adaptation instanceof TraitUseAdaptation\Alias
+                    || ! $adaptation->newName instanceof Identifier                         // visibility-only `as public` adds no method
+                    || array_key_exists($adaptation->newName->toString(), $out)) {
+                    continue;
+                }
+
+                if (! $adaptation->trait instanceof Name && count($perTrait) > 1) {
+                    throw new RuntimeException("Ambiguous alias {$adaptation->method->toString()} across multiple traits"); // PHP load-time fatal, reproduced
+                }
+
+                $winner = $adaptation->trait?->toString();                   // trait: null on single-trait statements (verified on Router)
+
+                $aliased = null;
+
+                foreach ($perTrait as $traitMethods) {                       // bind the named trait — or the single candidate
+                    if ($winner !== null && $traitMethods['name'] !== $winner) {
+                        continue;
+                    }
+
+                    $aliased = $traitMethods['methods'][$adaptation->method->toString()] ?? null;
+
+                    break;
+                }
+
+                if ($aliased === null) {
+                    throw new RuntimeException("No such trait method {$winner}::{$adaptation->method->toString()}"); // PHP load-time fatal, reproduced
+                }
+
+                $aliased = clone $aliased; // the alias is a distinct method NAME (§2.4): reflection reports getName() === 'macroCall'
+                $aliased->name = new Identifier($adaptation->newName->toString());
+
+                $out[$adaptation->newName->toString()] = $aliased;
+            }
+        }
+
+        return $out;
     }
 
     /** @return array<string, mixed> */
-    private static function key(ReflectionMethod $method): array
+    private static function key(ClassMethod $method): array
     {
-        $parameters = $method->getParameters();
+        $params = $method->params;
 
-        if (count($parameters) === 1 && $parameters[0]->isVariadic()) {
-            return self::append($method, $parameters[0]);
+        if (count($params) === 1 && $params[0]->variadic) {                                              // variadic-only → append
+            return self::append($method, $params[0]);
         }
 
-        if (count($parameters) === 1) {
-            return self::setter($method, $parameters[0]);
+        if (count($params) === 1) {                                                                       // exactly 1 non-variadic → setter
+            return self::setter($method, $params[0]);
         }
 
-        if (count($parameters) === 2 && self::scalarKey($parameters[0]) && self::stringArrayUnion($parameters[1]->getType())) {
-            return self::appendTo($method, $parameters[0], $parameters[1]);
+        if (count($params) === 2 && self::scalarKey($params[0]) && self::stringArrayUnion($params[1]->type)) {
+            return self::appendTo($method, $params[0], $params[1]);                                       // (scalarKey, string|array) → append-to
         }
 
-        if (count($parameters) === 2 && self::scalarKey($parameters[0])) {
-            return self::binding($method, $parameters[0], $parameters[1]);
+        if (count($params) === 2 && self::scalarKey($params[0])) {
+            return self::binding($method, $params[0], $params[1]);                                        // (scalarKey, any) → binding
         }
 
-        return self::undecided($method);
+        return self::undecided($method);                                                                  // description-only + TODO(<method>: <all params>)
     }
 
-    private static function scalarKey(ReflectionParameter $parameter): bool
+    private static function scalarKey(Node\Param $param): bool
     {
-        $type = $parameter->getType();
+        $type = $param->type;
 
-        if ($type === null) {
-            return true;
+        if (! $type instanceof Node) {
+            return true;                                                                                  // untyped counts (§6.1 precedent: vendor keys are untyped)
         }
 
-        $members = $type instanceof ReflectionUnionType ? $type->getTypes() : [$type];
+        if ($type instanceof Node\NullableType) {
+            return false;                                                                                 // a key that may be null is not a manifest key
+        }
 
-        return array_all($members, static fn (ReflectionType $type): bool => $type instanceof ReflectionNamedType
-            && ! $type->allowsNull()
-            && in_array($type->getName(), ['string', 'int'], true));
+        if ($type instanceof Node\UnionType) {
+            return array_all($type->types, static fn (Node $member): bool => $member instanceof Identifier // a Name / A&B member fails loudly
+                && in_array($member->toString(), ['string', 'int'], true));                               // an explicit "null" member fails here
+        }
+
+        return $type instanceof Identifier && in_array($type->toString(), ['string', 'int'], true);
     }
 
-    private static function stringArrayUnion(?ReflectionType $type): bool
+    private static function stringArrayUnion(?Node $type): bool
     {
-        if (! $type instanceof ReflectionUnionType) {
+        if (! $type instanceof Node\UnionType) {
             return false;
         }
 
-        $names = array_map(static fn (ReflectionType $type): string => $type instanceof ReflectionNamedType ? $type->getName() : '', $type->getTypes());
+        $names = array_map(static fn (Node $member): string => $member instanceof Identifier ? $member->toString() : '', $type->types);
 
-        sort($names);
+        sort($names);                                                                                     // order-agnostic (§4.2): array|string ≡ string|array
 
         return $names === ['array', 'string'];
     }
 
-    /** @return array<string, mixed> */
-    private static function binding(ReflectionMethod $method, ReflectionParameter $key, ReflectionParameter $value): array
-    {
-        [$schema, $unknown] = self::paramSchema($value);
-
-        return self::withDescription(
-            ['type' => 'object', 'additionalProperties' => $schema],
-            self::stub($method, [$key->getName(), $value->getName()], ', one call per entry', $unknown),
-        );
-    }
-
-    /** @return array<string, mixed> */
-    private static function appendTo(ReflectionMethod $method, ReflectionParameter $key, ReflectionParameter $value): array
-    {
-        return self::withDescription(
-            [
-                'type' => 'object',
-                'additionalProperties' => [
-                    'anyOf' => [
-                        ['type' => 'string'],
-                        ['type' => 'array'],
-                    ],
-                ],
-            ],
-            self::stub($method, [$key->getName(), $value->getName()], ', one call per item', []),
-        );
-    }
-
-    /** @return array<string, mixed> */
-    private static function append(ReflectionMethod $method, ReflectionParameter $parameter): array
-    {
-        [$schema, $unknown] = self::paramSchema($parameter);
-
-        return self::withDescription(
-            ['type' => 'array', 'items' => $schema],
-            self::stub($method, [$parameter->getName()], ', one call per item', $unknown),
-        );
-    }
-
-    /** @return array<string, mixed> */
-    private static function setter(ReflectionMethod $method, ReflectionParameter $parameter): array
-    {
-        [$schema, $unknown] = self::paramSchema($parameter);
-
-        $suffix = is_array($schema) && str_contains(json_encode($schema, JSON_THROW_ON_ERROR), '"array"')
-            ? ', one call with the whole value'
-            : ' when the key is present';
-
-        return self::withDescription($schema, self::stub($method, [$parameter->getName()], $suffix, $unknown));
-    }
-
-    /** @return array<string, mixed> */
-    private static function undecided(ReflectionMethod $method): array
-    {
-        $params = array_map(static fn (ReflectionParameter $parameter): string => $parameter->getName(), $method->getParameters());
-
-        return self::withDescription(true, self::stub($method, $params, ' when the key is present', $params));
-    }
-
     /** @return array{0: mixed, 1: list<string>} */
-    private static function paramSchema(ReflectionParameter $parameter): array
+    private static function paramSchema(Node\Param $param): array
     {
-        $type = $parameter->getType();
+        $type = $param->type;
 
-        if ($type instanceof ReflectionUnionType) {
-            return self::unionSchema($type, $parameter->getName());
+        if ($type instanceof Node\UnionType) {
+            return self::unionSchema($type, self::paramName($param));                                     // includes explicit "null" members
         }
 
-        if ($type instanceof ReflectionNamedType) {
-            $expanded = self::expand($type->getName());
+        if (! $type instanceof Node || $type instanceof Name || $type instanceof Node\IntersectionType) {
+            return [true, [self::paramName($param)]];                                                     // untyped / class / A&B — honestly unknown (no name resolution, §1.6)
+        }
 
-            if ($expanded !== null) {
-                $types = $expanded;
+        if ($type instanceof Node\NullableType) {
+            $expanded = self::expand($type->type);                                                        // inner is Identifier|Name
 
-                if ($type->allowsNull()) {
-                    $types[] = 'null';
-                }
-
-                return [['type' => self::typeValue($types)], []];
+            if ($expanded === null) {
+                return [true, [self::paramName($param)]];                                                 // ?mixed, ?Closure, ?Suit …
             }
+
+            return [['type' => self::typeValue([...$expanded, 'null'])], []];                             // "null" appended last
         }
 
-        return [true, [$parameter->getName()]];
+        $expanded = $type instanceof Identifier ? self::expand($type) : null; // Identifier builtins; untyped / class / A&B → unknown
+
+        if ($expanded === null) {
+            return [true, [self::paramName($param)]];                                                     // mixed, iterable, callable, object, never …
+        }
+
+        return [['type' => self::typeValue($expanded)], []];                                              // string / int / float / bool / array
     }
 
     /** @return array{0: mixed, 1: list<string>} */
-    private static function unionSchema(ReflectionUnionType $type, string $name): array
+    private static function unionSchema(Node\UnionType $type, string $name): array
     {
         $types = [];
         $nullable = false;
 
-        foreach ($type->getTypes() as $member) {
-            if (! $member instanceof ReflectionNamedType) {
-                return [true, [$name]];
+        foreach ($type->types as $member) {
+            if ($member instanceof Node\IntersectionType) {                                               // DNF (A&B)|x — one untypeable member poisons the whole value
+                return [true, [$name]];                                                                   // (a NullableType can never be a union member, §1.5)
             }
 
-            if ($member->getName() === 'null') {
-                $nullable = true;
+            if ($member instanceof Identifier && $member->toString() === 'null') {
+                $nullable = true;                                                                         // explicit |null — same treatment as ?T
 
                 continue;
             }
 
-            $expanded = self::expand($member->getName());
+            $expanded = self::expand($member);                                                            // Identifier builtins; every Name → null
 
             if ($expanded === null) {
                 return [true, [$name]];
             }
 
-            $types = [...$types, ...$expanded];
+            $types = [...$types, ...$expanded];                                                           // declared order first (array expands in place)
         }
 
+        $types = self::ordered($types);                                                                   // precedence sort — reflection parity (§2.3 intro)
+
+        if ($nullable) {
+            $types[] = 'null';                                                                            // last, after the sort
+        }
+
+        return [['type' => self::typeValue($types)], []];
+    }
+
+    /**
+     * Reflection parity (old unit 03): `uasort` over the fixed precedence list.
+     *
+     * @param  list<string>  $types
+     * @return list<string>
+     */
+    private static function ordered(array $types): array
+    {
         $precedence = array_flip(['string', 'integer', 'number', 'boolean', 'array', 'object', 'null']);
 
         uasort($types, static fn (string $left, string $right): int => $precedence[$left] <=> $precedence[$right]);
 
-        if ($nullable) {
-            $types[] = 'null';
-        }
-
-        return [['type' => self::typeValue(array_values($types))], []];
+        return array_values($types);
     }
 
     /** @return list<string>|null */
-    private static function expand(string $name): ?array
+    private static function expand(Identifier|Name $type): ?array
     {
-        return match ($name) {
+        return match ($type->toString()) {
             'string' => ['string'],
             'int' => ['integer'],
             'float' => ['number'],
             'bool' => ['boolean'],
             'array' => ['array', 'object'],
-            default => null,
+            default => null,                                                                              // every class name, mixed, iterable, callable, …
         };
     }
 
@@ -339,22 +459,85 @@ final class SchemaGenerator
     {
         $unique = array_values(array_unique($types));
 
-        if (count($unique) === 1) {
-            return $unique[0];
-        }
+        return count($unique) === 1 ? $unique[0] : $unique;
+    }
 
-        return $unique;
+    private static function paramName(Node\Param $param): string
+    {
+        assert($param->var instanceof Node\Expr\Variable);                                                // parser guarantee for method params (§2.3) — house narrowing style
+        assert(is_string($param->var->name));
+
+        return $param->var->name;
+    }
+
+    /** @return array<string, mixed> */
+    private static function binding(ClassMethod $method, Node\Param $key, Node\Param $value): array
+    {
+        [$schema, $unknown] = self::paramSchema($value);
+
+        return self::withDescription(
+            ['type' => 'object', 'additionalProperties' => $schema],
+            self::stub($method, [self::paramName($key), self::paramName($value)], ', one call per entry', $unknown),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private static function appendTo(ClassMethod $method, Node\Param $key, Node\Param $value): array
+    {
+        return self::withDescription(
+            [
+                'type' => 'object',
+                'additionalProperties' => [
+                    'anyOf' => [
+                        ['type' => 'string'],
+                        ['type' => 'array'],
+                    ],
+                ],
+            ],
+            self::stub($method, [self::paramName($key), self::paramName($value)], ', one call per item', []),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private static function append(ClassMethod $method, Node\Param $parameter): array
+    {
+        [$schema, $unknown] = self::paramSchema($parameter);
+
+        return self::withDescription(
+            ['type' => 'array', 'items' => $schema],
+            self::stub($method, [self::paramName($parameter)], ', one call per item', $unknown),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private static function setter(ClassMethod $method, Node\Param $parameter): array
+    {
+        [$schema, $unknown] = self::paramSchema($parameter);
+
+        $suffix = is_array($schema) && str_contains(json_encode($schema, JSON_THROW_ON_ERROR), '"array"')
+            ? ', one call with the whole value'
+            : ' when the key is present';
+
+        return self::withDescription($schema, self::stub($method, [self::paramName($parameter)], $suffix, $unknown));
+    }
+
+    /** @return array<string, mixed> */
+    private static function undecided(ClassMethod $method): array
+    {
+        $params = array_values(array_map(self::paramName(...), $method->params));
+
+        return self::withDescription(true, self::stub($method, $params, ' when the key is present', $params));
     }
 
     /**
      * @param  list<string>  $params
      * @param  list<string>  $undecided
      */
-    private static function stub(ReflectionMethod $method, array $params, string $suffix, array $undecided): string
+    private static function stub(ClassMethod $method, array $params, string $suffix, array $undecided): string
     {
-        $todo = $undecided === [] ? '' : ' TODO('.$method->getName().': '.implode(', ', array_map(static fn (string $param): string => '$'.$param, $undecided)).')';
+        $todo = $undecided === [] ? '' : ' TODO('.$method->name->toString().': '.implode(', ', array_map(static fn (string $param): string => '$'.$param, $undecided)).')';
 
-        return '-> '.$method->getName().'('.implode(', ', array_map(static fn (string $param): string => '$'.$param, $params)).')'.$suffix.$todo;
+        return '-> '.$method->name->toString().'('.implode(', ', array_map(static fn (string $param): string => '$'.$param, $params)).')'.$suffix.$todo;
     }
 
     /** @return array<string, mixed> */

@@ -24,4 +24,11 @@ final class Kinds
     public function ratio(float $rate, string $value): void {}
 
     public function register(string $name, string $class, ?Closure $callback = null): void {}
+
+    /** @param  array<mixed>|string  $values */
+    public function suffix(string $group, array|string $values): void {}
+
+    public function unionKey(string|int $key, string $value): void {}
+
+    public function optionalKey(?string $key, string $value): void {}
 }
