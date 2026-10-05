@@ -34,10 +34,10 @@ use function Orchestra\Testbench\default_skeleton_path;
 // in your application … using 'dot' syntax, which includes the name of the file and option".
 it('serves a declared value through dot syntax from a route and the facade', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -57,10 +57,10 @@ it('serves a declared value through dot syntax from a route and the facade', fun
 // specified and will be returned if the configuration option does not exist."
 it('returns the default when the option does not exist', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -73,10 +73,10 @@ it('returns the default when the option does not exist', function (): void {
 // will be thrown" — the Repository throws InvalidArgumentException.
 it('supports typed retrieval and throws on a type mismatch', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -91,10 +91,10 @@ it('supports typed retrieval and throws on a type mismatch', function (): void {
 // opposite precedence (existing values win), which is why the manifest can win at all.
 it('replaces an existing value with the declared one', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     // 'Legacy' sits in the repository where the file's `env('APP_NAME')` would have landed
@@ -109,10 +109,10 @@ it('replaces an existing value with the declared one', function (): void {
 // 'timezone'), untouched by the declaration.
 it('keeps the siblings of a declared key', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -129,10 +129,10 @@ it('keeps the siblings of a declared key', function (): void {
 // stores.redis survives`" — a key that is itself a dot-path sets one nested node.
 it('sets a dot-path key as one nested node, keeping the rest of the node', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            cache.stores.redis.connection: acceptance-cache
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [cache.stores.redis.connection, acceptance-cache]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -146,10 +146,8 @@ it('sets a dot-path key as one nested node, keeping the rest of the node', funct
 // key no config file declares starts from nothing, with no extra registration mechanism.
 it('gains a file key no config file declares', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            sentinel.meters: true
+        calls:
+          - {method: make, args: {abstract: Illuminate\Config\Repository}, then: [{method: set, args: [sentinel.meters, true]}]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -163,11 +161,10 @@ it('gains a file key no config file declares', function (): void {
 // nested key, declare its dot-path" — the rejected alternative was recursive merging.
 it('replaces a map value wholesale instead of merging it recursively', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            database.redis:
-              host: declared-host
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [database.redis, {host: declared-host}]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -187,10 +184,10 @@ it('replaces a map value wholesale instead of merging it recursively', function 
 // order.
 it('makes the declared values visible to the boot of providers registered earlier', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -208,12 +205,11 @@ it('makes the declared values visible to the boot of providers registered earlie
 // after the set and sees the declared values.
 it('makes the declared values visible to a declared provider register and boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          abstract: Illuminate\Config\Repository
-          set:
-            app.name: Tenant Console
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
+        calls:
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.name, Tenant Console]}]
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -239,11 +235,11 @@ it('changes only the repository when the bootstrap-consumed keys are declared', 
     $timezoneBefore = date_default_timezone_get();
 
     $file = $this->manifest(<<<'YAML'
-        make:
-          - abstract: Illuminate\Config\Repository
-            set: {app.env: staging}
-          - abstract: Illuminate\Config\Repository
-            set: {app.timezone: Antarctica/Troll}
+        calls:
+          - {method: make, args: {abstract: Illuminate\Config\Repository}, then: [{method: set, args: [app.env, staging]}]}
+          - method: make
+            args: {abstract: Illuminate\Config\Repository}
+            then: [{method: set, args: [app.timezone, Antarctica/Troll]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -276,10 +272,10 @@ it('wins over the env-sourced value while env keeps returning the raw one', func
         expect(config('app.name'))->toBe('Legacy');
 
         $file = $this->manifest(<<<'YAML'
-            make:
-              abstract: Illuminate\Config\Repository
-              set:
-                app.name: Tenant Console
+            calls:
+              - method: make
+                args: {abstract: Illuminate\Config\Repository}
+                then: [{method: set, args: [app.name, Tenant Console]}]
             YAML);
 
         $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -302,7 +298,7 @@ it('writes the declared values into the config cache and serves them from it', f
     file_put_contents($skeleton.'/bootstrap/cache/testbench.yaml', "providers:\n  - ".LaravelDeclarationProvider::class."\n");
 
     mkdir(getcwd().'/manifest', recursive: true);
-    file_put_contents(getcwd().'/manifest/app.yml', "make:\n  abstract: Illuminate\\Config\\Repository\n  set:\n    app.name: Tenant Console\n");
+    file_put_contents(getcwd().'/manifest/app.yml', "calls:\n  - method: make\n    args: [Illuminate\\Config\\Repository]\n    then: [{method: set, args: [{app.name: Tenant Console}]}]\n");
 
     try {
         $this->artisan('config:cache')->expectsOutputToContain('Configuration cached successfully.');
@@ -335,7 +331,7 @@ it('keeps a removed key in a stale cache and purges it with config:clear', funct
     file_put_contents($skeleton.'/bootstrap/cache/testbench.yaml', "providers:\n  - ".LaravelDeclarationProvider::class."\n");
 
     mkdir(getcwd().'/manifest', recursive: true);
-    file_put_contents(getcwd().'/manifest/app.yml', "make:\n  abstract: Illuminate\\Config\\Repository\n  set:\n    app.name: Tenant Console\n");
+    file_put_contents(getcwd().'/manifest/app.yml', "calls:\n  - method: make\n    args: [Illuminate\\Config\\Repository]\n    then: [{method: set, args: [{app.name: Tenant Console}]}]\n");
 
     try {
         $this->artisan('config:cache')->expectsOutputToContain('Configuration cached successfully.');
@@ -372,13 +368,10 @@ it('keeps a removed key in a stale cache and purges it with config:clear', funct
 // the manifest path deliberately does not perform.
 it('passes yaml literals through typed without env-style re-evaluation', function (): void {
     $file = $this->manifest(<<<'YAML'
-        make:
-          - abstract: Illuminate\Config\Repository
-            set: {app.debug: true}
-          - abstract: Illuminate\Config\Repository
-            set: {app.retries: 3}
-          - abstract: Illuminate\Config\Repository
-            set: {app.vendor: "null"}
+        calls:
+          - {method: make, args: {abstract: Illuminate\Config\Repository}, then: [{method: set, args: [app.debug, true]}]}
+          - {method: make, args: {abstract: Illuminate\Config\Repository}, then: [{method: set, args: [app.retries, 3]}]}
+          - {method: make, args: {abstract: Illuminate\Config\Repository}, then: [{method: set, args: [app.vendor, 'null']}]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

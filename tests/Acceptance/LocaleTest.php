@@ -9,8 +9,7 @@ declare(strict_types=1);
 // AT-16 — localization.md — Configuring the Locale / Determining the Current Locale.
 it('sets the runtime default language', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          setLocale: fr
+        calls: [{method: registered, args: [[{method: setLocale, args: [fr]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -25,9 +24,7 @@ it('sets the runtime default language', function (): void {
 // the declared setFallbackLocale is applied.
 it('serves strings missing from the default language through the fallback language', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          setLocale: fr
-          setFallbackLocale: es
+        calls: [{method: registered, args: [[{method: setLocale, args: [fr]}, {method: setFallbackLocale, args: [es]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

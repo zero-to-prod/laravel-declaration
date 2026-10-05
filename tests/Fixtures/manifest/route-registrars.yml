@@ -1,122 +1,85 @@
+# The route-registrar surface spelled with the test fixtures' class-strings. Every node under the Router is one
+# Router call; `then` rides the returned Route or Pending*Registration; a group's body is a list of nodes on the
+# router inside the group.
 
-# The route-registrar surface spelled with the test fixtures' class-strings. Every key
-# under the Router is one Router method; a row's extra keys ride the returned Route or
-# Pending*Registration; a group's `routes` map is a body on the router inside the group.
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - # ResourceRegistrar's statics are process-global: pin the defaults these tests assert so a manifest that
+        # sets them in the same PHP process (router.yml) cannot leak into them.
+        - {method: singularResourceParameters, args: [true]}
+        - {method: resourceParameters, args: [{}]}
+        - {method: resourceVerbs, args: [{create: create, edit: edit}]}
 
-afterResolving:
-  Illuminate\Routing\Router:
-    # ResourceRegistrar's statics are process-global: pin the defaults these tests assert so a
-    # manifest that sets them in the same PHP process (router.yml) cannot leak into them.
-    singularResourceParameters: true
-    resourceParameters: {}
-    resourceVerbs:
-      create: create
-      edit: edit
+        # Router::addRoute($methods, $uri, $action)
+        - method: addRoute
+          args: [GET, "/", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]
+          then: [{method: name, args: [home]}]
+        - method: addRoute
+          args: [DELETE, "todos/{todo}", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]
+          then:
+            - {method: metadata, args: [{request: delete-todo}]}
+            - {method: setDefaults, args: [{target: todo, call: delete, redirect: todos.index}]}
 
-    # Router::addRoute($methods, $uri, $action) — one row per call
-    addRoute:
-      - uri: "/"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        name: home
+        # Router::group(array $attributes, $routes) — the native attributes array + a body (recursive)
+        - method: group
+          args:
+            - prefix: admin
+              as: admin.
+              namespace: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Admin
+              middleware: [web]                      # `auth` would 401 the unauthenticated dispatch tests
+              where: {id: '[0-9]+'}
+              metadata: {area: admin}
+            - - method: addRoute
+                args: [GET, dashboard, DashboardController]   # namespace attribute -> ...\Routing\Admin\DashboardController
+                then: [{method: name, args: [dashboard]}]     # as attribute        -> admin.dashboard
+              - method: resource
+                args: [users, UserController]                 # -> ...\Routing\Admin\UserController (namespace)
+                then: [{method: middlewareFor, args: [destroy, [can:delete-users]]}]
+              - method: group                                 # nested group: prefix/as/namespace concatenate
+                args:
+                  - {prefix: settings, as: settings.}
+                  - - method: addRoute
+                      args: [GET, profile, ProfileController]
+                      then: [{method: name, args: [profile]}] # -> admin.settings.profile, URI admin/settings/profile
 
-      - uri: "todos/{todo}"
-        methods: DELETE
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        metadata:
-          request: delete-todo
-        setDefaults:
-          target: todo
-          call: delete
-          redirect: todos.index
+        - method: group
+          args:
+            - {domain: "{account}.example.com"}              # group domain; route parameters bind natively
+            - - {method: addRoute, args: [GET, tenants, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]}
 
-    # Router::group($attributes, $routes) — the native attributes array + a nested body (recursive)
-    group:
-      - attributes:
-          prefix: admin
-          as: admin.
-          namespace: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Admin
-          middleware: [web]                      # `auth` would 401 the unauthenticated dispatch tests
-          where:
-            id: '[0-9]+'
-          metadata:
-            area: admin
-        routes:
-          addRoute:
-            - uri: dashboard
-              methods: GET
-              action: DashboardController        # namespace attribute -> ...\Routing\Admin\DashboardController
-              name: dashboard                    # as attribute        -> admin.dashboard
-          resource:
-            - name: users
-              controller: UserController         # -> ...\Routing\Admin\UserController (namespace)
-              middlewareFor:                     # one middlewareFor($methods, $middleware) per item
-                destroy: [can:delete-users]
-          group:                                 # nested group: prefix/as/namespace concatenate
-            - attributes:
-                prefix: settings
-                as: settings.
-              routes:
-                addRoute:
-                  - uri: profile
-                    methods: GET
-                    action: ProfileController
-                    name: profile               # -> admin.settings.profile, URI admin/settings/profile
+        # Router::resource($name, $controller) — `then` rides the PendingResourceRegistration
+        - method: resource
+          args: [photos, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PhotoController]
+          then:
+            - {method: only, args: [[index, show, store, update, destroy]]}
+            - {method: middleware, args: [[web]]}
+            - {method: whereNumber, args: [photo]}
+            - {method: scoped}                                # (bindingFields: [])
+            - {method: withTrashed, args: [[show, edit, update]]}
+            - {method: shallow}                               # (shallow nested names)
+            - {method: names, args: [{index: gallery.index}]}
+            - {method: missing, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler]}   # a `closure` reference, called ($request, $exception)
 
-      - attributes:
-          domain: "{account}.example.com"       # group domain; route parameters bind natively
-        routes:
-          addRoute:
-            - uri: tenants
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+        # Router::apiResource() — resource minus create/edit
+        - method: apiResource
+          args: [posts, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]
+          then: [{method: except, args: [[destroy]]}]
 
-    # Router::resource($name, $controller) — the other keys ride the PendingResourceRegistration
-    resource:
-      - name: photos
-        controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PhotoController
-        only: {methods: [index, show, store, update, destroy]}
-        middleware: [web]
-        whereNumber: photo                     # -> whereNumber('photo')
-        scoped: ~                              # -> scoped()             (bindingFields: [])
-        withTrashed: [show, edit, update]      # -> withTrashed([show, edit, update])
-        shallow: ~                             # -> shallow()            (shallow nested names)
-        names:
-          index: gallery.index
-        missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler   # a `closure` reference, called ($request, $exception)
+        # Router::singleton() / apiSingleton() — show/edit/update defaults
+        - method: singleton
+          args: [profile, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]
+          then: [{method: creatable}]                        # adds create/store/destroy
+        - {method: apiSingleton, args: [avatar, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]}
 
-    # Router::apiResource() — resource minus create/edit
-    apiResource:
-      - name: posts
-        controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        except: {methods: [destroy]}
+        # Router::view($uri, $view, $data = [], $status = 200, array $headers = []) — named args skip $status
+        - method: view
+          args: {uri: about, view: pages.about, data: {title: About}, headers: {X-Frame-Options: DENY}}
+          then: [{method: middleware, args: [web]}]           # rides the returned Route
 
-    # Router::singleton() / apiSingleton() — show/edit/update defaults
-    singleton:
-      - name: profile
-        controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        creatable: ~                           # adds create/store/destroy
-    apiSingleton:
-      - name: avatar
-        controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-
-    # Router::view() — native static-view shortcut (GET|HEAD; bypasses DeclaredView)
-    view:
-      - uri: about
-        view: pages.about
-        data:
-          title: About
-        headers:
-          X-Frame-Options: DENY
-        middleware: [web]                      # rides the returned Route
-
-    # Router::redirect() / permanentRedirect()
-    redirect:
-      - uri: "old-posts/{post}"
-        destination: "posts/{post}"
-        status: 302
-        where:                                 # rides the returned Route
-          post: '[0-9]+'
-    permanentRedirect:
-      - uri: legacy
-        destination: /
+        # Router::redirect() / permanentRedirect()
+        - method: redirect
+          args: ["old-posts/{post}", "posts/{post}", 302]
+          then: [{method: where, args: [post, '[0-9]+']}]
+        - {method: permanentRedirect, args: [legacy, /]}

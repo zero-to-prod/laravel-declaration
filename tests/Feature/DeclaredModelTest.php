@@ -143,9 +143,7 @@ it('declares nothing without a models block', function (): void {
 it('ignores unknown model keys', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        models:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
-            fillabel: [name]
+        models: [{class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight, fillabel: [name]}]
         YAML);
 
     expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();

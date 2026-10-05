@@ -28,7 +28,7 @@ final class Resolve
      * Vocabularies for parameters whose declared type says nothing: method → parameter → vocabulary.
      *
      *   closure   `Class@method` | `Class::method` | invokable `Class` | `function` → a container-called Closure;
-     *             `*.php` → the file's Closure; a map → λ (a body on the closure's first argument)
+     *             `*.php` → the file's Closure; a list → λ (a body on the closure's first argument)
      *   phpFile   `*.php` → the file's return value (any type); anything else untouched
      *   concrete  `*.php` → phpFile; `~` and class-strings untouched
      *   path      a relative path → under `path.base`; an absolute path untouched
@@ -93,7 +93,7 @@ final class Resolve
 
         return match ($vocabulary) {
             null => $value,
-            'closure' => is_array($value) && ! array_is_list($value) ? $this->interpreter->closure($value) : $this->closure($value),
+            'closure' => is_array($value) ? $this->interpreter->closure($value) : $this->closure($value),
             'phpFile', 'concrete' => $this->phpFile($value),
             'path' => is_string($value) ? $this->path($value) : $value,
         };

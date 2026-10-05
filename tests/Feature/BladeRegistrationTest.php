@@ -12,25 +12,22 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass;
 it('registers blade compiler directives, conditions, components, and stringables', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-blade-').'.yml';
     file_put_contents($file, <<<'YAML'
-        afterResolving:
-          Illuminate\View\Compilers\BladeCompiler:
-            directive:
-              uppercase: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::directiveUppercase
-            if:
-              admin: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::ifAdmin
-            component:
-              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: mock-component
-            components:
-              mock-comp: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
-            anonymousComponentPath:
-              - path: resources/views/components
-                prefix: ui
-            anonymousComponentNamespace:
-              - directory: resources/views/namespaced
-                prefix: ns
-            stringable:
-              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::stringableMock
-            withoutDoubleEncoding: ~
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Compilers\BladeCompiler
+              - - method: directive
+                  args: [uppercase, ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::directiveUppercase]
+                - {method: if, args: [admin, ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::ifAdmin]}
+                - {method: component, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass, mock-component]}
+                - {method: components, args: [{mock-comp: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass}]}
+                - {method: anonymousComponentPath, args: {path: resources/views/components, prefix: ui}}
+                - {method: anonymousComponentNamespace, args: {directory: resources/views/namespaced, prefix: ns}}
+                - method: stringable
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
+                    - ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::stringableMock
+                - {method: withoutDoubleEncoding}
         YAML);
 
     try {

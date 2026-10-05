@@ -1,103 +1,83 @@
-registered:                                          # a body on the application once every provider has registered
-  bind:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Slugger: app/binders/slugger.php
-  bindIf:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
-    translator: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
-  singleton:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\ReportBuilder: ~
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Clock
-  singletonIf:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\SlowWarmup: ~
-  scoped:
-    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
-  scopedIf:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\BudgetGuard: ~
-  instance:
-    app.signature: "1.0"
-    app.rate_limiter: app/instances/limiter.php
-  alias:
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: context
-  extend:
-    cache.store: app/extensions/store-cache.php
-  useAppPath: src
-  useDatabasePath: database
-  useLangPath: resources/lang
-  usePublicPath: public
-  useStoragePath: storage
-  setLocale: fr
-  setFallbackLocale: en
-  registered:
-    - app/hooks/registered.php
-  booting:
-    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\WarmConnections
-  booted:
-    - app/hooks/booted.php
-  terminating:
-    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\FlushMetrics
+calls:
+  - method: registered                                 # a body on the application once every provider has registered
+    args:
+      - - {method: bind, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf]}
+        - {method: bind, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Slugger, app/binders/slugger.php]}
+        - {method: bindIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache]}
+        - {method: bindIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache]}
+        - {method: bindIf, args: [translator, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache]}
+        - {method: singleton, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext]}
+        - {method: singleton, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\ReportBuilder]}
+        - {method: singleton, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Clock]}
+        - {method: singletonIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache]}
+        - {method: singletonIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\SlowWarmup]}
+        - {method: scoped, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog]}
+        - {method: scopedIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache]}
+        - {method: scopedIf, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\BudgetGuard]}
+        - {method: instance, args: [app.signature, "1.0"]}
+        - {method: instance, args: [app.rate_limiter, app/instances/limiter.php]}
+        - {method: alias, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext, context]}
+        - {method: extend, args: [cache.store, app/extensions/store-cache.php]}
+        - {method: useAppPath, args: [src]}
+        - {method: useDatabasePath, args: [database]}
+        - {method: useLangPath, args: [resources/lang]}
+        - {method: usePublicPath, args: [public]}
+        - {method: useStoragePath, args: [storage]}
+        - {method: setLocale, args: [fr]}
+        - {method: setFallbackLocale, args: [en]}
+        - {method: registered, args: [app/hooks/registered.php]}
+        - {method: booting, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\WarmConnections]}
+        - {method: booted, args: [app/hooks/booted.php]}
+        - {method: terminating, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\FlushMetrics]}
 
-register:
-  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
+  - method: register
+    args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider]
 
-afterResolving:
-  Illuminate\Routing\Router:
-    addRoute:
-      - uri: "/"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        name: home
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - method: addRoute
+          args: [GET, "/", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController]
+          then: [{method: name, args: [home]}]
 
-      - uri: "users/{user}"
-        methods: GET
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
-        name: users.show
-        where:
-          user: '[0-9]+'
-        setDefaults:
-          user: 1
-        metadata:
-          group: admin
-        missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+        - method: addRoute
+          args: [GET, "users/{user}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]]
+          then:
+            - {method: name, args: [users.show]}
+            - {method: where, args: [user, '[0-9]+']}
+            - {method: setDefaults, args: [{user: 1}]}
+            - {method: metadata, args: [{group: admin}]}
+            - {method: missing, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler]}
 
-      - uri: "users/{user}"
-        methods: PUT
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-        name: users.update
-        withoutMiddleware: [web]
+        - method: addRoute
+          args: [PUT, "users/{user}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]]
+          then:
+            - {method: name, args: [users.update]}
+            - {method: withoutMiddleware, args: [web]}
 
-      - uri: "users/{user}"
-        methods: DELETE
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
-        name: users.destroy
-        prefix: api
-        domain: "{account}.example.com"
-        block:
-          lockSeconds: 10
-          waitSeconds: 5
+        - method: addRoute
+          args: [DELETE, "users/{user}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]]
+          then:
+            - {method: name, args: [users.destroy]}
+            - {method: prefix, args: [api]}
+            - {method: domain, args: ["{account}.example.com"]}
+            - {method: block, args: [10, 5]}
 
-      - uri: "users/{user}"
-        methods: PATCH
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-        name: users.patch
-        scopeBindings: ~
+        - method: addRoute
+          args: [PATCH, "users/{user}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]]
+          then:
+            - {method: name, args: [users.patch]}
+            - {method: scopeBindings}
 
-      - uri: "users/{user}"
-        methods: POST
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-        name: users.store
-        can:
-          ability: view
-          models: user
-        withTrashed: ~
+        - method: addRoute
+          args: [POST, "users/{user}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]]
+          then:
+            - {method: name, args: [users.store]}
+            - {method: can, args: [view, user]}
+            - {method: withTrashed}
 
-      - uri: "{any}"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
-        where:
-          any: '.*'
-        fallback: ~
+        - method: addRoute
+          args: [GET, "{any}", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController]
+          then:
+            - {method: where, args: [any, '.*']}
+            - {method: fallback}

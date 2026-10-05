@@ -1,14 +1,8 @@
-
-# An unknown key riding a PendingResourceRegistration fails at boot with Laravel's
-# own BadMethodCallException (STYLE 3.3) — Macroable::__call.
-afterResolving:
-  Illuminate\Routing\Router:
-    addRoute:
-      - uri: "/"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        name: home
-    resource:
-      - name: broken
-        controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-        nonexistent: ~
+# An unknown method riding a PendingResourceRegistration fails at boot with Laravel's own BadMethodCallException
+# (Macroable::__call).
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: addRoute, args: [GET, "/", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController], then: [{method: name, args: [home]}]}
+        - {method: resource, args: [broken, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController], then: [{method: nonexistent}]}

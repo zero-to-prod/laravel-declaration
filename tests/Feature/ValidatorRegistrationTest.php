@@ -97,22 +97,18 @@ it('throws when a rule entry declares both when and unless', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         requests:
           - name: both
-            rules:
-              email:
-                - when:
-                    condition: true
-                    rules: [required]
-                  unless:
-                    condition: true
-                    rules: [required]
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: both
-                methods: POST
-                action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-                metadata:
-                  request: both
+            rules: {email: [{when: {condition: true, rules: [required]}, unless: {condition: true, rules: [required]}}]}
+
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args:
+                    uri: both
+                    methods: POST
+                    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+                  then: [{method: metadata, args: [{request: both}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -123,20 +119,17 @@ it('throws when a rule entry declares both when and unless', function (): void {
 
 it('throws when a conditional rule declares no condition', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        requests:
-          - name: no-condition
-            rules:
-              email:
-                - when:
-                    rules: [required]
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: no-condition
-                methods: POST
-                action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-                metadata:
-                  request: no-condition
+        requests: [{name: no-condition, rules: {email: [{when: {rules: [required]}}]}}]
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args:
+                    uri: no-condition
+                    methods: POST
+                    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+                  then: [{method: metadata, args: [{request: no-condition}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();

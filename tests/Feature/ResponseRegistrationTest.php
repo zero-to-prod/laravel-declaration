@@ -9,10 +9,12 @@ use Illuminate\Contracts\Routing\ResponseFactory;
 it('registers response macros from manifest', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-response-').'.yml';
     file_put_contents($file, <<<'YAML'
-        afterResolving:
-          Illuminate\Routing\ResponseFactory:
-            macro:
-              customJson: ZeroToProd\LaravelDeclaration\Tests\Feature\ResponseTestHelper::customJsonMacro
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\ResponseFactory
+              - - method: macro
+                  args: [customJson, ZeroToProd\LaravelDeclaration\Tests\Feature\ResponseTestHelper::customJsonMacro]
         YAML);
 
     try {

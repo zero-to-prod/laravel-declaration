@@ -23,9 +23,13 @@ beforeEach(function (): void {
 // AT-01 — container.md — Binding Interfaces to Implementations.
 it('binds the declared implementation where the interface is type-hinted', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\EventPusher: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher
+        calls:
+          - method: registered
+            args:
+              - - method: bind
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\EventPusher
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -36,9 +40,13 @@ it('binds the declared implementation where the interface is type-hinted', funct
 // AT-02 — container.md — Simple Bindings.
 it('binds through a closure resolver that receives the container and resolves sub-dependencies', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor: app/acceptance/transistor.php
+        calls:
+          - method: registered
+            args:
+              - - method: bind
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor
+                    - app/acceptance/transistor.php
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -52,9 +60,7 @@ it('binds through a closure resolver that receives the container and resolves su
 // AT-03 — container.md — Simple Bindings.
 it('binds the abstract inferred from the closure return type', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          bind:
-            - app/acceptance/inferred.php
+        calls: [{method: registered, args: [[{method: bind, args: [app/acceptance/inferred.php]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -67,11 +73,14 @@ it('binds the abstract inferred from the closure return type', function (): void
 // in the registered() pass — the plan's documented Given.
 it('skips bindIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
-        registered:
-          bindIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TwigPdf
+        calls:
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider]}
+          - method: registered
+            args:
+              - - method: bindIf
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TwigPdf
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -82,9 +91,13 @@ it('skips bindIf when a binding already exists', function (): void {
 // AT-05 — container.md — Binding A Singleton.
 it('resolves a singleton one time and shares the instance', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          singleton:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
+        calls:
+          - method: registered
+            args:
+              - - method: singleton
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -97,11 +110,14 @@ it('resolves a singleton one time and shares the instance', function (): void {
 // in the registered() pass — the plan's documented Given.
 it('skips singletonIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
-        registered:
-          singletonIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\InMemoryTenantContext
+        calls:
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider]}
+          - method: registered
+            args:
+              - - method: singletonIf
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\InMemoryTenantContext
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -115,9 +131,13 @@ it('skips singletonIf when a binding already exists', function (): void {
 // self-concrete keeps the test on the documented surface.
 it('shares a scoped instance within one lifecycle and flushes it at a new one', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          scoped:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
+        calls:
+          - method: registered
+            args:
+              - - method: scoped
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -136,11 +156,14 @@ it('shares a scoped instance within one lifecycle and flushes it at a new one', 
 // in the registered() pass — the plan's documented Given.
 it('skips scopedIf when a binding already exists', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider
-        registered:
-          scopedIf:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\FileRequestLog
+        calls:
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\PreBindingProvider]}
+          - method: registered
+            args:
+              - - method: scopedIf
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RequestLog
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\FileRequestLog
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -154,9 +177,11 @@ it('skips scopedIf when a binding already exists', function (): void {
 // value (`new Clock`) is bound as-is; the Clock constructor records the construction.
 it('binds an existing instance and always returns it', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          instance:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock: app/acceptance/clock.php
+        calls:
+          - method: registered
+            args:
+              - - method: instance
+                  args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock, app/acceptance/clock.php]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

@@ -1,25 +1,24 @@
-
-afterResolving:
-  Illuminate\Auth\Access\Gate:
-    policy:
-      ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy
-    define:
-      publish: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PublishGate@publish
-      update: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@update   # string callback — no model binding on the route (§2.4)
-      attach: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@attach
-
-  Illuminate\Routing\Router:
-    addRoute:
-      - {uri: listed, methods: GET, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: listed}}
-      - {uri: attached, methods: GET, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: attached}}
-      - {uri: denied-listed, methods: GET, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: denied-listed}}
-      - {uri: "posts/{post}", methods: PUT, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: update-post}}
-      - {uri: "publish/{post}", methods: PUT, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: publish-post}}
-      - {uri: attach, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: ghost-argument}}
-      - {uri: literal, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: literal-argument}}
-      - {uri: numbered, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: numbered-argument}}
-      - {uri: args-list, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: list-argument}}
-      - {uri: multi, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], middleware: [web], metadata: {request: multi-gate}}
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Auth\Access\Gate
+      - - {method: policy, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Post, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy]}
+        - {method: define, args: [publish, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PublishGate@publish]}
+        - {method: define, args: [update, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@update]}   # string callback — no model binding on the route (§2.4)
+        - {method: define, args: [attach, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Policies\PostPolicy@attach]}
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: addRoute, args: [GET, listed, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: listed}]}]}
+        - {method: addRoute, args: [GET, attached, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: attached}]}]}
+        - {method: addRoute, args: [GET, denied-listed, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: denied-listed}]}]}
+        - {method: addRoute, args: [PUT, "posts/{post}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: update-post}]}]}
+        - {method: addRoute, args: [PUT, "publish/{post}", [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: publish-post}]}]}
+        - {method: addRoute, args: [POST, attach, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: ghost-argument}]}]}
+        - {method: addRoute, args: [POST, literal, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: literal-argument}]}]}
+        - {method: addRoute, args: [POST, numbered, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: numbered-argument}]}]}
+        - {method: addRoute, args: [POST, args-list, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: list-argument}]}]}
+        - {method: addRoute, args: [POST, multi, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: middleware, args: [web]}, {method: metadata, args: [{request: multi-gate}]}]}
 
 requests:
   - name: listed

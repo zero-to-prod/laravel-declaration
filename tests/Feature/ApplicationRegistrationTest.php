@@ -105,7 +105,7 @@ it('rebinds the declared paths under basePath', function () use ($manifest): voi
 
 it('uses an absolute path value verbatim', function (): void {
     $file = $this->manifest(<<<'YAML'
-        useAppPath: /tmp/declaration-app-path
+        calls: [{method: useAppPath, args: [/tmp/declaration-app-path]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -158,7 +158,7 @@ it('rejects a .php closure reference that does not return a Closure', function (
     $php = tempnam(sys_get_temp_dir(), 'reference-').'.php';
     file_put_contents($php, '<?php return 42;');
 
-    $file = $this->manifest("registered:\n  booting:\n    - {$php}\n");
+    $file = $this->manifest("calls:\n  - method: registered\n    args:\n      - - {method: booting, args: [{$php}]}\n");
 
     expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
         ->toThrow(LogicException::class, 'must return a Closure, int returned');
@@ -166,9 +166,7 @@ it('rejects a .php closure reference that does not return a Closure', function (
 
 it('passes a null list item through to Laravel, which rejects it natively', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          bind:
-            - ~
+        calls: [{method: registered, args: [[{method: bind, args: [null]}]]}]
         YAML);
 
     expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
@@ -177,8 +175,7 @@ it('passes a null list item through to Laravel, which rejects it natively', func
 
 it('fails an unknown application key with the Macroable exception', function (): void {
     $file = $this->manifest(<<<'YAML'
-        singelton:
-          Foo: Bar
+        calls: [{method: singelton, args: [{Foo: Bar}]}]
         YAML);
 
     expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
@@ -187,10 +184,7 @@ it('fails an unknown application key with the Macroable exception', function ():
 
 it('fails an unknown router key with Laravel\'s own exception', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            patterns_typo:
-              id: '[0-9]+'
+        calls: [{method: afterResolving, args: [Illuminate\Routing\Router, [{method: patterns_typo, args: [{id: '[0-9]+'}]}]]}]
         YAML);
 
     expect(function () use ($file): mixed {
@@ -202,19 +196,17 @@ it('fails an unknown router key with Laravel\'s own exception', function (): voi
 
 it('applies tag, resolving, afterResolving, and path setters', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          tag:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
-              - my_tag
-          resolving:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
-              - AppTestHelper::resolvingCallback
-          afterResolving:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
-              - AppTestHelper::afterResolvingCallback
-          useBootstrapPath: bootstrap
-          useConfigPath: config
-          useEnvironmentPath: env
+        calls:
+          - method: registered
+            args:
+              - - {method: tag, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass, my_tag]}
+                - method: resolving
+                  args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass, AppTestHelper::resolvingCallback]
+                - method: afterResolving
+                  args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass, AppTestHelper::afterResolvingCallback]
+                - {method: useBootstrapPath, args: [bootstrap]}
+                - {method: useConfigPath, args: [config]}
+                - {method: useEnvironmentPath, args: [env]}
         YAML);
 
     AppTestHelper::$resolvingCalled = false;
@@ -236,11 +228,12 @@ it('applies tag, resolving, afterResolving, and path setters', function (): void
 
 it('applies contextual when binding', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          when:
-            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
-            needs: '$name'
-            give: contextual-value
+        calls:
+          - method: registered
+            args:
+              - - method: when
+                  args: {concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass}
+                  then: [{method: needs, args: [$name]}, {method: give, args: [contextual-value]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

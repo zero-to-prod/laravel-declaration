@@ -26,8 +26,7 @@ afterEach(function (): void {
 // AT-24 — http-client.md — Throwing Exceptions.
 it('applies the registered behavior when the registration phase completes', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          - app/acceptance/registered.php
+        calls: [{method: registered, args: [app/acceptance/registered.php]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -39,10 +38,9 @@ it('applies the registered behavior when the registration phase completes', func
 // AT-25 — cache.md — Registering the Driver.
 it('makes the custom driver the booting callback registered available to provider boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\MongoCacheProvider
-        booting:
-          - app/acceptance/cache-extend.php
+        calls:
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\MongoCacheProvider]}
+          - {method: booting, args: [app/acceptance/cache-extend.php]}
         YAML);
 
     $this->withConfig([
@@ -57,11 +55,15 @@ it('makes the custom driver the booting callback registered available to provide
 // AT-26 — lifecycle.md — Service Providers / providers.md — The Boot Method.
 it('resolves the declared binding in every provider boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\BindingConsumerProvider
-        registered:
-          bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\EventPusher: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\BindingConsumerProvider]
+          - method: registered
+            args:
+              - - method: bind
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\EventPusher
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

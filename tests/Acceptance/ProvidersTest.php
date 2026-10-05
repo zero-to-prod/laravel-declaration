@@ -22,8 +22,8 @@ beforeEach(function (): void {
 // steps observed: a provider was loaded when both ran during the boot sequence.
 it('loads the declared provider — its register() and boot() both ran during the boot sequence', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\RecordingProvider
+        calls:
+          - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\RecordingProvider]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -35,8 +35,9 @@ it('loads the declared provider — its register() and boot() both ran during th
 // implementation of Connection::class in the container via $this->app->singleton(...).
 it('binds Connection::class through $this->app in register() and resolves the registered implementation', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\RiakServiceProvider
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\RiakServiceProvider]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -52,8 +53,9 @@ it('binds Connection::class through $this->app in register() and resolves the re
 // registers them. Injection semantics: container.md — Binding Interfaces To Implementations.
 it('registers the $bindings property automatically and injects the declared implementation where the interface is type-hinted', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\BindingsPropertyProvider
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\BindingsPropertyProvider]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -65,8 +67,9 @@ it('registers the $bindings property automatically and injects the declared impl
 // semantics: container.md — Binding A Singleton.
 it('registers the $singletons property automatically and resolves one shared instance', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\SingletonsPropertyProvider
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\SingletonsPropertyProvider]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -80,9 +83,11 @@ it('registers the $singletons property automatically and resolves one shared ins
 // the first provider's register() bound, and the log shows every register() before any boot().
 it('calls boot() after all other providers are registered, so every binding is available', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\FirstRegisteringProvider
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\SecondBootingProvider
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\FirstRegisteringProvider]
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\SecondBootingProvider]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -101,12 +106,10 @@ it('calls boot() after all other providers are registered, so every binding is a
 // domain — here it only evidences that boot() registrations take effect.
 it('registers a view composer from boot() that runs when the view renders', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\ComposerServiceProvider
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\ComposerServiceProvider]
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -118,8 +121,9 @@ it('registers a view composer from boot() that runs when the view renders', func
 // type-hinted ResponseFactory into boot(); the `serialized` macro is then callable.
 it('injects a type-hinted dependency into boot() — the registered macro is callable', function (): void {
     $file = $this->manifest(<<<'YAML'
-        register:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\ResponseMacroProvider
+        calls:
+          - method: register
+            args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\Doc\ResponseMacroProvider]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

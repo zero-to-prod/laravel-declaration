@@ -164,10 +164,7 @@ test('it fails natively when a create body names an unknown Blueprint method', f
     SchemaFacade::dropIfExists('unknown_method');
 
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        schema:
-          create:
-            unknown_method:
-              nonExistentBlueprintMethod: ~
+        schema: [{method: create, args: [unknown_method, [{method: nonExistentBlueprintMethod}]]}]
         YAML)]);
 
     $this->artisan('declaration:migrate');
@@ -178,12 +175,8 @@ test('it stores a modifier typo on the Fluent column definition instead of rejec
 
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         schema:
-          create:
-            typo_table:
-              id: ~
-              string:
-                - column: x
-                  nullabel: ~
+          - method: create
+            args: [typo_table, [{method: id}, {method: string, args: {column: x}, then: [{method: nullabel}]}]]
         YAML)]);
 
     $this->artisan('declaration:migrate')
@@ -261,12 +254,8 @@ test('it alters an existing table idempotently through the guard table', functio
 test('it applies an index on a column added earlier in the same table body', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
         schema:
-          table:
-            sequence:
-              string:
-                - column: owner_id
-              index:
-                - columns: [owner_id]
+          - method: table
+            args: [sequence, [{method: string, args: {column: owner_id}}, {method: index, args: {columns: [owner_id]}}]]
         YAML)]);
 
     SchemaFacade::create('sequence', fn (Blueprint $table) => $table->id());
@@ -283,12 +272,7 @@ test('it applies an index on a column added earlier in the same table body', fun
 
 test('it skips a change declaration on a column the table does not have', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        schema:
-          table:
-            late:
-              string:
-                - column: ghost
-                  change: ~
+        schema: [{method: table, args: [late, [{method: string, args: {column: ghost}, then: [{method: change}]}]]}]
         YAML)]);
 
     SchemaFacade::create('late', fn (Blueprint $table) => $table->id());

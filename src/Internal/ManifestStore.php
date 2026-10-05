@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Internal;
 
 /**
- * The raw manifest as YAML decoded it. The data keys are read from here by the seams and by `declaration:migrate`;
- * `body()` is what the interpreter applies to the application.
+ * The raw manifest as YAML decoded it. `calls` is the body the interpreter applies to the application; every other
+ * root key is data the seams and `declaration:migrate` read from here.
  *
  * @internal
  */
 final readonly class ManifestStore
 {
-    /** Root keys the host reads itself; the interpreter never sees them. */
-    public const array DATA = ['requests', 'models', 'queries', 'schema', 'extra'];
-
     /** @param  array<string, mixed>  $manifest */
     public function __construct(private array $manifest = []) {}
 
@@ -24,10 +21,13 @@ final readonly class ManifestStore
         return $this->manifest;
     }
 
-    /** @return array<string, mixed> the manifest minus the data keys: a body on Illuminate\Foundation\Application */
+    /** @return list<array<string, mixed>> the `calls` key: a body on Illuminate\Foundation\Application */
     public function body(): array
     {
-        return array_diff_key($this->manifest, array_flip(self::DATA));
+        /** @var list<array<string, mixed>> $calls  a `calls` that is not a list is the interpreter's TypeError */
+        $calls = $this->manifest['calls'] ?? [];
+
+        return $calls;
     }
 
     public function block(string $block): mixed

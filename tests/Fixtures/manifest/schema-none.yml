@@ -1,8 +1,5 @@
-
 schema:
-  create:
-    widget:
-      id: ~
-  table:
-    widget:
-      uuid: ~
+  - method: create
+    args: [widget, [{method: id}]]
+  - method: table
+    args: [widget, [{method: uuid}]]

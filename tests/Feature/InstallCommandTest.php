@@ -87,7 +87,7 @@ test('laravel-declaration:install writes the manifest skeleton once and never ov
     expect(Installer::manifestPath())->toBe(base_path('manifest/app.yml'))
         ->and(File::get(Installer::manifestPath()))
         ->toBe(Installer::manifest())
-        ->toContain('afterResolving:')
+        ->toContain('method: afterResolving')
         ->toContain(Router::class);
 
     File::put(Installer::manifestPath(), "register: []\n");

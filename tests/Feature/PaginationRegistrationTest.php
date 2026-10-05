@@ -23,11 +23,13 @@ it('touches nothing when the manifest has no Paginator key', function (): void {
 
 it('configures paginator styles and views from manifest', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator:
-          useTailwind: ~
-          useBootstrapFive: ~
-          defaultView: pagination::custom
-          defaultSimpleView: pagination::simple-custom
+        calls:
+          - receiver: Illuminate\Pagination\Paginator
+            calls:
+              - {method: useTailwind}
+              - {method: useBootstrapFive}
+              - {method: defaultView, args: [pagination::custom]}
+              - {method: defaultSimpleView, args: [pagination::simple-custom]}
         YAML)]);
 
     // Explicit views apply after presets — explicit wins.
@@ -37,8 +39,7 @@ it('configures paginator styles and views from manifest', function (): void {
 
 it('maps useBootstrapThree to the bootstrap-3 views', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator:
-          useBootstrapThree: ~
+        calls: [{receiver: Illuminate\Pagination\Paginator, calls: [{method: useBootstrapThree}]}]
         YAML)]);
 
     expect(defaultView())->toBe('pagination::bootstrap-3')
@@ -47,8 +48,7 @@ it('maps useBootstrapThree to the bootstrap-3 views', function (): void {
 
 it('maps useBootstrapFour to the bootstrap-4 views', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator:
-          useBootstrapFour: ~
+        calls: [{receiver: Illuminate\Pagination\Paginator, calls: [{method: useBootstrapFour}]}]
         YAML)]);
 
     expect(defaultView())->toBe('pagination::bootstrap-4')
@@ -57,8 +57,7 @@ it('maps useBootstrapFour to the bootstrap-4 views', function (): void {
 
 it('maps the useBootstrap alias to the bootstrap-4 views', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator:
-          useBootstrap: ~
+        calls: [{receiver: Illuminate\Pagination\Paginator, calls: [{method: useBootstrap}]}]
         YAML)]);
 
     // useBootstrap() delegates to useBootstrapFour() natively (AbstractPaginator.php:630).
@@ -68,9 +67,7 @@ it('maps the useBootstrap alias to the bootstrap-4 views', function (): void {
 
 it('applies presets in declaration order — the last truthy preset wins', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator:
-          useTailwind: ~
-          useBootstrapThree: ~
+        calls: [{receiver: Illuminate\Pagination\Paginator, calls: [{method: useTailwind}, {method: useBootstrapThree}]}]
         YAML)]);
 
     expect(defaultView())->toBe('pagination::bootstrap-3')
@@ -79,7 +76,7 @@ it('applies presets in declaration order — the last truthy preset wins', funct
 
 it('leaves the default views when every preset is omitted', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        Illuminate\Pagination\Paginator: {}
+        calls: [{receiver: Illuminate\Pagination\Paginator, calls: []}]
         YAML)]);
 
     expect(defaultView())->toBe('pagination::tailwind')

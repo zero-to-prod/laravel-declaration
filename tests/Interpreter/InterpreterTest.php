@@ -6,48 +6,59 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\Interpreter\Recorder;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\Interpreter\Statics;
 use ZeroToProd\Manifest\Interpreter;
 
-it('calls a present key with no arguments for null and true, in manifest order', function (): void {
+it('calls each invocation node in manifest order, with no arguments when args is absent or empty', function (): void {
     $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['none' => null, 'zero' => true]);
+    (new Interpreter)->body($recorder, [['method' => 'none'], ['method' => 'zero', 'args' => []]]);
 
     expect($recorder->calls)->toBe([['none', []], ['zero', []]]);
 });
 
-it('lets PHP reject true on a method that requires an argument', function (): void {
-    (new Interpreter)->body(new Recorder, ['one' => true]);
+it('forwards args positionally, exactly as written', function (): void {
+    $recorder = new Recorder;
+    (new Interpreter)->body($recorder, [
+        ['method' => 'one', 'args' => [false]],
+        ['method' => 'one', 'args' => [[1, 2]]],
+        ['method' => 'one', 'args' => [['nope' => 1]]],
+        ['method' => 'typed', 'args' => [[1, 2]]],
+        ['method' => 'spread', 'args' => [1, 2]],
+        ['method' => 'pair', 'args' => ['a', [2, 3]]],
+    ]);
+
+    expect($recorder->calls)->toBe([
+        ['one', [false]],
+        ['one', [[1, 2]]],
+        ['one', [['nope' => 1]]],
+        ['typed', [[1, 2]]],
+        ['spread', [1, 2]],
+        ['pair', ['a', [2, 3]]],
+    ]);
+});
+
+it('forwards a string-keyed args as PHP named arguments', function (): void {
+    $recorder = new Recorder;
+    (new Interpreter)->body($recorder, [['method' => 'fluent', 'args' => ['b' => 2, 'a' => 1]]]);
+
+    expect($recorder->calls)->toBe([['fluent', ['a' => 1, 'b' => 2]]]);
+});
+
+it('lets PHP reject a missing argument', function (): void {
+    (new Interpreter)->body(new Recorder, [['method' => 'one']]);
 })->throws(ArgumentCountError::class);
 
-it('passes false as a scalar', function (): void {
-    $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['one' => false]);
+it('lets PHP reject an unknown named argument', function (): void {
+    (new Interpreter)->body(new Recorder, [['method' => 'fluent', 'args' => ['nope' => 1]]]);
+})->throws(Error::class, 'Unknown named parameter $nope');
 
-    expect($recorder->calls)->toBe([['one', [false]]]);
+it('never fans out: a list is one argument even on a one-parameter method', function (): void {
+    $recorder = new Recorder;
+    (new Interpreter)->body($recorder, [['method' => 'one', 'args' => [['x', 'y']]]]);
+
+    expect($recorder->calls)->toBe([['one', [['x', 'y']]]]);
 });
 
-it('reads a list by the first parameter: argument when array-typed, spread when variadic, otherwise one call per item', function (): void {
+it('makes a λ from a body under a Closure parameter', function (): void {
     $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['typed' => [1, 2], 'spread' => [1, 2], 'one' => [1, 2]]);
-
-    expect($recorder->calls)->toBe([['typed', [[1, 2]]], ['spread', [1, 2]], ['one', [1]], ['one', [2]]]);
-});
-
-it('reads a nested list item as the argument', function (): void {
-    $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['one' => [[1, 2]]]);
-
-    expect($recorder->calls)->toBe([['one', [[1, 2]]]]);
-});
-
-it('reads entries on a two-parameter method, fanning a list value out unless the second parameter is array-typed', function (): void {
-    $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['pair' => ['a' => 1, 'b' => [2, 3]], 'pairArray' => ['b' => [2, 3]]]);
-
-    expect($recorder->calls)->toBe([['pair', ['a', 1]], ['pair', ['b', 2]], ['pair', ['b', 3]], ['pairArray', ['b', [2, 3]]]]);
-});
-
-it('makes a λ from a map under a Closure parameter', function (): void {
-    $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['hook' => ['K' => ['one' => 1]]]);
+    (new Interpreter)->body($recorder, [['method' => 'hook', 'args' => ['K', [['method' => 'one', 'args' => [1]]]]]]);
 
     [$name, [$key, $closure]] = $recorder->calls[0];
 
@@ -63,59 +74,68 @@ it('makes a λ from a map under a Closure parameter', function (): void {
     expect($inner->calls)->toBe([['one', [1]]]);
 });
 
-it('reads a row as named arguments and chains the other keys on the return', function (): void {
+it('passes a list under a non-Closure parameter through as the argument', function (): void {
     $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['fluent' => ['a' => 1, 'one' => 2]]);
+    (new Interpreter)->body($recorder, [['method' => 'pairArray', 'args' => ['k', [['method' => 'one']]]]]);
 
-    expect($recorder->calls)->toBe([['fluent', ['a' => 1, 'b' => null]], ['one', [2]]]);
+    expect($recorder->calls)->toBe([['pairArray', ['k', [['method' => 'one']]]]]);
+});
+
+it('chains then on the return value, left to right', function (): void {
+    $recorder = new Recorder;
+    (new Interpreter)->body($recorder, [['method' => 'fluent', 'args' => [1], 'then' => [['method' => 'fluent', 'args' => [2]], ['method' => 'one', 'args' => [3]]]]]);
+
+    expect($recorder->calls)->toBe([['fluent', ['a' => 1, 'b' => null]], ['fluent', ['a' => 2, 'b' => null]], ['one', [3]]]);
 });
 
 it('threads the chain through a different return object', function (): void {
     $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['fluent' => ['a' => 1, 'other' => 2, 'one' => 3]]);
+    (new Interpreter)->body($recorder, [['method' => 'fluent', 'args' => [1], 'then' => [['method' => 'other', 'args' => [2]], ['method' => 'one', 'args' => [3]]]]]);
 
     expect($recorder->calls)->toBe([['fluent', ['a' => 1, 'b' => null]], ['other', [2]]]); // one(3) ran on the new Recorder
 });
 
-it('reads a list of rows as one call per row even on an array-typed first parameter', function (): void {
+it('continues a nested then as the same chain', function (): void {
     $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['typed' => [['x' => [1]], ['x' => [2]]]]);
+    (new Interpreter)->body($recorder, [['method' => 'fluent', 'args' => [1], 'then' => [
+        ['method' => 'other', 'args' => [2], 'then' => [['method' => 'fluent', 'args' => [3]]]],
+        ['method' => 'one', 'args' => [4]],
+    ]]]);
 
-    expect($recorder->calls)->toBe([['typed', [[1]]], ['typed', [[2]]]]);
+    expect($recorder->calls)->toBe([['fluent', ['a' => 1, 'b' => null]], ['other', [2]]]); // fluent(3) and one(4) ran on the new Recorder
 });
 
-it('lets PHP fail a chain on a void return', function (): void {
-    (new Interpreter)->body(new Recorder, ['void' => ['a' => 1, 'one' => 2]]);
+it('lets PHP fail a then on a void return', function (): void {
+    (new Interpreter)->body(new Recorder, [['method' => 'void', 'args' => [1], 'then' => [['method' => 'one', 'args' => [2]]]]]);
 })->throws(Error::class, 'Call to a member function one() on null');
 
-it('lets PHP fail an unknown key', function (): void {
-    (new Interpreter)->body(new Recorder, ['nope' => 1]);
+it('lets PHP fail an unknown method', function (): void {
+    (new Interpreter)->body(new Recorder, [['method' => 'nope']]);
 })->throws(Error::class, 'Call to undefined method');
 
-it('spreads onto a __call surface', function (): void {
+it('lets PHP fail a node without a method', function (): void {
+    (new Interpreter)->body(new Recorder, [['args' => [1]]]);
+})->throws(Error::class);
+
+it('dispatches onto a __call surface with the args as written', function (): void {
     Statics::$calls = [];
-    $surface = new Statics;
-    (new Interpreter)->body($surface, ['anything' => [1, 2], 'again' => 'x']);
+    (new Interpreter)->body(new Statics, [['method' => 'anything', 'args' => [1, 2]], ['method' => 'again', 'args' => ['x']]]);
 
     expect(Statics::$calls)->toBe([['anything', [1, 2]], ['again', ['x']]]);
 });
 
-it('treats a key containing a namespace separator as a static receiver, on any receiver including null', function (): void {
+it('dispatches a receiver node statically, on any receiver including null', function (): void {
     Statics::$calls = [];
-
-    (new Interpreter)->body(null, [Statics::class => ['configure' => 'x']]);
+    (new Interpreter)->body(null, [['receiver' => Statics::class, 'calls' => [['method' => 'configure', 'args' => ['x']]]]]);
 
     expect(Statics::$calls)->toBe([['configure', ['x']]]);
 });
 
-it('passes a map whose first key is not a parameter name as the argument on a one-parameter method', function (): void {
-    $recorder = new Recorder;
-    (new Interpreter)->body($recorder, ['one' => ['nope' => 1]]);
+it('lets PHP fail an invocation node on a null receiver', function (): void {
+    (new Interpreter)->body(null, [['method' => 'configure']]);
+})->throws(Error::class);
 
-    expect($recorder->calls)->toBe([['one', [['nope' => 1]]]]);
-});
-
-it('hands every non-λ argument to ρ with the parameter it fills', function (): void {
+it('hands every non-λ argument to ρ with the parameter it fills: by position, by name, the variadic tail, or null on __call', function (): void {
     $recorder = new Recorder;
     $seen = [];
     $interpreter = new Interpreter(function (mixed $value, ?ReflectionParameter $parameter) use (&$seen): mixed {
@@ -124,8 +144,16 @@ it('hands every non-λ argument to ρ with the parameter it fills', function ():
         return is_string($value) ? strtoupper($value) : $value;
     });
 
-    $interpreter->body($recorder, ['pair' => ['a' => 'x'], 'hook' => ['K' => ['one' => 1]]]);
+    $interpreter->body($recorder, [
+        ['method' => 'pair', 'args' => ['x', 'y']],
+        ['method' => 'fluent', 'args' => ['a' => 'p', 'b' => 'q']],
+        ['method' => 'spread', 'args' => ['s', 't', 'u']],
+        ['method' => 'hook', 'args' => ['K', [['method' => 'one', 'args' => [1]]]]],
+    ]);
+    $interpreter->body(new Statics, [['method' => 'dyn', 'args' => ['z']]]);
 
-    expect($recorder->calls[0])->toBe(['pair', ['a', 'X']])
-        ->and($seen)->toBe(['v']);                // an entry key is passed raw (rule 7); the λ never reached ρ
+    expect($recorder->calls[0])->toBe(['pair', ['X', 'Y']])
+        ->and($recorder->calls[1])->toBe(['fluent', ['a' => 'P', 'b' => 'Q']])
+        ->and($recorder->calls[2])->toBe(['spread', ['S', 'T', 'U']])
+        ->and($seen)->toBe(['k', 'v', 'a', 'b', 'x', 'x', 'x', 'k', null]);   // the λ never reached ρ
 });

@@ -52,14 +52,14 @@ it('applies nothing without a view block', function (): void {
 it('flushes stale finder entries when the factory resolved before the body applied', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            booted:
-              - make:
-                  abstract: Illuminate\View\Factory
-                  prependLocation:
-                    - resources/declared-views/theme
-              - make:
-                  abstract: Illuminate\View\Factory
-                  flushFinderCache: ~
+            calls:
+              - method: booted
+                args:
+                  - - method: make
+                      args: {abstract: Illuminate\View\Factory}
+                      then: [{method: prependLocation, args: [resources/declared-views/theme]}]
+              - method: booted
+                args: [[{method: make, args: {abstract: Illuminate\View\Factory}, then: [{method: flushFinderCache}]}]]
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -70,11 +70,12 @@ it('flushes stale finder entries when the factory resolved before the body appli
 it('keeps stale finder entries without flushFinderCache', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            booted:
-              make:
-                abstract: Illuminate\View\Factory
-                prependLocation:
-                  - resources/declared-views/theme
+            calls:
+              - method: booted
+                args:
+                  - - method: make
+                      args: {abstract: Illuminate\View\Factory}
+                      then: [{method: prependLocation, args: [resources/declared-views/theme]}]
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -85,10 +86,8 @@ it('keeps stale finder entries without flushFinderCache', function (): void {
 it('resets render bookkeeping when flushState is declared', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            booted:
-              make:
-                abstract: Illuminate\View\Factory
-                flushState: ~
+            calls:
+              - {method: booted, args: [[{method: make, args: {abstract: Illuminate\View\Factory}, then: [{method: flushState}]}]]}
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);

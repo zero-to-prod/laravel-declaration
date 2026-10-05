@@ -1,66 +1,40 @@
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Foundation\Http\Kernel             # matched by type: fires when Illuminate\Contracts\Http\Kernel resolves
+      - - {method: prependMiddleware, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware]}
+        - {method: pushMiddleware, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware]}
+        - {method: appendMiddlewareToGroup, args: [web, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity]}
+        - {method: appendMiddlewareToGroup, args: [api, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnforceJsonResponse]}
+        - {method: prependMiddlewareToGroup, args: [web, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass]}
+        - method: setMiddlewareAliases
+          args:
+            - subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
+              token_auth: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureTokenIsValid
+        - {method: prependToMiddlewarePriority, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware]}
+        - {method: appendToMiddlewarePriority, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware]}
+        - {method: addToMiddlewarePriorityBefore, args: [Illuminate\Routing\Middleware\SubstituteBindings, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware]}
+        - {method: addToMiddlewarePriorityAfter, args: [Illuminate\Routing\Middleware\SubstituteBindings, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware]}
+        - {method: whenRequestLifecycleIsLongerThan, args: [250, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\SlowRequestReporter]}
 
-afterResolving:
-  Illuminate\Foundation\Http\Kernel:             # matched by type: fires when Illuminate\Contracts\Http\Kernel resolves
-    prependMiddleware:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware
-
-    pushMiddleware:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware
-
-    appendMiddlewareToGroup:
-      web:
-        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity
-      api:
-        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnforceJsonResponse
-
-    prependMiddlewareToGroup:
-      web:
-        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass
-
-    setMiddlewareAliases:
-      subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
-      token_auth: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureTokenIsValid
-
-    prependToMiddlewarePriority:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
-
-    appendToMiddlewarePriority:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
-
-    addToMiddlewarePriorityBefore:
-      Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
-
-    addToMiddlewarePriorityAfter:
-      Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
-
-    whenRequestLifecycleIsLongerThan:
-      250: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\SlowRequestReporter
-
-  Illuminate\Routing\Router:
-    addRoute:
-      - methods: GET
-        uri: /kernel-test
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-        middleware:
-          - web
-          - subscribed
-
-      - methods: GET
-        uri: /priority-test
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-        middleware:
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
-          - Illuminate\Routing\Middleware\SubstituteBindings
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
-          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
-
-      - methods: GET
-        uri: /token-test
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
-        middleware:
-          - token_auth
-
-      - methods: GET
-        uri: /slow-request
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - method: addRoute
+          args: [GET, /kernel-test, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show]
+          then: [{method: middleware, args: [web, subscribed]}]
+        - method: addRoute
+          args: [GET, /priority-test, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show]
+          then:
+            - method: middleware
+              args:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+                - Illuminate\Routing\Middleware\SubstituteBindings
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+        - method: addRoute
+          args: [GET, /token-test, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show]
+          then: [{method: middleware, args: [token_auth]}]
+        - method: addRoute
+          args: [GET, /slow-request, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow]

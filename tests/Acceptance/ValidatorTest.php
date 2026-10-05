@@ -11,21 +11,22 @@ use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 // AT-01 — validation.md — Custom Validation Rules.
 it('verifies its attribute with an application-specified custom rule', function (): void {
     $file = $this->manifest(<<<'YAML'
-        requests:
-          - name: slug-rule
-            rules:
-              slug: [required, slug]
-        afterResolving:
-          Illuminate\Validation\Factory:
-            extend:
-              slug: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: slug-rule
-                methods: POST
-                action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-                metadata:
-                  request: slug-rule
+        requests: [{name: slug-rule, rules: {slug: [required, slug]}}]
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Validation\Factory
+              - - method: extend
+                  args: [slug, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check]
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args:
+                    uri: slug-rule
+                    methods: POST
+                    action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+                  then: [{method: metadata, args: [{request: slug-rule}]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -44,10 +45,12 @@ it('verifies its attribute with an application-specified custom rule', function 
 // FormRequest validates, so the empty-string branch is observed on the shared factory.
 it('does not run a custom rule when its attribute is absent or contains an empty string', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Validation\Factory:
-            extend:
-              slug: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Validation\Factory
+              - - method: extend
+                  args: [slug, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -63,10 +66,12 @@ it('does not run a custom rule when its attribute is absent or contains an empty
 // so a failure proves the rule ran where normal custom rules are skipped (AT-02).
 it('runs an implicit custom rule even when the attribute is absent or empty', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Validation\Factory:
-            extendImplicit:
-              phone: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\RejectsEverything'
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Validation\Factory
+              - - method: extendImplicit
+                  args: [phone, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\RejectsEverything]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -83,10 +88,12 @@ it('runs an implicit custom rule even when the attribute is absent or empty', fu
 // AT-04 — validation.md — Implicit Rules.
 it('invalidates a missing or empty attribute only when the implicit rule chooses to', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Validation\Factory:
-            extendImplicit:
-              optionalPhone: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\OptionalPhone'
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Validation\Factory
+              - - method: extendImplicit
+                  args: [optionalPhone, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\OptionalPhone]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

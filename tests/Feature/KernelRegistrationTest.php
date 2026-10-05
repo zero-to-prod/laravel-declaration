@@ -107,15 +107,17 @@ it('invokes lifecycle duration handlers when duration exceeds threshold', functi
 it('supports a numeric threshold and a php file reference in duration handlers', function (): void {
     $reporterPath = realpath(__DIR__.'/../Fixtures/App/Middleware/slow-reporter.php');
     $file = $this->manifest(<<<YAML
-        afterResolving:
-          Illuminate\\Foundation\\Http\\Kernel:
-            whenRequestLifecycleIsLongerThan:
-              1: $reporterPath                      # {0: …} would be a PHP list; the slow action outlasts 1ms
-          Illuminate\\Routing\\Router:
-            addRoute:
-              - methods: GET
-                uri: /interval-test
-                action: ZeroToProd\\LaravelDeclaration\\Tests\\Fixtures\\App\\UserController@slow
+        calls:
+          - method: afterResolving
+            args: [Illuminate\Foundation\Http\Kernel, [{method: whenRequestLifecycleIsLongerThan, args: [1, $reporterPath]}]]
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args:
+                    methods: GET
+                    uri: /interval-test
+                    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@slow
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -128,16 +130,18 @@ it('supports a numeric threshold and a php file reference in duration handlers',
 it('replaces global middleware, middleware groups, and middleware priority wholesale', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        afterResolving:
-          Illuminate\Foundation\Http\Kernel:
-            setGlobalMiddleware:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware
-            setMiddlewareGroups:
-              custom_group:
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware
-            setMiddlewarePriority:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Foundation\Http\Kernel
+              - - method: setGlobalMiddleware
+                  args: [[ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware]]
+                - method: setMiddlewareGroups
+                  args: [{custom_group: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware]}]
+                - method: setMiddlewarePriority
+                  args:
+                    - - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+                      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -158,16 +162,22 @@ it('replaces global middleware, middleware groups, and middleware priority whole
 it('supports single-string values for group and priority mutators', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        afterResolving:
-          Illuminate\Foundation\Http\Kernel:
-            appendMiddlewareToGroup:
-              web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity
-            prependMiddlewareToGroup:
-              web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass
-            addToMiddlewarePriorityBefore:
-              Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
-            addToMiddlewarePriorityAfter:
-              Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Foundation\Http\Kernel
+              - - method: appendMiddlewareToGroup
+                  args: [web, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity]
+                - method: prependMiddlewareToGroup
+                  args: [web, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass]
+                - method: addToMiddlewarePriorityBefore
+                  args:
+                    - Illuminate\Routing\Middleware\SubstituteBindings
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+                - method: addToMiddlewarePriorityAfter
+                  args:
+                    - Illuminate\Routing\Middleware\SubstituteBindings
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

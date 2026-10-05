@@ -1,6 +1,5 @@
-
-register:
-  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Plugins\SitemapServiceProvider
+calls:
+  - {method: register, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Plugins\SitemapServiceProvider]}
 
 extra:
   sitemap:

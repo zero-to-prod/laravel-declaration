@@ -1,13 +1,9 @@
-
-afterResolving:
-  Illuminate\Routing\Router:
-    model:
-      flight: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
-    addRoute:
-      - uri: "flights/{flight}"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-        middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: model, args: [flight, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight]}
+        - {method: addRoute, args: [GET, "flights/{flight}", ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController], then: [{method: middleware, args: [Illuminate\Routing\Middleware\SubstituteBindings]}]}
 
 models:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight

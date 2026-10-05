@@ -1,37 +1,29 @@
-
-afterResolving:
-  Illuminate\View\Factory:
-    addLocation:
-      - resources/declared-views
-    prependLocation:
-      - resources/declared-views/theme
-    addNamespace:
-      admin: resources/declared-views/admin
-    prependNamespace:
-      admin: [resources/declared-views/admin-theme]
-    replaceNamespace:
-      legacy: resources/declared-views/admin
-    addExtension:
-      html: blade
-    share:
-      brand: Tenant Console
-      title: shared
-    composer:                                     # one row per composer($views, $callback)
-      - views: users.*
-        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu
-      - views: '*'
-        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant
-      - views: [users.show, greeting]             # the native array of views
-        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary
-    creator:
-      - views: [users.show, greeting]
-        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
-      - views: single
-        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
-
-  Illuminate\Routing\Router:
-    addRoute:
-      - uri: "users/{user}"
-        methods: GET
-        action: Illuminate\Routing\ViewController
-        setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\View\Factory
+      - - {method: addLocation, args: [resources/declared-views]}
+        - {method: prependLocation, args: [resources/declared-views/theme]}
+        - {method: addNamespace, args: [admin, resources/declared-views/admin]}
+        - {method: prependNamespace, args: [admin, [resources/declared-views/admin-theme]]}
+        - {method: replaceNamespace, args: [legacy, resources/declared-views/admin]}
+        - {method: addExtension, args: [html, blade]}
+        - {method: share, args: [brand, Tenant Console]}
+        - {method: share, args: [title, shared]}
+        - {method: composer, args: [users.*, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu]}
+        - {method: composer, args: ['*', ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant]}
+        - {method: composer, args: [[users.show, greeting], ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary]}
+        - {method: creator, args: [[users.show, greeting], ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs]}
+        - {method: creator, args: [single, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs]}
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - method: addRoute
+          args: [GET, "users/{user}", Illuminate\Routing\ViewController]
+          then:
+            - method: setDefaults
+              args:
+                - view: users.show
+                  data: {title: route}
+                  status: 200
+                  headers: {}

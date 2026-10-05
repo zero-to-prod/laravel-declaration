@@ -6,20 +6,19 @@ use BadMethodCallException;
 
 it('renders a file outside the finder with the data pool, status and headers', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: legal/terms
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    status: 200
-                    headers:
-                      Cache-Control: private
-                    data:
-                      word: From Pool
-                    factory:
-                      file: resources/declared-views/factory-standalone.php
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: legal/terms, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then:
+                    - method: setDefaults
+                      args:
+                        - status: 200
+                          headers: {Cache-Control: private}
+                          data: {word: From Pool}
+                          factory: {file: resources/declared-views/factory-standalone.php}
         YAML)]);
 
     $this->get('/legal/terms')
@@ -30,17 +29,18 @@ it('renders a file outside the finder with the data pool, status and headers', f
 
 it('renders a partial per item through a resolved reference', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: posts/cards
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      renderEach: [factory-row, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Posts, post]
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: posts/cards, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then:
+                    - method: setDefaults
+                      args:
+                        - factory:
+                            renderEach: [factory-row, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Posts, post]
         YAML)]);
 
     $this->get('/posts/cards')
@@ -51,17 +51,22 @@ it('renders a partial per item through a resolved reference', function (): void 
 
 it('renders the raw empty branch when the items resolve to an empty list', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: posts/empty
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      renderEach: [factory-row, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Posts@empty, post, 'raw|No rows']
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: posts/empty, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then:
+                    - method: setDefaults
+                      args:
+                        - factory:
+                            renderEach:
+                              - factory-row
+                              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Posts@empty
+                              - post
+                              - raw|No rows
         YAML)]);
 
     $this->get('/posts/empty')->assertOk()->assertSeeText('No rows');
@@ -69,19 +74,14 @@ it('renders the raw empty branch when the items resolve to an empty list', funct
 
 it('renders conditionally through renderWhen with the data pool', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: when
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    data:
-                      word: hi
-                    factory:
-                      renderWhen: [true, factory-echo]
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: when, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{data: {word: hi}, factory: {renderWhen: [true, factory-echo]}}]}]
         YAML)]);
 
     $this->get('/when')->assertOk()->assertSeeText('echo:hi');
@@ -89,17 +89,14 @@ it('renders conditionally through renderWhen with the data pool', function (): v
 
 it('renders an empty body when the renderUnless condition holds', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: unless
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      renderUnless: [true, factory-echo]
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: unless, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {renderUnless: [true, factory-echo]}}]}]
         YAML)]);
 
     $this->get('/unless')->assertOk()->assertContent('');
@@ -107,19 +104,15 @@ it('renders an empty body when the renderUnless condition holds', function (): v
 
 it('renders the first existing view of a chain and fails with Laravel\'s own exception', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: first
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    data:
-                      word: chained
-                    factory:
-                      first: [[pages.missing, factory-echo]]
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: first, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then:
+                    - {method: setDefaults, args: [{data: {word: chained}, factory: {first: [[pages.missing, factory-echo]]}}]}
         YAML)]);
 
     $this->get('/first')->assertOk()->assertSeeText('echo:chained');
@@ -127,19 +120,14 @@ it('renders the first existing view of a chain and fails with Laravel\'s own exc
 
 it('makes a view explicitly, identical to the view key', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: made
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    data:
-                      word: made
-                    factory:
-                      make: factory-echo
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: made, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{data: {word: made}, factory: {make: factory-echo}}]}]
         YAML)]);
 
     $this->get('/made')->assertOk()->assertSeeText('echo:made');
@@ -147,15 +135,13 @@ it('makes a view explicitly, identical to the view key', function (): void {
 
 it('fails an unknown Factory method with BadMethodCallException', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: typo
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      mak: factory-echo
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: typo, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {mak: factory-echo}}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -164,17 +150,14 @@ it('fails an unknown Factory method with BadMethodCallException', function (): v
 
 it('fails a bool-returning dispatch loudly instead of rendering nothing', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation: [resources/declared-views]
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: exists
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      exists: factory-echo
+        calls:
+          - {method: afterResolving, args: [Illuminate\View\Factory, [{method: addLocation, args: [resources/declared-views]}]]}
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: exists, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {exists: factory-echo}}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -183,15 +166,13 @@ it('fails a bool-returning dispatch loudly instead of rendering nothing', functi
 
 it('dispatches a registered macro with its declared arguments verbatim, without pool injection', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: macro
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      shout: hello
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: macro, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {shout: hello}}]}]
         YAML)]);
 
     app('view')->macro('shout', fn (string $word): string => "$word!");
@@ -202,15 +183,13 @@ it('dispatches a registered macro with its declared arguments verbatim, without 
 
 it('dispatches a no-argument call for the true form', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: bare
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      ping: true
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: bare, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {ping: true}}]}]
         YAML)]);
 
     app('view')->macro('ping', fn (): string => 'pong');
@@ -220,14 +199,13 @@ it('dispatches a no-argument call for the true form', function (): void {
 
 it('fails a factory declared as a scalar instead of a method map', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: scalar
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory: true
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: scalar, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: true}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -236,16 +214,13 @@ it('fails a factory declared as a scalar instead of a method map', function (): 
 
 it('fails a multi-entry factory map', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: twice
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    factory:
-                      exists: factory-echo
-                      make: factory-echo
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: twice, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{factory: {exists: factory-echo, make: factory-echo}}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -254,16 +229,13 @@ it('fails a multi-entry factory map', function (): void {
 
 it('fails a factory declared beside another render source', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-                - uri: both
-                  methods: GET
-                  action: ZeroToProd\LaravelDeclaration\DeclaredView
-                  setDefaults:
-                    view: factory-echo
-                    factory:
-                      make: factory-echo
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: both, methods: GET, action: ZeroToProd\LaravelDeclaration\DeclaredView}
+                  then: [{method: setDefaults, args: [{view: factory-echo, factory: {make: factory-echo}}]}]
         YAML)]);
 
     $this->withoutExceptionHandling();

@@ -33,27 +33,31 @@ final class Installer
         ], File::get(dirname(__DIR__, 2).'/config/laravel-declaration.php'));
     }
 
-    /** The manifest skeleton: a body on Illuminate\Foundation\Application, with the lifecycle keys as section markers. */
+    /** The manifest skeleton: a `calls` body on Illuminate\Foundation\Application, with the lifecycle methods as section markers. */
     public static function manifest(): string
     {
         return <<<'YAML'
-            # The manifest is a body on Illuminate\Foundation\Application: every root key is one of its
-            # methods, applied in order when the package registers. Timing is written with the
-            # application's own lifecycle methods.
+            # The manifest is a list of calls on Illuminate\Foundation\Application, applied in order
+            # when the package registers. Each node is one PHP call: `method`, its `args` in order,
+            # and `then` for a `->` chain on the return. Timing is written with the application's
+            # own lifecycle methods.
 
-            make:                                   # a service already resolved at register(): make(abstract: …)->set(…)
-              abstract: Illuminate\Config\Repository
-              set: {}                               # app.name: Tenant Console
+            calls:
+              - method: make                          # make(Illuminate\Config\Repository)->set([...])
+                args: [Illuminate\Config\Repository]
+                then:
+                  - method: set
+                    args: [{}]                        # {app.name: Tenant Console}
 
-            registered:                             # a body on the application once every provider has registered
-              bind: {}                              # App\Contracts\Pdf: App\Services\DomPdf
-              singleton: []                         # - App\Services\TenantContext
+              - method: registered                    # a body on the application once every provider has registered
+                args:
+                  - []                                # - {method: bind, args: [App\Contracts\Pdf, App\Services\DomPdf]}
+                                                      # - {method: register, args: [App\Providers\AppServiceProvider]}
 
-            register: []                            # - App\Providers\AppServiceProvider
-
-            afterResolving:                         # a body on each service when it first resolves
-              Illuminate\Routing\Router:
-                addRoute: []                        # - {methods: GET, uri: /, action: App\Http\HomeController, name: home}
+              - method: afterResolving                # a body on each service when it first resolves
+                args:
+                  - Illuminate\Routing\Router
+                  - []                                # - {method: addRoute, args: [GET, /, App\Http\HomeController], then: [{method: name, args: [home]}]}
 
             YAML;
     }

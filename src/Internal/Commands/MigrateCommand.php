@@ -11,9 +11,8 @@ use ZeroToProd\LaravelDeclaration\Internal\ManifestStore;
 use ZeroToProd\Manifest\Interpreter;
 
 /**
- * Drives the `schema` data key through the interpreter onto the schema builder with the guard installed. The
- * fixed lifecycle order — dropIfExists → drop → rename → create → table — is the command's orchestration,
- * expressed as the order it feeds keys to `body()`; a table body is fed one key at a time so each blueprint
+ * Drives the `schema` data key — a list of invocation nodes on the schema builder — through the interpreter with
+ * the guard installed, in manifest order. A `table` node is fed one statement per `table()` call so each blueprint
  * is pruned against committed state.
  *
  * @internal
@@ -44,19 +43,20 @@ class MigrateCommand extends Command
 
         $tally = GuardedBlueprint::install($builder, fn (string $subject, string $message) => $this->components->twoColumnDetail($subject, $message));
 
-        foreach (['dropIfExists', 'drop', 'rename', 'create'] as $verb) {
-            if (array_key_exists($verb, $schema)) {
-                $interpreter->body($builder, [$verb => $schema[$verb]]);
+        /** @var array<string, mixed> $node */
+        foreach ($schema as $node) {
+            if (($node['method'] ?? null) !== 'table') {
+                $interpreter->body($builder, [$node]);
+
+                continue;
             }
-        }
 
-        $tables = $schema['table'] ?? [];
+            /** @var array{0: string, 1: list<array<string, mixed>>} $args  Builder::table($table, Closure $callback) */
+            $args = array_values((array) ($node['args'] ?? []));
+            [$table, $statements] = $args;
 
-        foreach (is_array($tables) ? $tables : [] as $table => $body) {
-            $table = (string) $table;
-
-            foreach (is_array($body) ? $body : [] as $method => $value) {
-                $interpreter->body($builder, ['table' => [$table => [$method => $value]]]);
+            foreach ($statements as $statement) {
+                $interpreter->body($builder, [['method' => 'table', 'args' => [$table, [$statement]]]]);
             }
 
             if (($tally->altered[$table] ?? 0) > 0) {

@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\DB;
 it('registers database query listeners from manifest', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-db-').'.yml';
     file_put_contents($file, <<<'YAML'
-        booted:
-          make:
-            abstract: Illuminate\Database\Connection
-            listen:
-              - ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery
+        calls:
+          - method: booted
+            args:
+              - - method: make
+                  args: {abstract: Illuminate\Database\Connection}
+                  then: [{method: listen, args: [ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery]}]
         YAML);
 
     try {

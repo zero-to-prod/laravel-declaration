@@ -11,8 +11,7 @@ declare(strict_types=1);
 // AT-18 — helpers.md — app_path() / structure.md — The App Directory.
 it('moves the app directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          useAppPath: src
+        calls: [{method: registered, args: [[{method: useAppPath, args: [src]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -24,8 +23,7 @@ it('moves the app directory', function (): void {
 // AT-19 — helpers.md — database_path() / structure.md — The Database Directory.
 it('moves the database directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          useDatabasePath: db
+        calls: [{method: registered, args: [[{method: useDatabasePath, args: [db]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -37,8 +35,7 @@ it('moves the database directory', function (): void {
 // AT-20 — helpers.md — lang_path() / localization.md — Publishing the Language Files.
 it('moves the lang directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          useLangPath: resources/lang
+        calls: [{method: registered, args: [[{method: useLangPath, args: [resources/lang]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -50,8 +47,7 @@ it('moves the lang directory', function (): void {
 // AT-21 — helpers.md — public_path() / structure.md — The Public Directory.
 it('moves the public directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          usePublicPath: public/assets
+        calls: [{method: registered, args: [[{method: usePublicPath, args: [public/assets]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -63,8 +59,7 @@ it('moves the public directory', function (): void {
 // AT-22 — helpers.md — storage_path() / structure.md — The Storage Directory.
 it('moves the storage directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          useStoragePath: storage/attachments
+        calls: [{method: registered, args: [[{method: useStoragePath, args: [storage/attachments]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -76,8 +71,7 @@ it('moves the storage directory', function (): void {
 // AT-23 — helpers.md — config_path() / structure.md — The Config Directory.
 it('moves the config directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          useConfigPath: config/extra
+        calls: [{method: registered, args: [[{method: useConfigPath, args: [config/extra]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

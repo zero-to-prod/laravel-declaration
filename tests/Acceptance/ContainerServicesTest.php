@@ -32,9 +32,7 @@ beforeEach(function (): void {
 // container, per the plan's When.
 it('extends a resolved service with the declared extender', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          extend:
-            cache.store: app/acceptance/decorate-store.php
+        calls: [{method: registered, args: [[{method: extend, args: [cache.store, app/acceptance/decorate-store.php]}]]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -51,13 +49,20 @@ it('extends a resolved service with the declared extender', function (): void {
 // documented surface.
 it('resolves tagged bindings together through tagged', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          bind:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport
-          tag:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: reports
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: reports
+        calls:
+          - method: registered
+            args:
+              - - method: bind
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport
+                - method: bind
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport
+                - {method: tag, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport, reports]}
+                - method: tag
+                  args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport, reports]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -72,14 +77,19 @@ it('resolves tagged bindings together through tagged', function (): void {
 // AT-12 — container.md — Contextual Binding.
 it('injects a different implementation into each class that needs the same interface', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          when:
-            - concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\PhotoController
-              needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem
-              give: app/acceptance/local-disk.php
-            - concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UploadController
-              needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem
-              give: app/acceptance/s3-disk.php
+        calls:
+          - method: registered
+            args:
+              - - method: when
+                  args: {concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\PhotoController}
+                  then:
+                    - {method: needs, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem]}
+                    - {method: give, args: [app/acceptance/local-disk.php]}
+                - method: when
+                  args: {concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UploadController}
+                  then:
+                    - {method: needs, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem]}
+                    - {method: give, args: [app/acceptance/s3-disk.php]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -93,11 +103,12 @@ it('injects a different implementation into each class that needs the same inter
 // reference returning a Closure, which the container unwraps and injects.
 it('injects a primitive from the contextual give closure', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          when:
-            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UserController
-            needs: '$userId'
-            give: app/acceptance/user-id.php
+        calls:
+          - method: registered
+            args:
+              - - method: when
+                  args: {concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UserController}
+                  then: [{method: needs, args: [$userId]}, {method: give, args: [app/acceptance/user-id.php]}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -108,14 +119,18 @@ it('injects a primitive from the contextual give closure', function (): void {
 // AT-14 — container.md — Binding Typed Variadics.
 it('resolves typed variadics from an array of declared class names', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          when:
-            concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Firewall
-            needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filter
-            give:
-              implementation:
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\NullFilter
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\ProfanityFilter
+        calls:
+          - method: registered
+            args:
+              - - method: when
+                  args: {concrete: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Firewall}
+                  then:
+                    - {method: needs, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filter]}
+                    - method: give
+                      args:
+                        - implementation:
+                            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\NullFilter
+                            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\ProfanityFilter
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -130,9 +145,13 @@ it('resolves typed variadics from an array of declared class names', function ()
 // AT-15 — container.md — Container Events.
 it('fires the resolving event for each resolution before the object reaches its consumer', function (): void {
     $file = $this->manifest(<<<'YAML'
-        registered:
-          resolving:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor: app/acceptance/resolve-listener.php
+        calls:
+          - method: registered
+            args:
+              - - method: resolving
+                  args:
+                    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor
+                    - app/acceptance/resolve-listener.php
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

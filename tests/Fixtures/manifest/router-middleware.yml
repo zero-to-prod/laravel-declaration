@@ -1,10 +1,10 @@
-
-afterResolving:
-  Illuminate\Routing\Router:
-    middlewareGroup:
-      web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\RouterWeb]
-      acme: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\AcmeGroupMember]
-
-  Illuminate\Foundation\Http\Kernel:
-    appendMiddlewareToGroup:
-      web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\KernelAppended]
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: middlewareGroup, args: [web, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\RouterWeb]]}
+        - {method: middlewareGroup, args: [acme, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\AcmeGroupMember]]}
+  - method: afterResolving
+    args:
+      - Illuminate\Foundation\Http\Kernel
+      - - {method: appendMiddlewareToGroup, args: [web, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\KernelAppended]}

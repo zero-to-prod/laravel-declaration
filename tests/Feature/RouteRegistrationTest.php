@@ -46,12 +46,12 @@ it('passes the declared verb through verbatim', function () use ($manifest): voi
 
 it('does not match a lowercase verb, which Laravel never uppercases', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: lower
-                methods: get
-                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: lower, methods: get, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
         YAML)]);
 
     $this->getJson('/lower')->assertNotFound();
@@ -123,14 +123,15 @@ it('wraps the missing handler in a cache-safe Closure', function () use ($manife
 
 it('rejects a non-invokable missing handler', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: "/"
-                methods: GET
-                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                name: temp-home
-                missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: /, methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
+                  then:
+                    - {method: name, args: [temp-home]}
+                    - {method: missing, args: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -147,18 +148,21 @@ it('registers no routes without a manifest', function (): void {
 
 it('verifies HTTP verb arrays and dynamic route constraints', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: "items/{id}/{type}"
-                methods: [GET, POST]
-                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                name: items.show
-                whereNumber: id
-                whereAlpha: type
-                setBindingFields:
-                  id: slug
-                block: ~
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args:
+                    uri: items/{id}/{type}
+                    methods: [GET, POST]
+                    action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                  then:
+                    - {method: name, args: [items.show]}
+                    - {method: whereNumber, args: [id]}
+                    - {method: whereAlpha, args: [type]}
+                    - {method: setBindingFields, args: [{id: slug}]}
+                    - {method: block}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -176,11 +180,9 @@ it('verifies HTTP verb arrays and dynamic route constraints', function (): void 
 
 it('fails natively when a route row omits the action', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: "/no-action"
-                methods: GET
+        calls:
+          - method: afterResolving
+            args: [Illuminate\Routing\Router, [{method: addRoute, args: {uri: /no-action, methods: GET}}]]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -277,30 +279,25 @@ it('registers redirect shortcuts', function () use ($registrars): void {
 
 it('rides every row key onto the pending registration', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\Routing\Router:
-            addRoute:
-              - uri: "/"
-                methods: GET
-                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                name: temp-home
-            apiResource:
-              - name: things
-                controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                only: {methods: [index, show]}                           # the row names the parameter
-                whereIn:                                                 # the native two-parameter row
-                  parameters: thing
-                  values: [a, b]
-                withTrashed: [show]                                      # array-typed parameter
-            resource:
-              - name: gadgets
-                controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-                names:                                                   # the map IS the argument
-                  index: gadgets.index
-                parameter:
-                  gadgets: device
-                withoutMiddlewareFor:
-                  destroy: [web]
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\Routing\Router
+              - - method: addRoute
+                  args: {uri: /, methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
+                  then: [{method: name, args: [temp-home]}]
+                - method: apiResource
+                  args: {name: things, controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
+                  then:
+                    - {method: only, args: [{methods: [index, show]}]}
+                    - {method: whereIn, args: [{parameters: thing, values: [a, b]}]}
+                    - {method: withTrashed, args: [show]}
+                - method: resource
+                  args: {name: gadgets, controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
+                  then:
+                    - {method: names, args: [{index: gadgets.index}]}
+                    - {method: parameter, args: [{gadgets: device}]}
+                    - {method: withoutMiddlewareFor, args: [{destroy: [web]}]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

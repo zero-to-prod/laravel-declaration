@@ -1,26 +1,16 @@
-
-afterResolving:
-  Illuminate\Validation\Factory:                 # ——— Factory registry methods ———
-    extend:                                       # -> extend($rule, $extension, $message = null), one row per call
-      - rule: uppercase
-        extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@check'
-      - rule: slug                                # the optional $message via the native parameter names
-        extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
-        message: 'The :attribute must be a slug.'
-    extendImplicit:                               # runs even when the field is absent/empty
-      phone: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Phone'
-    extendDependent:                              # parameters may reference other fields
-      guardedMin: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\GuardedMin@check'
-    replacer:                                     # -> replacer($rule, $replacer); default method `replace`
-      uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@replace'
-
-  Illuminate\Routing\Router:
-    addRoute:
-      - uri: profile
-        methods: POST
-        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-        metadata:
-          request: profile
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Validation\Factory                  # ——— Factory registry methods ———
+      - - {method: extend, args: [uppercase, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@check']}
+        - {method: extend, args: [slug, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check', 'The :attribute must be a slug.']}
+        - {method: extendImplicit, args: [phone, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Phone']}
+        - {method: extendDependent, args: [guardedMin, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\GuardedMin@check']}
+        - {method: replacer, args: [uppercase, 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@replace']}
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: addRoute, args: [POST, profile, [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]], then: [{method: metadata, args: [{request: profile}]}]}
 
 requests:
   - name: profile

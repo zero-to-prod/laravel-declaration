@@ -29,13 +29,11 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\UserReposit
 // as `share(key: 'value')`).
 it('makes the declared shared data available to every rendered view', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
-            share:
-              - key: key
-                value: value
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - [{method: addLocation, args: [resources/declared-views]}, {method: share, args: {key: key, value: value}}]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -51,12 +49,13 @@ it('makes the declared shared data available to every rendered view', function (
 // next count proves compose ran again rather than replaying memoized data.
 it('runs the declared composer each time its view is rendered', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
-            composer:
-              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addLocation, args: [resources/declared-views]}
+                - method: composer
+                  args: [profile, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -75,12 +74,13 @@ it('runs the declared composer each time its view is rendered', function (): voi
 // composer's constructor dependency.
 it('resolves the declared composer through the service container', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
-            composer:
-              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addLocation, args: [resources/declared-views]}
+                - method: composer
+                  args: [profile, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -95,13 +95,15 @@ it('resolves the declared composer through the service container', function (): 
 // doc's `['profile', 'dashboard']` first argument spelled by parameter name.
 it('runs the composer declared for multiple views on each attached view', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
-            composer:
-              - views: [profile, dashboard]
-                callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\MultiComposer
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addLocation, args: [resources/declared-views]}
+                - method: composer
+                  args:
+                    views: [profile, dashboard]
+                    callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\MultiComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -114,12 +116,13 @@ it('runs the composer declared for multiple views on each attached view', functi
 // accepts the * character as a wildcard, allowing you to attach a composer to all views."
 it('attaches the declared wildcard composer to all views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views
-            composer:
-              '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\WildcardComposer
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addLocation, args: [resources/declared-views]}
+                - method: composer
+                  args: ['*', ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\WildcardComposer]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -133,14 +136,15 @@ it('attaches the declared wildcard composer to all views', function (): void {
 // composer observes the creator's data already bound, and the output shows it.
 it('runs the creator before render-time composing', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addLocation:
-              - resources/declared-views/creator
-            creator:
-              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileCreator
-            composer:
-              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\CreatorOrderObserver
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addLocation, args: [resources/declared-views/creator]}
+                - method: creator
+                  args: [profile, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileCreator]
+                - method: composer
+                  args: [profile, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\CreatorOrderObserver]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -152,10 +156,9 @@ it('runs the creator before render-time composing', function (): void {
 // syntax convention ... you may load the dashboard view from the courier package".
 it('loads a namespaced view through package::view syntax', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addNamespace:
-              courier: resources/package-views/courier
+        calls:
+          - method: afterResolving
+            args: [Illuminate\View\Factory, [{method: addNamespace, args: [courier, resources/package-views/courier]}]]
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -169,12 +172,12 @@ it('loads a namespaced view through package::view syntax', function (): void {
 // vendor override first.
 it('prefers the vendor override directory over the package directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        afterResolving:
-          Illuminate\View\Factory:
-            addNamespace:
-              courier:
-                - resources/views/vendor/courier
-                - resources/package-views/courier
+        calls:
+          - method: afterResolving
+            args:
+              - Illuminate\View\Factory
+              - - {method: addNamespace, args: [courier, resources/views/vendor/courier]}
+                - {method: addNamespace, args: [courier, resources/package-views/courier]}
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

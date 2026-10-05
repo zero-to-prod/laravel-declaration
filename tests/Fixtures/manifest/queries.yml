@@ -1,22 +1,17 @@
-
-afterResolving:
-  Illuminate\Routing\Router:
-    model:
-      airline: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
-    addRoute:
-      - uri: "airlines/{airline}/flights"
-        methods: GET
-        action: ZeroToProd\LaravelDeclaration\DeclaredView
-        name: airline.flights
-        middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-        setDefaults:
-          view: flights
-          data:
-            title: Flights List
-            flights: airline-flights
-
-  Illuminate\View\Factory:
-    addLocation: [resources/declared-views]
+calls:
+  - method: afterResolving
+    args:
+      - Illuminate\Routing\Router
+      - - {method: model, args: [airline, ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline]}
+        - method: addRoute
+          args: [GET, "airlines/{airline}/flights", ZeroToProd\LaravelDeclaration\DeclaredView]
+          then:
+            - {method: middleware, args: [Illuminate\Routing\Middleware\SubstituteBindings]}
+            - {method: setDefaults, args: [{view: flights, data: {title: Flights List, flights: airline-flights}}]}
+  - method: afterResolving
+    args:
+      - Illuminate\View\Factory
+      - - {method: addLocation, args: [resources/declared-views]}
 
 models:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline

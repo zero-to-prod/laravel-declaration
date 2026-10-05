@@ -1,55 +1,39 @@
-
 schema:
-  create:
-    users:
-      id: ~
-      string:
-        - name
-        - column: email
-          unique: ~
-        - password
-      timestamp:
-        column: email_verified_at
-        nullable: ~
-      rememberToken: ~
-      timestamps: ~
+  - method: create
+    args:
+      - users
+      - - {method: id}
+        - {method: string, args: [name]}
+        - {method: string, args: [email], then: [{method: unique}]}
+        - {method: string, args: [password]}
+        - {method: timestamp, args: [email_verified_at], then: [{method: nullable}]}
+        - {method: rememberToken}
+        - {method: timestamps}
 
-    todos:
-      id: ~
-      foreignId:
-        column: user_id
-        constrained: users
-        cascadeOnDelete: ~
-      string:
-        column: title
-        length: 255
-      text:
-        column: description
-        nullable: ~
-      boolean:
-        column: completed
-        default: false
-      timestamps: ~
-      index:
-        - [user_id, completed]
+  - method: create
+    args:
+      - todos
+      - - {method: id}
+        - {method: foreignId, args: [user_id], then: [{method: constrained, args: [users]}, {method: cascadeOnDelete}]}
+        - {method: string, args: [title, 255]}
+        - {method: text, args: [description], then: [{method: nullable}]}
+        - {method: boolean, args: [completed], then: [{method: default, args: [false]}]}
+        - {method: timestamps}
+        - {method: index, args: [[user_id, completed]]}
 
-    tags:
-      engine: InnoDB
-      charset: utf8mb4
-      collation: utf8mb4_unicode_ci
-      id: ~
-      string:
-        column: name
-        length: 50
-        unique: ~
-      timestamps: ~
+  - method: create
+    args:
+      - tags
+      - - {method: engine, args: [InnoDB]}
+        - {method: charset, args: [utf8mb4]}
+        - {method: collation, args: [utf8mb4_unicode_ci]}
+        - {method: id}
+        - {method: string, args: [name, 50], then: [{method: unique}]}
+        - {method: timestamps}
 
-    audits:
-      id: ~
-      string:
-        column: user_id
-      foreign:
-        - columns: user_id
-          on: users
-          references: id
-          cascadeOnDelete: ~
+  - method: create
+    args:
+      - audits
+      - - {method: id}
+        - {method: string, args: [user_id]}
+        - {method: foreign, args: [user_id], then: [{method: references, args: [id]}, {method: on, args: [users]}, {method: cascadeOnDelete}]}
