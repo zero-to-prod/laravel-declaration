@@ -1,5 +1,7 @@
 # Plain Provider Architecture for Declarative Resolvers & Extensions
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Application.php` (`bootProvider()`), `vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php`, `src/Manifest.php`.
 
 Goal: eliminate custom resolver contracts and custom middleware pipelines by using plain Laravel **Service Providers** (`Illuminate\Support\ServiceProvider`). The root **ManifestServiceProvider** binds `Manifest`, and discrete concern providers consume it via container method injection in `boot(Manifest $manifest)`.

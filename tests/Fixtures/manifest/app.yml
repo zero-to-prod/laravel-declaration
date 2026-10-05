@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
-app:
+registered:                                          # a body on the application once every provider has registered
   bind:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\DomPdf
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Slugger: app/binders/slugger.php
@@ -10,6 +10,7 @@ app:
   singleton:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\ReportBuilder: ~
+    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Clock
   singletonIf:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\RedisCache
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\SlowWarmup: ~
@@ -20,7 +21,6 @@ app:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\BudgetGuard: ~
   instance:
     app.signature: "1.0"
-    ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\Clock
     app.rate_limiter: app/instances/limiter.php
   alias:
     ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Services\TenantContext: context
@@ -42,61 +42,63 @@ app:
   terminating:
     - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Hooks\FlushMetrics
 
-providers:
-  - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
-routes:
-  addRoute:
-    - uri: "/"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      name: home
+register:
+  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
 
-    - uri: "users/{user}"
-      methods: GET
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
-      name: users.show
-      where:
-        user: '[0-9]+'
-      setDefaults:
-        user: 1
-      metadata:
-        group: admin
-      missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
+afterResolving:
+  Illuminate\Routing\Router:
+    addRoute:
+      - uri: "/"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+        name: home
 
-    - uri: "users/{user}"
-      methods: PUT
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.update
-      withoutMiddleware: [web]
+      - uri: "users/{user}"
+        methods: GET
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, show]
+        name: users.show
+        where:
+          user: '[0-9]+'
+        setDefaults:
+          user: 1
+        metadata:
+          group: admin
+        missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
 
-    - uri: "users/{user}"
-      methods: DELETE
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
-      name: users.destroy
-      prefix: api
-      domain: "{account}.example.com"
-      block:
-        lockSeconds: 10
-        waitSeconds: 5
+      - uri: "users/{user}"
+        methods: PUT
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+        name: users.update
+        withoutMiddleware: [web]
 
-    - uri: "users/{user}"
-      methods: patch
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.patch
-      scopeBindings: true
+      - uri: "users/{user}"
+        methods: DELETE
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, destroy]
+        name: users.destroy
+        prefix: api
+        domain: "{account}.example.com"
+        block:
+          lockSeconds: 10
+          waitSeconds: 5
 
-    - uri: "users/{user}"
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
-      name: users.store
-      can:
-        ability: view
-        models: user
-      withTrashed: true
+      - uri: "users/{user}"
+        methods: PATCH
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+        name: users.patch
+        scopeBindings: ~
 
-    - uri: "{any}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
-      where:
-        any: '.*'
-      fallback: true
+      - uri: "users/{user}"
+        methods: POST
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController, update]
+        name: users.store
+        can:
+          ability: view
+          models: user
+        withTrashed: ~
+
+      - uri: "{any}"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\FallbackController
+        where:
+          any: '.*'
+        fallback: ~

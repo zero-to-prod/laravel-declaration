@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
-use ZeroToProd\LaravelDeclaration\Manifest;
-use ZeroToProd\LaravelDeclaration\Request;
+use ZeroToProd\LaravelDeclaration\Internal\ManifestStore;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController;
 
 $manifest = __DIR__.'/../Fixtures/manifest/requests.yml';
@@ -169,24 +168,9 @@ it('throws when the route declares no metadata.request', function () use ($manif
 it('throws when no manifest is declared, binding an empty one', function (): void {
     app(Router::class)->post('manual', [RequestController::class, 'store']);
 
-    expect(app(Manifest::class)->requests->count())->toBe(0);
+    expect(app(ManifestStore::class)->items('requests', 'name'))->toBeEmpty();
 
     $this->withoutExceptionHandling();
 
     expect(fn (): TestResponse => $this->postJson('/manual'))->toThrow(LogicException::class);
-});
-
-it('hydrates shouldFailOnUnknownFields and redirect properties on request declaration', function (): void {
-    $request = Request::from([
-        'name' => 'test',
-        'shouldFailOnUnknownFields' => true,
-        'redirect' => '/failed',
-        'redirectRoute' => 'home',
-        'redirectAction' => 'Controller@action',
-    ]);
-
-    expect($request->shouldFailOnUnknownFields)->toBeTrue()
-        ->and($request->redirect)->toBe('/failed')
-        ->and($request->redirectRoute)->toBe('home')
-        ->and($request->redirectAction)->toBe('Controller@action');
 });

@@ -6,161 +6,118 @@ use Illuminate\Support\Facades\Config;
 use Laravel\Mcp\Server\Registrar;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider;
 
-function configManifest(string $yaml): string
-{
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, $yaml);
-
-    return $file;
-}
-
 it('merges the declared values over the file array, YAML winning', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
-            timezone: UTC
-        YAML);
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
+              app.timezone: UTC
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        expect(config('app.name'))->toBe('Tenant Console')
-            // every other app.* key from the file survives
-            ->and(config('app.env'))->toBe('testing');
-    } finally {
-        unlink($manifest);
-    }
+    expect(config('app.name'))->toBe('Tenant Console')
+        // every other app.* key from the file survives
+        ->and(config('app.env'))->toBe('testing');
 });
 
-it('merges per top-level key, replacing nested maps whole', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          cache:
-            default: redis
-          database:
-            redis:
-              host: redis-host
-        YAML);
+it('sets per dotted key, replacing nested maps whole', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              cache.default: redis
+              database.redis:
+                host: redis-host
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        // top-level merge: the `default` key wins, `stores` survives
-        expect(config('cache.default'))->toBe('redis')
-            ->and(config('cache.stores.array.driver'))->toBe('array')
-            // shallow merge: the whole `redis` map is replaced, siblings survive
-            ->and(config('database.redis'))->toBe(['host' => 'redis-host'])
-            ->and(config('database.migrations'))->not->toBeNull();
-    } finally {
-        unlink($manifest);
-    }
+    // the `default` key wins, `stores` survives
+    expect(config('cache.default'))->toBe('redis')
+        ->and(config('cache.stores.array.driver'))->toBe('array')
+        // Repository::set semantics: the whole `redis` map is replaced, siblings survive
+        ->and(config('database.redis'))->toBe(['host' => 'redis-host'])
+        ->and(config('database.migrations'))->not->toBeNull();
 });
 
-it('sets a dotted key as a config() path, keeping its siblings', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          cache:
-            stores.array.serialize: true
-        YAML);
+it('sets a deep dotted key as a config() path, keeping its siblings', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              cache.stores.array.serialize: true
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        expect(config('cache.stores.array.serialize'))->toBeTrue()
-            ->and(config('cache.stores.array.driver'))->toBe('array');
-    } finally {
-        unlink($manifest);
-    }
+    expect(config('cache.stores.array.serialize'))->toBeTrue()
+        ->and(config('cache.stores.array.driver'))->toBe('array');
 });
 
 it('configures this package before its own boot', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          laravel-declaration:
-            mcp.enabled: false
-        YAML);
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              laravel-declaration.mcp.enabled: false
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        expect($this->app->make(Registrar::class)->getLocalServer('laravel-declaration'))->toBeNull();
-    } finally {
-        unlink($manifest);
-    }
+    expect($this->app->make(Registrar::class)->getLocalServer('laravel-declaration'))->toBeNull();
 });
 
 it('gains keys no file declares, with typed YAML values', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          sentinel:
-            meters: true
-            limit: 10
-        YAML);
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              sentinel.meters: true
+              sentinel.limit: 10
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        expect(config('sentinel.meters'))->toBeTrue()
-            ->and(config('sentinel.limit'))->toBe(10)
-            ->and(Config::get('sentinel'))->toBe(['meters' => true, 'limit' => 10]);
-    } finally {
-        unlink($manifest);
-    }
+    expect(config('sentinel.meters'))->toBeTrue()
+        ->and(config('sentinel.limit'))->toBe(10)
+        ->and(Config::get('sentinel'))->toBe(['meters' => true, 'limit' => 10]);
 });
 
-it('merges nothing when the manifest has no config block', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        providers:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
-        YAML);
+it('sets a list value through the row form', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              key: sentinel.hosts
+              value: [alpha, beta]
+        YAML)]);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
-        expect(config('app.name'))->toBe('Laravel')
-            ->and(Config::get('sentinel'))->toBeNull();
-    } finally {
-        unlink($manifest);
-    }
+    expect(config('sentinel.hosts'))->toBe(['alpha', 'beta']);
 });
 
-it('merges nothing without a manifest', function (): void {
+it('sets nothing when the manifest has no config body', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        register:
+          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\AppServiceProvider
+        YAML)]);
+
     expect(config('app.name'))->toBe('Laravel')
         ->and(Config::get('sentinel'))->toBeNull();
 });
 
-it('declared providers see the merged values in register and boot', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
-        providers:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
-        YAML);
+it('sets nothing without a manifest', function (): void {
+    expect(config('app.name'))->toBe('Laravel')
+        ->and(Config::get('sentinel'))->toBeNull();
+});
+
+it('declared providers see the set values in register and boot', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
+        register:
+          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
+        YAML)]);
 
     try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-
         expect(ConfigSpyProvider::$seen)->toBe([
             'register' => 'Tenant Console',
             'boot' => 'Tenant Console',
         ]);
     } finally {
-        unlink($manifest);
         ConfigSpyProvider::$seen = [];
     }
 });
-
-it('rejects a scalar under a file key', function (): void {
-    $manifest = configManifest(<<<'YAML'
-        config:
-          app: "foo"
-        YAML);
-
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $manifest]);
-    } finally {
-        unlink($manifest);
-    }
-})->throws(LogicException::class, 'The `config.app` entry must be a map of config keys.');

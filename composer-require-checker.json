@@ -6,7 +6,6 @@
         "config",
         "config_path",
         "storage_path",
-
         "Composer\\Autoload\\ClassLoader",
         "Laravel\\Mcp\\Facades\\Mcp",
         "Laravel\\Mcp\\Request",
@@ -16,7 +15,6 @@
         "Laravel\\Mcp\\Server\\Registrar",
         "Laravel\\Mcp\\Server\\Tool",
         "Laravel\\Mcp\\Server\\Tools\\Annotations\\IsIdempotent",
-
         "Illuminate\\Auth\\Access\\AuthorizationException",
         "Illuminate\\Contracts\\Auth\\Access\\Gate",
         "Illuminate\\Contracts\\Pagination\\CursorPaginator",
@@ -30,22 +28,12 @@
         "Illuminate\\Database\\Eloquent\\Relations\\Relation",
         "Illuminate\\Database\\Schema\\Blueprint",
         "Illuminate\\Database\\Schema\\Builder",
-        "Illuminate\\Database\\Schema\\ColumnDefinition",
-        "Illuminate\\Database\\Schema\\ForeignIdColumnDefinition",
-        "Illuminate\\Database\\Schema\\ForeignKeyDefinition",
-        "Illuminate\\Database\\Schema\\IndexDefinition",
         "Illuminate\\Support\\Facades\\Schema",
         "Illuminate\\Foundation\\Application",
         "Illuminate\\Http\\Response",
         "Illuminate\\Routing\\ViewController",
-        "Illuminate\\Support\\Arr",
         "request",
-        "Carbon\\CarbonInterval",
-    "Illuminate\\Contracts\\Http\\Kernel",
-    "Illuminate\\Foundation\\Http\\Kernel",
-    "Illuminate\\Foundation\\Http\\FormRequest",
-        "Illuminate\\Routing\\Router",
-        "Illuminate\\Support\\Collection",
+        "Illuminate\\Foundation\\Http\\FormRequest",
         "Symfony\\Component\\Yaml\\Yaml"
     ]
 }

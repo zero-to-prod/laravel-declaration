@@ -1,5 +1,7 @@
 # Declarative Architecture & Request-to-View Roadmap
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate` (`laravel/framework` v13.33.0): `Routing/Router.php`, `Routing/ViewController.php`, `Routing/RedirectController.php`, `Routing/Redirector.php`, `Routing/RouteBinding.php`, `Routing/ControllerDispatcher.php`, `Routing/Controller.php`, `Routing/ImplicitRouteBinding.php`, `Http/RedirectResponse.php`, `View/Factory.php`, `View/Concerns/ManagesEvents.php`, `View/View.php`, `Support/Facades/Blade.php`, `Database/Schema/Builder.php`, `Database/Schema/Blueprint.php`, `Database/Eloquent/Model.php`, `Database/Eloquent/Builder.php`, `Foundation/Http/Kernel.php`, `Database/DatabaseManager.php`, `Contracts/Routing/ResponseFactory.php`, `Pagination/Paginator.php`.
 
 Goal: Declare the entire application HTTP lifecycle in a single manifest — **request in, validated, bound, queried, rendered into inline Blade views, or mutated atomically and redirected** — with zero hand-written controllers, models, migrations, or template files. Every declaration adheres to the foundational design rules: **a key is a Laravel method (or property) name, a value is its argument(s), and the provider executes Laravel's native call.** String references pass through directly to Laravel's native resolvers.

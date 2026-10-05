@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider;
-
 return [
 
     /*
@@ -11,25 +9,12 @@ return [
     | Manifest Path
     |--------------------------------------------------------------------------
     |
-    | The file path to the YAML manifest defining your application's
-    | declarative infrastructure, routes, schema, and models.
+    | The YAML manifest: a body on Illuminate\Foundation\Application. Every
+    | root key is one of its methods; timing is written with its lifecycle
+    | methods (`make`, `registered`, `booting`, `booted`, `afterResolving`).
     |
     */
     'manifest' => 'manifest/app.yml',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Providers
-    |--------------------------------------------------------------------------
-    |
-    | Example:
-    |   LaravelDeclarationProvider::defaultProviders()
-    |       ->replace([RouterDeclarationServiceProvider::class => CustomRouter::class])
-    |       ->except([KernelDeclarationServiceProvider::class])
-    |       ->toArray(),
-    |
-    */
-    'providers' => LaravelDeclarationProvider::defaultProviders()->providers,
 
     /*
     |--------------------------------------------------------------------------

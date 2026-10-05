@@ -4,20 +4,25 @@ This package becomes a **general-purpose manifest engine**: deterministic toolin
 **arbitrary list of classes** into `manifest.schema.json`, the schema validates the manifest, and
 one runtime maps the manifest back onto the very methods the schema was projected from. Because
 generation and mapping are the two directions of the same projection, the whole project reduces
-to **one ordered decision list** (§1). Everything else is either data that list consumes (§2) or
-I/O that calls it (§5). Every existing per-component code path, attribute, typed mirror and
-hand-written shape is retired by that list; the breaks it causes are enumerated (§4).
+to **one ordered decision list** (§1). The **manifest is the single source of truth**: its root
+receiver is the `Illuminate\Foundation\Application` instance, every root key is one of its methods,
+and timing, lookup and composition are written as the lifecycle calls Laravel already has
+(`make`, `afterResolving`, `registered`, `booting`, `booted`). There is **no block map and no
+dispatch configuration**; the package config keeps only the manifest path and the MCP switch.
+Every existing per-component code path, attribute, typed mirror and hand-written shape is retired
+by that list; the breaks it causes are enumerated (§4).
 
-This revision **supersedes the previous revision of this file end to end**, the per-component
+This revision **supersedes the previous revisions of this file end to end**, the per-component
 scaffolding flow in [declarative-manifest-schema-generator.md](declarative-manifest-schema-generator.md),
 and the run order / re-merge gate of [generate-manifest-schema-plan.md](generate-manifest-schema-plan.md)
-(its §4.1 rule — definition key = FQCN verbatim — is **restored**, see §0 row 11). Only this document
+(its §4.1 rule — definition key = FQCN verbatim — is **restored**, see §0 row 7). Only this document
 is changed by this revision; no code is implemented here.
 
-## 0. Validation of the previous revision (line by line)
+## 0. Validation of the previous revisions (line by line)
 
 Every claim below was checked against the working tree at `417f32c` and `vendor/laravel/framework`.
-Rows marked **core** changed the design; the rest are inventory corrections.
+Rows marked **core** changed the design; the rest are inventory corrections. Rows 1–21 validate
+the first revision; row 22 validates the second.
 
 | # | Previous revision | Claim | Finding (evidence) | Consequence |
 | --- | --- | --- | --- | --- |
@@ -42,6 +47,7 @@ Rows marked **core** changed the design; the rest are inventory corrections.
 | 19 | §7 Phase 7 | composer alignment | `composer.json` `extra.laravel.providers` lists `"ManifestServiceProvider2"` — not a class that exists | fixed in Phase 4 (`LaravelDeclarationProvider`) |
 | 20 | §2 | "MCP `Api.php` is already general" | `src/Internal/Mcp/Tools/Api.php` exists; its generality is not load-bearing for this plan | out of scope, unverified |
 | 21 **core** | §2 (SchemaGenerator row), Phase 2 | the parser engine "is general in principle" and can regenerate the five FQCN definitions | `flatten()` inlines own methods and traits only — no `extends` handling ([SchemaGenerator.php](../src/Internal/SchemaGenerator.php) lines 220–300; test "excludes parent methods from the projection"). The shipped `Illuminate\Foundation\Application` definition carries `bind`, `singleton`, `when`, … which are declared on `Illuminate\Container\Container` (`vendor/.../Container/Container.php` 211, 359, 502); `Paginator::useBootstrap` is declared on `AbstractPaginator`. The current engine cannot reproduce the file it is supposed to maintain | Σ is hierarchy-inclusive (own → traits → parents, own wins); the parent-exclusion test is retired |
+| 22 **core** | second revision §2.1 | a `config('laravel-declaration.blocks')` block map supplies `class`, `make`, `timing` per block | every field is an `Application` method: `make($abstract)` is the lookup, `afterResolving($abstract, Closure)` / `registered` / `booting` / `booted` are the timings, and the FQCN key is the class. `afterResolving` matches **by object type** (`Container::fireAfterResolvingCallbacks` → `getCallbacksForType`), so a concrete FQCN key fires for a contract-bound service such as the HTTP kernel. The block map re-encoded, outside the manifest, calls the manifest can make itself | the block map is deleted; the root receiver is `$this->app`; §2.1 |
 
 ## 1. The core
 
@@ -55,6 +61,15 @@ Rows marked **core** changed the design; the rest are inventory corrections.
  */
 final class Engine
 {
+    // ═══ 0. ROOT  — the manifest is a body on the Application; nothing else is configured ═══════════════════════
+    //   provider register():   $engine->body($app, $manifest)                       the ONLY call site at boot
+    //   root keys            = Application methods (Σ(Illuminate\Foundation\Application), parents included: Container)
+    //   timing               = the manifest's own lifecycle calls:  top level → register();  registered/booting/booted: {…} → that hook;
+    //                          afterResolving: {FQCN: {…}} → when FQCN resolves (by type);  make: {FQCN: {…}} → now, on the singleton
+    //   two exceptions, both schema data (x-manifest), never config:
+    //     static receiver    a root key that is a projected FQCN whose Σ is all-static (Paginator) → body(FQCN, value) statically
+    //     data key           a curated root key flagged x-manifest.data (requests, models, queries, schema, extra) → stored, never dispatched
+
     // ═══ 1. SIGNATURE  Σ(class) — PHP-Parser at generation time; Reflection is the test oracle ═══════════════
     //   Σ(class) : ordered map  method → { static: bool, params: list<{ name, type, variadic }> }
     //   type     ∈ { array, closure (Closure|callable), string, int, float, bool, null (untyped / class / mixed / union) }
@@ -76,36 +91,50 @@ final class Engine
     //   5  list                                otherwise                                  one call per item (x-manifest.order):
     //                                                                                        item is a map  → row(item)      (row 9)
     //                                                                                        item otherwise → m(ρ(item, p0))
-    //   6  map                                 first k ∉ names(P) ∧ n ≥ 2 ∧ p0.type ≠ array   ENTRIES — per (k, v) (x-manifest.order on lists):
+    //   6  map                                 first k ∉ names(P) ∧ x-manifest.form = entries   m(k) with rest = v        Container::when, Container::make
+    //   7  map                                 first k ∉ names(P) ∧ n ≥ 2 ∧ p0.type ≠ array   ENTRIES — per (k, v) (x-manifest.order on lists):
     //                                                                                        v list ∧ p1.type ≠ array → m(k, ρ(i, p1)) per i ∈ v
-    //                                                                                        v map  ∧ p1 is closure   → m(k, λ(v))
+    //                                                                                        v map  ∧ p1 is closure   → m(k, λ(v))     Container::afterResolving
     //                                                                                        otherwise                → m(k, ρ(v, p1))
-    //   7  map                                 first k ∉ names(P) ∧ x-manifest.form = entries ∧ n = 1   m(k) with rest = v     Container::when
-    //   8  map                                 first k ∉ names(P), otherwise               m(value)                 the map IS the argument
-    //   9  map                                 first k ∈ names(P)                          ROW — m(...named) where
+    //   8  map                                 first k ∉ names(P) ∧ p0 is closure          m(λ(value))                Application::registered/booting/booted
+    //   9  map                                 first k ∉ names(P), otherwise               m(value)                   the map IS the argument
+    //  10  map                                 first k ∈ names(P)                          ROW — m(...named) where
     //                                                                                        named[k] = p is closure ∧ v is map ? λ(v) : ρ(v, p)   for k ∈ names(P)
     //                                                                                        rest     = { k: v | k ∉ names(P) }                     in manifest order
     //
     //   "p is closure" = p.type = closure ∨ p.name ∈ x-manifest.closure.
     //   The only per-key curation the forms admit, all data, all preserved by re-merge:
-    //     form: entries · list: argument · order: reverse · closure: [param…] · resolve: <vocabulary>
+    //     form: entries · list: argument · order: reverse · closure: [param…] · resolve: <vocabulary> · data: true (root keys only)
 
     // ═══ 3. SCHEMA  (emit) — definitions.<FQCN>.properties[m] = anyOf of the rows m admits ═════════════════════
     //   row 1 → {type: "null"} , {const: true}            row 2 → τ(p0)                     row 3/4 → {type: array, items: τ(p0)}
-    //   row 5 → {type: array, items: anyOf[τ(p0), ROW]}   row 8 → {type: object}            row 7 → {type: object, additionalProperties: {type: object}}
-    //   row 6 → {type: object, propertyNames: {not: {enum: names(P)}}, additionalProperties: anyOf[τ(p1), {type: array, items: τ(p1)}]}
-    //   row 9 → ROW = {type: object, properties: {p.name: τ(p)}, required: [P[0].name], additionalProperties: true}   (rest validates at runtime, §4)
+    //   row 5 → {type: array, items: anyOf[τ(p0), ROW]}   row 9 → {type: object}            row 6 → {type: object, additionalProperties: {type: object}}
+    //   row 7 → {type: object, propertyNames: {not: {enum: names(P)}}, additionalProperties: anyOf[τ(p1), {type: array, items: τ(p1)}]}
+    //           p1 is closure → properties: {<every projected FQCN>: {$ref: #/definitions/<FQCN>}}, additionalProperties: {type: object}
+    //   row 8 → {$ref: #/definitions/<the receiver's own FQCN>}   (a lifecycle hook's body runs on the same Application)
+    //   row 10 → ROW = {type: object, properties: {p.name: τ(p)}, required: [P[0].name], additionalProperties: true}   (rest validates at runtime, §4)
     //   τ(p)  = p.type → JSON type; null → true (+ TODO(m: $p) in the stub description); resolve set → {"$ref": "#/definitions/<vocabulary>"}
+    //   root  = {$ref: #/definitions/Illuminate\Foundation\Application} ∪ curated data keys ∪ static-receiver FQCN keys;  x-manifest.classes = the projected list
     //   Every key carries  "x-manifest": { static, params, …curation }  — the runtime recomputes forms from it and NEVER re-reads vendor.
     //   Curated description prose, pattern, x-manifest keys survive regeneration byte-for-byte; the structural shape is always regenerated.
 
     // ═══ 4. APPLY  (runtime) — the two composition forms PHP has ══════════════════════════════════════════════════
-    public function body(object|string $t, array $data): void                    // $t->a(); $t->b();  — a block, or a closure body
+    public function body(object|string $t, array $data): void                    // $t->a(); $t->b();  — the root, or a closure body
     {
         foreach ($data as $key => $value) {                                      // manifest order = call order (YAML maps are ordered)
-            $meta = $this->def($t)[$key] ?? self::VARIADIC;                     // the key schema: x-manifest = { static, params, …curation }
+            $meta = $this->def($t)[$key] ?? null;                                // the key schema: x-manifest = { static, params, …curation }
 
-            foreach ($this->calls($meta, $value) as [$args, $rest]) {
+            if ($meta['x-manifest']['data'] ?? false) {
+                continue;                                                        // a data key: stored by ManifestStore, consumed by a seam or a command
+            }
+
+            if ($meta === null && $this->isStaticReceiver($key)) {
+                $this->body($key, $value);                                       // a projected all-static FQCN as a key (Paginator::useBootstrap)
+
+                continue;
+            }
+
+            foreach ($this->calls($meta ?? self::VARIADIC, $value) as [$args, $rest]) {
                 if (! ($this->guard)($t, $key, $args)) {
                     continue;                                                    // optional command hook (§2.4); identity for the provider
                 }
@@ -138,7 +167,7 @@ final class Engine
     private function λ(array $data): Closure                                     // a map under a closure parameter = a body on the closure's argument
     {
         return function (object $o) use ($data): void {
-            $this->body($o, $data);                                              // Builder::create($t, Closure) → Blueprint;  Router::group($a, $routes) → Router
+            $this->body($o, $data);                                              // afterResolving(FQCN, λ) → the resolved service;  create($t, λ) → Blueprint;  booted(λ) → the app
         };
     }
 
@@ -153,6 +182,13 @@ final class Engine
         return [];
     }
 
+    private function isStaticReceiver(string $key): bool                         // a projected definition whose every key is static
+    {
+        $keys = $this->schema['definitions'][$key]['properties'] ?? null;
+
+        return is_array($keys) && $keys !== [] && array_all($keys, static fn (array $k): bool => $k['x-manifest']['static'] ?? false);
+    }
+
     // ═══ 5. RESOLVE  ρ(value, p) — a manifest value becomes an argument; vocabulary names = the shared definitions ═══
     //   (none)    value untouched                                                     default when p.type ≠ closure
     //   closure   "Class@method" | "Class::method" | "function" → fn (...$a) => $container->call($ref, $a);  "*.php" → require once, must return Closure
@@ -160,71 +196,102 @@ final class Engine
     //   concrete  "~" → null (self-binding);  "*.php" → phpFile;  else untouched
     //   path      relative → base_path($value);  absolute untouched
     //   default   p.type = closure → closure;  otherwise none;  curated per key with x-manifest.resolve
-    //   VARIADIC  = { static: false, params: [{ name: 'arguments', type: null, variadic: true }] }   — the unknown-key signature (row 4 / 8)
+    //   VARIADIC  = { x-manifest: { static: false, params: [{ name: 'arguments', type: null, variadic: true }] } }   — the unknown-key signature (row 4 / 9)
 }
 ```
 
-Why this is the whole project: the manifest is PHP written as data. Row 1–9 is the grammar of a
-PHP call site (`m()`, `m($x)`, `m(...$xs)`, `m($k, $v)` per entry, `m(a: …, b: …)`); `body` and
-`chain` are PHP's two ways to compose calls (statements on one receiver, fluent on the return);
-`λ` is PHP's closure. The schema is the serialized `Σ` plus the forms; the runtime is the
-interpreter of the same forms. No rule names a Laravel class.
+Why this is the whole project: the manifest is PHP written as data against the one object a
+Laravel boot hands you, the application. Rows 1–10 are the grammar of a PHP call site (`m()`,
+`m($x)`, `m(...$xs)`, `m($k, $v)` per entry, `m(a: …, b: …)`); `body` and `chain` are PHP's two
+ways to compose calls (statements on one receiver, fluent on the return); `λ` is PHP's closure;
+the lifecycle is the application's own hook methods. No rule names a Laravel class except the root.
 
 ## 2. Data the core consumes (closed sets)
 
-### 2.1 The block map — `config('laravel-declaration.blocks')`
+### 2.1 The manifest's root — no block map, no dispatch config
 
-Ordered; order = dispatch order; the generator's input; embedded resolved into the schema root as
-`x-manifest.blocks` (the runtime reads the schema, never config — G2).
+The root receiver is `$this->app`, handed to `body()` once in `ManifestServiceProvider::register()`.
+What the previous revision kept in `config('laravel-declaration.blocks')` is written in the manifest
+as the `Application` call it always was:
 
-```php
-[
-    'app'        => ['class' => Illuminate\Foundation\Application::class,        'timing' => 'registered'],
-    'config'     => ['class' => Illuminate\Config\Repository::class,             'timing' => 'register', 'make' => 'config'],
-    'kernel'     => ['class' => Illuminate\Foundation\Http\Kernel::class,        'timing' => 'after-resolving:'.Illuminate\Contracts\Http\Kernel::class],
-    'router'     => ['class' => Illuminate\Routing\Router::class],
-    'view'       => ['class' => Illuminate\View\Factory::class,                  'timing' => 'after-resolving:view'],
-    'blade'      => ['class' => Illuminate\View\Compilers\BladeCompiler::class,  'timing' => 'after-resolving:blade.compiler'],
-    'responses'  => ['class' => Illuminate\Routing\ResponseFactory::class],
-    'pagination' => ['class' => Illuminate\Pagination\Paginator::class,          'make' => 'static'],
-    'db'         => ['class' => Illuminate\Database\Connection::class,           'make' => 'db.connection'],
-    'validator'  => ['class' => Illuminate\Validation\Factory::class,            'timing' => 'after-resolving:validator'],
-    'gate'       => ['class' => Illuminate\Contracts\Auth\Access\Gate::class,    'timing' => 'after-resolving:'.Illuminate\Contracts\Auth\Access\Gate::class],
-    'schema'     => ['class' => Illuminate\Database\Schema\Builder::class,       'timing' => 'command', 'make' => 'db.schema'],
-    'requests'   => ['data' => 'request'],   // data blocks: validated by the named curated definition, stored raw, consumed by a seam
-    'models'     => ['data' => 'model'],
-    'queries'    => ['data' => 'query'],
-    'extra'      => ['data' => true],        // free-form
-    // continuation classes: projected (definitions only, no root key) so chains and closure bodies have signatures
-    'classes'    => [
-        Illuminate\Routing\Route::class, Illuminate\Routing\PendingResourceRegistration::class,
-        Illuminate\Routing\PendingSingletonResourceRegistration::class, Illuminate\Container\ContextualBindingBuilder::class,
-        Illuminate\Database\Schema\Blueprint::class, Illuminate\Database\Schema\ForeignIdColumnDefinition::class,
-        Illuminate\Database\Schema\ForeignKeyDefinition::class,
-    ],
-]
+| Previous block-map field | Manifest form | Why it is not configuration |
+| --- | --- | --- |
+| `class` | the key under `make:` / `afterResolving:` is the FQCN | `Container::make($abstract)` and `afterResolving($abstract, …)` take it natively; the schema `$ref`s `definitions.<FQCN>` for the body |
+| `make: <binding id>` | `make: {Illuminate\Config\Repository: {set: {…}}}` | `Repository::class`, `Router::class`, `Factory::class`, `BladeCompiler::class`, `Connection::class`, `Schema\Builder::class` are core container aliases (`Application::registerCoreContainerAliases`); `make` returns the singleton and the body rides the return (`form: entries`) |
+| `timing: register` | top-level keys | the root body runs in `register()` |
+| `timing: registered` / `booting` / `booted` | `registered: {…}` / `booting: {…}` / `booted: {…}` | row 8: a map under the hook's callback parameter is a body on the application (`closure: [callback]` curation, the parameter is untyped) |
+| `timing: after-resolving:<id>` | `afterResolving: {Illuminate\Routing\Router: {…}}` | row 7 with a closure-typed `$callback`; Laravel matches the callback **by type**, so `Illuminate\Foundation\Http\Kernel` fires when `Illuminate\Contracts\Http\Kernel` resolves |
+| `make: static` | root key `Illuminate\Pagination\Paginator: {useBootstrap: true}` | §1.0 static receiver: a projected FQCN whose `Σ` is all-static |
+| `data` | curated root keys `requests`, `models`, `queries`, `schema`, `extra` flagged `x-manifest.data: true` | stored raw by `ManifestStore`, read by the seams and `declaration:migrate` |
+| `classes` (the generator's scope) | `x-manifest.classes` at the schema root | the generator's input is its CLI arguments on bootstrap and the prior schema's list on regeneration |
+
+The shipped manifest shape (today's fixtures, rewritten):
+
+```yaml
+# manifest/app.yml — root receiver: Illuminate\Foundation\Application
+make:
+  Illuminate\Config\Repository:                      # was: config block (timing register)
+    set: {app.name: Tenant Console, database.connections.redis.host: cache}
+registered:                                          # was: app block (timing registered)
+  bind: {App\Contracts\Pdf: App\Services\DomPdf, App\Contracts\Slugger: app/binders/slugger.php}
+  singleton: [App\Services\TenantContext]
+  when: {App\Http\Controllers\PhotoController: {needs: App\Contracts\Filesystem, give: App\Services\LocalFs}}
+  register: [App\Providers\AppServiceProvider]       # was: providers block
+  useAppPath: src
+afterResolving:                                      # was: router, routes, kernel, view, blade, validator, gate, responses, db blocks
+  Illuminate\Routing\Router:
+    pattern: {id: '[0-9]+'}
+    aliasMiddleware: {subscribed: App\Http\Middleware\EnsureUserIsSubscribed}
+    addRoute:
+      - {methods: GET, uri: /, action: App\Http\HomeController, name: home}
+      - {methods: GET, uri: 'users/{user}', action: [App\Http\UserController, show], where: {user: '[0-9]+'}, missing: App\Http\UserMissing}
+    group:
+      - attributes: {prefix: admin, as: admin., middleware: [web]}
+        routes: {addRoute: [{methods: GET, uri: dashboard, action: App\Http\Admin\DashboardController, name: dashboard}]}
+    resource:
+      - {name: photos, controller: App\Http\PhotoController, only: [index, show], scoped: true, missing: App\Http\PhotoMissing}
+  Illuminate\Foundation\Http\Kernel:
+    prependMiddleware: [App\Http\Middleware\GlobalFirst]
+    appendMiddlewareToGroup: {web: [App\Http\Middleware\TrackWebActivity]}
+    whenRequestLifecycleIsLongerThan: {250: App\Http\SlowRequestReporter}
+  Illuminate\View\Factory:
+    addLocation: [resources/declared-views]
+    composer: {users.*: App\View\UserMenu}
+  Illuminate\View\Compilers\BladeCompiler:
+    directive: {datetime: App\View\Directives\DateTime}
+  Illuminate\Validation\Factory:
+    extend: {uppercase: App\Rules\Uppercase@validate}
+  Illuminate\Contracts\Auth\Access\Gate:
+    define: {edit-post: App\Policies\PostPolicy@edit}
+  Illuminate\Routing\ResponseFactory:
+    macro: {caps: App\Responses\Caps}
+  Illuminate\Database\Connection:
+    listen: [App\Listeners\LogQuery]
+Illuminate\Pagination\Paginator:                     # static receiver
+  useBootstrapFive: true
+schema:                                              # data key, consumed by declaration:migrate
+  create: {users: {id: ~, string: [name, {column: email, unique: true}], timestamps: ~}}
+requests: [...]                                      # data keys, consumed by the seams
+models: [...]
+queries: [...]
 ```
 
-| Field | Values | Meaning |
-| --- | --- | --- |
-| `class` | FQCN | projected under `definitions.<FQCN>`; root `properties.<block>` = `{"$ref": "#/definitions/<FQCN>"}` |
-| `make` | *(default)* `Container::make(class)` · `<binding id>` · `static` (receiver = the class name; every key must be static in Σ) | how the receiver is obtained |
-| `timing` | `boot` (default) · `register` · `registered` · `booting` · `booted` · `after-resolving:<id>` · `command` (never at boot; a command drives it) | when `body()` runs |
-| `data` | definition name · `true` | not dispatched; root wiring = `{type: array, items: $ref}` for a named definition, `{type: object}` for `true` |
-| `classes` | list of FQCN | definition-only projections for continuation receivers (an unprojected receiver still works: its keys dispatch as `VARIADIC`) |
-
-Two definitions, one class, is no longer possible by construction: block names are root wiring,
-classes are definitions.
+`config/laravel-declaration.php` keeps `manifest` (the file path) and `mcp`; `providers` and the
+block map are gone. One behavioral consequence is accepted: `Container::afterResolving` does not
+fire for a singleton that is already resolved when the callback registers (today's providers use
+`callAfterResolving`, which also fires immediately). An already-resolved service is addressed with
+`make:`; that is the correct form for `config` and the only form the container offers.
 
 ### 2.2 Per-key curation (inside the schema, preserved by re-merge)
 
 | Keyword | Values | Shipped uses (from the retargeted oracle suites; the list is data, not a promise) |
 | --- | --- | --- |
-| `x-manifest.form` | `entries` | `Container::when` |
+| `x-manifest.form` | `entries` | `Container::when`, `Container::make` (the return carries the body) |
 | `x-manifest.list` | `argument` | `PendingResourceRegistration::only/except`, `Factory::replaceNamespace` (untyped params whose list is one argument) |
 | `x-manifest.order` | `reverse` | `Kernel::prependMiddleware/prependToMiddlewarePriority/prependMiddlewareToGroup/addToMiddlewarePriorityAfter`, `Router::prependMiddlewareToGroup` |
-| `x-manifest.closure` | `[param…]` | `Router::group` → `['routes']` |
+| `x-manifest.closure` | `[param…]` | `Router::group` → `['routes']`; `Application::registered/booting/booted/terminating` → `['callback']` |
 | `x-manifest.resolve` | `closure` · `phpFile` · `concrete` · `path` | today's `$ref`s on the App/Kernel/Router keys (`closure`, `closureList`, `concrete`, `binding`), plus `path` on `Application::use*Path`, `Factory::addLocation/prependLocation/addNamespace/prependNamespace/replaceNamespace`, `BladeCompiler::anonymousComponentPath/anonymousComponentNamespace` |
+| `x-manifest.data` | `true` | root keys `requests`, `models`, `queries`, `schema`, `extra` |
 | `description`, `pattern`, `enum`, `minItems`… | any | curated prose and value constraints, byte-for-byte |
 
 ### 2.3 Shared definitions (vocabulary)
@@ -232,12 +299,14 @@ classes are definitions.
 `closure`, `phpFile`, `concrete`, `path` (new: `{"type": "string"}`), `classString`, `reference`
 stay as `definitions`; `τ(p)` references the one named by `resolve`. `binding`, `bindingIf`,
 `closureList`, `stringOrList`, `extension`, `columns`, `config` are retired: every shape they
-hand-encoded is a row of §1.2. `request`, `model`, `query` stay (data-block definitions).
+hand-encoded is a row of §1.2. `request`, `model`, `query`, `schema` stay as the data keys'
+definitions (`schema` = `{$ref: #/definitions/Illuminate\Database\Schema\Builder}`).
 
 ### 2.4 The migrate command's guard table (command data — never in the engine)
 
-`declaration:migrate` drives the `schema` block through `body()` with a `guard` hook. The hook is
-a table over the receiver and the method-name family; the first matching row decides; the target
+`declaration:migrate {--connection=}` reads the `schema` data key and drives it through
+`body($app->make('db.schema'), …)` (or the named connection's builder) with a `guard` hook. The hook
+is a table over the receiver and the method-name family; the first matching row decides; the target
 is read from the call's arguments by parameter name (`column`/`name`/`from`/`to`/`index`/`columns`),
 falling back to the canonical column table moved verbatim from today's `Guards::CANONICAL_COLUMNS`.
 
@@ -261,40 +330,44 @@ command's orchestration, expressed as the order the command feeds keys to `body(
 
 | Retired | Replaced by (core rule) |
 | --- | --- |
-| 13 `*DeclarationServiceProvider` files, `DefaultProviders`, `providers` config key | one `ManifestServiceProvider`: `body()` per block in block-map order, per timing |
+| 13 `*DeclarationServiceProvider` files, `DefaultProviders`, the `providers` config key, the block-map config of the previous revision | one `ManifestServiceProvider` with one call: `body($this->app, $manifest)` in `register()` |
 | `Manifest.php`, 24 declaration classes, `Internal\DataModel`, `zero-to-prod/data-model*` | raw YAML in `ManifestStore`; the schema is the only validation layer |
 | all 34 `Attributes\Attributes\*` + `Internal\Builder` | §1.2 forms derived from Σ; `order: reverse` curation |
-| `RoutesDeclarationServiceProvider` special cases, `TWO_ARGUMENT_PENDING_SETTERS`, reflection probing | rows 5/6/9 + `chain` |
+| `RoutesDeclarationServiceProvider` special cases, `TWO_ARGUMENT_PENDING_SETTERS`, reflection probing | rows 5/7/10 + `chain` |
 | five `reference()/fileValue()/absolute()/wrap*()` copies | §1.5 `ρ` |
+| per-provider `callAfterResolving` / `registered()` timing code | the manifest's own `afterResolving:` / `registered:` / `make:` keys |
 | `BlueprintMethodKind`, `Guards`, `GuardKind`, `Guard`, `ActionGuard`, `BlueprintAction`, `TableDefinition`, `TableRename`, 13 guard attributes | `chain` (modifiers), `λ` (table bodies), §2.4 guard table |
-| `Arr::prependKeysWith` config transform, `CarbonInterval` parsing, comma-split view lists, eager `instance()` make, null-item throw, `*If` `.php` skip, `metadata` → `defaults` duplication | pass-through (rows 2/6/9); see §4 |
-| curated class-surface definitions `blade`, `responses`, `pagination`, `db`, `kernel`, `schema`, `routes`, `route*`, `tableDefinition`, `provider` | generated `definitions.<FQCN>` |
+| `Arr::prependKeysWith` config transform, `CarbonInterval` parsing, comma-split view lists, eager `instance()` make, null-item throw, `*If` `.php` skip, `metadata` → `defaults` duplication | pass-through (rows 2/7/10); see §4 |
+| curated class-surface definitions `blade`, `responses`, `pagination`, `db`, `kernel`, `routes`, `route*`, `tableDefinition`, `provider`, and the hand-written root `properties` | generated `definitions.<FQCN>`; root = `$ref Application` + data keys |
 | append-only `merge()`, exists-check, `undecided` shape | total generation; `TODO` only marks unknown **element types** |
 | `bc-check` in `composer check` | removed: this release is breaking by design |
 
 ## 4. Breaking manifest changes
 
-Each is the honest form the signature dictates. The retargeted oracle suites (`tests/Feature/*RegistrationTest.php`, `tests/Fixtures/manifest/*.yml`) are rewritten to these forms.
+Each is the honest form the signature dictates. The retargeted oracle suites (`tests/Feature/*RegistrationTest.php`, `tests/Fixtures/manifest/*.yml`) are rewritten to these forms (§2.1 shows the composite).
 
-| Block | Before | After | Rule |
-| --- | --- | --- | --- |
-| `routes` | top-level block | keys live under `router` (`router.addRoute`, `router.group`, …) | one `Router` definition (§0 row 7) |
-| `router.group` | flattened attributes + `routes` | `[{attributes: {prefix: admin, …}, routes: {addRoute: […]}}]` | row 9, `closure: [routes]` |
-| `router.resource` | `options: {…}` with fluent names mixed in | `options:` is the native third argument; fluent calls are top-level item keys (`[{name, controller, only: […], scoped: true, missing: X}]`) | row 9 + `chain`; `scoped: true` → `scoped()` (row 1) |
-| `router.addRoute` | `metadata:` also wrote `Route::$defaults` | `metadata(array)` only; `DeclaredRequest`/`DeclaredView` read `getMetadata('request')` only | row 9 pass-through |
-| `providers` | `[{class, force}]` | `app.register: [Class]` or `app.register: {Class: true}` | row 5 / row 6 |
-| `config` | `{app: {name: X}}` prefixed | `config.set: {app.name: X}` (`Repository::set` semantics: a map value replaces that node) | row 6 |
-| `schema.connection` | manifest key | block map `make` (`db.schema`); a second connection = a second block entry | §2.1 |
-| `schema.rename` | `[{from, to}]` | `{old_users: users}` or `[{from, to}]` | row 6 / row 9 |
-| `schema.create.<t>.<col>` | modifier typos rejected by `BlueprintAction` | Fluent accepts them (PHP's own behavior: `->nullabel()` is silent) | §1.1 unknown keys |
-| `kernel.whenRequestLifecycleIsLongerThan` | numeric or `CarbonInterval` string | numeric only (Laravel's own `$threshold`) | row 6, `resolve: closure` |
-| `view.composer`/`creator` | `"a, b": X` comma DSL | `{a: X}` per view, or `[{views: [a, b], callback: X}]` | row 6 / row 9 |
-| `validator.extend` | `{rule: {extension, message}}` | `{rule: Ref}` or `[{rule, extension, message}]` | row 6 / row 9 |
-| `app.instance` | class-string `make()`d eagerly | bound verbatim (`singleton` is the native way) | row 6 pass-through |
-| `app.bind` list | `null` item throws | `[Class]` → `bind('Class')` | row 5 |
-| `app.*If` list | `.php` items skipped | dispatched; Laravel's `bindIf` governs | row 5 |
-| `db` | `{connection, listen}` | receiver is the default `Connection`; `listen: [Ref]` | §2.1 `make: db.connection` |
-| any 1-param key | `~` = no call | `~` = call with no arguments; omit the key to opt out | row 1 |
+| Before | After | Rule |
+| --- | --- | --- |
+| component blocks (`router`, `kernel`, `view`, `blade`, `validator`, `gate`, `responses`, `db`) | `afterResolving: {<FQCN>: {…}}` | row 7, closure-typed `$callback`, matched by type |
+| `app` block | `registered: {…}` (or top level for register-time) | row 8 + `closure: [callback]` |
+| `config: {app: {name: X}}` | `make: {Illuminate\Config\Repository: {set: {app.name: X}}}` (`Repository::set` semantics: a map value replaces that node) | row 6 (`form: entries` on `make`) + row 7 |
+| `providers: [{class, force}]` | `register: [Class]` or `register: {Class: true}` under the root or `registered:` | row 5 / row 7 |
+| `routes` block | keys under `afterResolving.Illuminate\Routing\Router` (`addRoute`, `group`, `resource`, …) | one `Router` definition (§0 row 7) |
+| `group` flattened attributes + `routes` | `[{attributes: {prefix: admin, …}, routes: {addRoute: […]}}]` | row 10, `closure: [routes]` |
+| `resource.options` with fluent names mixed in | `options:` is the native third argument; fluent calls are top-level item keys (`only`, `scoped: true`, `missing`) | row 10 + `chain`; `scoped: true` → `scoped()` (row 1) |
+| `addRoute.metadata` also wrote `Route::$defaults` | `metadata(array)` only; `DeclaredRequest`/`DeclaredView` read `getMetadata('request')` only | row 10 pass-through |
+| `pagination` block | root key `Illuminate\Pagination\Paginator: {useBootstrapFive: true}` | §1.0 static receiver |
+| `db: {connection, listen}` | `afterResolving: {Illuminate\Database\Connection: {listen: [Ref]}}` (fires for the connection that resolves) | row 7 |
+| `schema.connection` | `declaration:migrate --connection=` | §2.4 |
+| `schema.rename: [{from, to}]` | `{old_users: users}` or `[{from, to}]` | row 7 / row 10 |
+| `schema` modifier typos rejected by `BlueprintAction` | Fluent accepts them (PHP's own behavior: `->nullabel()` is silent) | §1.1 unknown keys |
+| `kernel.whenRequestLifecycleIsLongerThan` `CarbonInterval` strings | numeric only (Laravel's own `$threshold`) | row 7, `resolve: closure` |
+| `view.composer` `"a, b": X` comma DSL | `{a: X}` per view, or `[{views: [a, b], callback: X}]` | row 7 / row 10 |
+| `validator.extend: {rule: {extension, message}}` | `{rule: Ref}` or `[{rule, extension, message}]` | row 7 / row 10 |
+| `app.instance` class-string `make()`d eagerly | bound verbatim (`singleton` is the native way) | row 7 pass-through |
+| `app.bind` list `null` item throws; `*If` `.php` items skipped | `[Class]` → `bind('Class')`; Laravel's `bindIf` governs | row 5 |
+| any 1-param key: `~` = no call | `~` = call with no arguments; omit the key to opt out | row 1 |
+| a block whose service is already resolved at `register()` | use `make:`, not `afterResolving:` | §2.1 note |
 
 ## 5. Phases
 
@@ -303,33 +376,32 @@ require-check; `bc-check` leaves in Phase 1 because every phase is breaking).
 
 ### Phase 1 — Σ, forms, total generation (schema is the source of truth)
 
-- **Create** `src/Internal/Engine/Signature.php` (`Σ`: `name`, `static`, `params[{name,type,variadic}]`), `src/Internal/Engine/Forms.php` (`rows(Signature, value)`, `schema(Signature, curation)`, `calls(Signature, curation, value)` — one table, two projections; unit-tested as inverses), `src/Internal/Engine/Resolve.php` (§1.5; container-free except `base_path` and `call`).
-- **Modify** `src/Internal/SchemaGenerator.php`: `flatten()`/`declarable()` produce `list<Signature>` (zero-param methods pass the gate; by-ref still skipped and reported); `key()` → `Forms::schema()` + `x-manifest` (`static`, `params`, curation); `render()` keeps the envelope; `merge()` is deleted; **create** `generate(BlockMap, ?prior, Closure $source)`: per class in `blocks` ∪ `classes`, the fragment **replaces** `definitions.<FQCN>`, then per key the prior's `description`/`pattern`/`enum`/`x-manifest` curation keys re-merge on top; prior keys with no signature are kept byte-for-byte and reported (`curation-only`); root `properties` and `x-manifest.blocks` are written from the block map; definitions not in scope (data definitions, vocabulary) are kept; byte-identical when nothing changed.
-- **Rewrite** `GenerateManifestSchemaCommand`: `{classes?*} {--map=} {--from=} {--out=} {--report} {--check}`; no exists-check; pre-flight every class before any write; `--check` = regenerate ≠ file bytes → failure; `--report` prints `curation-only` and `TODO` (unknown element types) and writes nothing.
-- **Modify** `config/laravel-declaration.php`: add §2.1 `blocks`.
-- **Tests**: `tests/Fixtures/Engine/Arbitrary.php` (a non-Laravel class covering every row precondition: 0/1/2/3 params, variadic, `array`-typed, `Closure`-typed, untyped, static, by-ref, `@internal`, trait, alias); `FormsTest` — for every fixture method × every admissible value the emitted schema validates the value **and** `calls()` returns the expected argument lists, and inadmissible values fail validation; `ReflectionSignature` parity harness (parser Σ ≡ reflection Σ for the fixture and for every class in the shipped block map); `GenerateManifestSchemaCommandTest` rewritten (bootstrap from nothing, idempotence by mtime, curation preservation, `--check`, pre-flight).
+- **Create** `src/Internal/Engine/Signature.php` (`Σ`: `name`, `static`, `params[{name,type,variadic}]`), `src/Internal/Engine/Forms.php` (`rows(Signature, value)`, `schema(Signature, curation, classes)`, `calls(Signature, curation, value)` — one table, two projections; unit-tested as inverses), `src/Internal/Engine/Resolve.php` (§1.5; container-free except `base_path` and `call`).
+- **Modify** `src/Internal/SchemaGenerator.php`: `flatten()`/`declarable()` produce `list<Signature>` hierarchy-inclusive (zero-param methods pass the gate; by-ref still skipped and reported); `key()` → `Forms::schema()` + `x-manifest` (`static`, `params`, curation); `render()` keeps the envelope; `merge()` is deleted; **create** `generate(list<class-string> $classes, ?array $prior, Closure $source)`: per class the fragment **replaces** `definitions.<FQCN>`, then per key the prior's `description`/`pattern`/`enum`/`x-manifest` curation keys re-merge on top; prior keys with no signature are kept byte-for-byte and reported (`curation-only`); root = `{$ref: Application}` merged with the prior root's curated `data` keys and every all-static projected FQCN; `x-manifest.classes` records the scope; definitions not in scope (data definitions, vocabulary) are kept; byte-identical when nothing changed.
+- **Rewrite** `GenerateManifestSchemaCommand`: `{classes?*} {--from=} {--out=} {--report} {--check}`; `classes` defaults to the prior schema's `x-manifest.classes`; no exists-check; pre-flight every class before any write; `--check` = regenerate ≠ file bytes → failure; `--report` prints `curation-only` and `TODO` (unknown element types) and writes nothing. The shipped class list (`Application`, `Router`, `Route`, `PendingResourceRegistration`, `PendingSingletonResourceRegistration`, `ContextualBindingBuilder`, `Repository`, `Http\Kernel`, `View\Factory`, `BladeCompiler`, `Validation\Factory`, `Gate`, `ResponseFactory`, `Paginator`, `Connection`, `Schema\Builder`, `Blueprint`, `ForeignIdColumnDefinition`, `ForeignKeyDefinition`) lives in the schema it generates, nowhere else.
+- **Tests**: `tests/Fixtures/Engine/Arbitrary.php` (a non-Laravel class covering every row precondition: 0/1/2/3 params, variadic, `array`-typed, `Closure`-typed, untyped, static, by-ref, `@internal`, trait, alias, parent); `FormsTest` — for every fixture method × every admissible value the emitted schema validates the value **and** `calls()` returns the expected argument lists, and inadmissible values fail validation; `ReflectionSignature` parity harness (parser Σ ≡ reflection Σ for the fixture and for every shipped class); `GenerateManifestSchemaCommandTest` rewritten (bootstrap from CLI classes, regeneration from `x-manifest.classes`, idempotence by mtime, curation preservation, `--check`, pre-flight).
 - **Do not** regenerate the shipped `manifest.schema.json` yet: the generated file validates the §4 forms, and the runtime and fixtures still speak the old ones. Phase 1 tests generate into temp files (as today). The shipped file, the fixture manifests and the runtime switch together in Phase 2, so `ValidateCommandTest` stays green through Phase 1.
 
 ### Phase 2 — Runtime (one provider, one store, the typed mirror gone)
 
-- **Regenerate** `manifest.schema.json` from the §2.1 block map (first `--from` the old file so curated prose and `$ref`-derived `resolve` keys carry over); `ValidateCommandTest` fixtures move to the §4 forms in the same commit.
-- **Create** `src/Internal/Engine/Engine.php` (§1.4 verbatim: `body`, `chain`, `λ`, `def`, constructed with the decoded schema, the container, `Resolve`, and a `guard` Closure defaulting to `true`), `src/Internal/ManifestStore.php` (`block(string): mixed`, `items(string $block, string $field): array<string, array>`, `item(string $block, string $field, string $value): ?array`), `src/Providers/ManifestServiceProvider.php` (`register()`: bind `ManifestStore` from the YAML, bind `Engine`, run `timing: register` blocks; `boot()`: every other block in order; `registered/booting/booted` go through the matching `Application` hook, `after-resolving:<id>` through `afterResolving`, `command` is skipped).
-- **Modify** `LaravelDeclarationProvider` (register the one provider; drop the `providers` list), the four seams to `ManifestStore` (`DeclaredRequest`/`DeclaredView` read route metadata only), `composer.json` (remove `zero-to-prod/data-model`, `data-model-helper`).
+- **Regenerate** `manifest.schema.json` (`--from` the old file so curated prose and `$ref`-derived `resolve` keys carry over; the five data keys are curated onto the root once, with `x-manifest.data: true`); `ValidateCommandTest` fixtures move to the §4 forms in the same commit.
+- **Create** `src/Internal/Engine/Engine.php` (§1.4 verbatim: `body`, `chain`, `λ`, `def`, `isStaticReceiver`, constructed with the decoded schema, the container, `Resolve`, and a `guard` Closure defaulting to `true`), `src/Internal/ManifestStore.php` (`all(): array`, `block(string): mixed`, `items(string $block, string $field): array<string, array>`, `item(string $block, string $field, string $value): ?array`), `src/Providers/ManifestServiceProvider.php` (`register()`: bind `ManifestStore` from the YAML, bind `Engine`, then `$engine->body($this->app, $store->all())` — the only dispatch call in the package; no `boot()`).
+- **Modify** `LaravelDeclarationProvider` (register the one provider; drop the `providers` list), `config/laravel-declaration.php` (keep `manifest` and `mcp` only), the four seams to `ManifestStore` (`DeclaredRequest`/`DeclaredView` read route metadata only), `composer.json` (remove `zero-to-prod/data-model`, `data-model-helper`).
 - **Delete** the 13 providers, `DefaultProviders.php`, `Manifest.php`, the 24 declaration classes **except** `TableDefinition.php`/`TableRename.php`/`BlueprintAction.php` (Phase 3), `Internal/DataModel.php`, `Internal/Builder.php`, every file under `src/Attributes/Attributes/` that is not a guard attribute.
-- **Tests**: every `*RegistrationTest` suite and fixture manifest retargeted to §4 forms with the same assertions (the oracle); `EngineTest` — rows 1–9 end to end against the fixture class, `chain` threading (`ForeignId → constrained → cascadeOnDelete` on a stub), `λ` bodies, unknown receiver → `VARIADIC`, `static`, every timing, `order: reverse`, `form: entries`, `list: argument`; `ResolveTest`; `ManifestStoreTest`; `ValidateCommandTest` on the moved fixtures.
+- **Tests**: every `*RegistrationTest` suite and fixture manifest retargeted to §4 forms with the same assertions (the oracle), including the timing assertions (`registered:` bindings win over app providers; `afterResolving:` fires before routes load; `make:` config is visible to providers' `register()`); `EngineTest` — rows 1–10 end to end against the fixture class, `chain` threading (`ForeignId → constrained → cascadeOnDelete` on a stub), `λ` bodies, unknown receiver → `VARIADIC`, static receiver, `order: reverse`, `form: entries`, `list: argument`, `data` skip; `ResolveTest`; `ManifestStoreTest`; `ValidateCommandTest` on the moved fixtures.
 
-### Phase 3 — The schema block through the engine
+### Phase 3 — The schema key through the engine
 
-- **Modify** `MigrateCommand`: `handle(ManifestStore $store, Engine $engine)`; builds the §2.4 guard table (`src/Internal/Engine/Guards.php`: the table + `CANONICAL_COLUMNS` + the six `Builder` predicates as plain functions) and feeds `dropIfExists`, `drop`, `rename`, `create`, `table` keys in that order to `$engine->withGuard($table)->body($builder, …)`; the two-column console output stays.
+- **Modify** `MigrateCommand`: `{--connection=}`; `handle(ManifestStore $store, Engine $engine)`; builds the §2.4 guard table (`src/Internal/Engine/Guards.php`: the table + `CANONICAL_COLUMNS` + the six `Builder` predicates as plain functions) and feeds the `schema` data key's `dropIfExists`, `drop`, `rename`, `create`, `table` keys in that order to `$engine->withGuard($table)->body($builder, …)`; the two-column console output stays.
 - **Delete** `BlueprintMethodKind.php`, `Guards.php`, `GuardKind.php`, `Guard.php`, `ActionGuard.php`, `BlueprintAction.php`, `TableDefinition.php`, `TableRename.php`, the 13 guard attributes, `Schema.php`.
-- **Tests**: `SchemaRegistrationTest` retargeted (same sqlite assertions; the modifier-typo expectation becomes "Fluent stores it"); guard table coverage per family on the fixture tables; lifecycle order.
+- **Tests**: `SchemaRegistrationTest` retargeted (same sqlite assertions; the modifier-typo expectation becomes "Fluent stores it"); guard table coverage per family on the fixture tables; lifecycle order; `--connection`.
 
 ### Phase 4 — Alignment
 
 - `composer.json`: `bc-check` script and `bin/bc-check.sh` removed; `extra.laravel.providers` → `ZeroToProd\LaravelDeclaration\LaravelDeclarationProvider`; description for the general engine.
-- `STYLE.md`: Rules 7, 8, 10 and the Canonical Skeleton are replaced by §1 (forms) and §2 (data); Rule 6.2 gains "a present key with `null` calls with no arguments".
-- README and `docs/declarative-*.md` runtime sections point at §1; `declarative-manifest-schema-generator.md` and `generate-manifest-schema-plan.md` are marked superseded by this file.
-- `InstallCommand`/`Installer` template writes the `blocks` config; MCP `Install`/`Readme` tools pick up the new keys.
+- `STYLE.md`: Rules 7, 8, 10 and the Canonical Skeleton are replaced by §1 (forms) and §2 (data); Rule 6.2 gains "a present key with `null` calls with no arguments"; Rule 5 gains "timing is written in the manifest with the application's lifecycle methods".
+- README and `docs/declarative-*.md` runtime sections point at §1 and the §2.1 manifest; `declarative-manifest-schema-generator.md` and `generate-manifest-schema-plan.md` are marked superseded by this file.
+- `InstallCommand`/`Installer` template writes the §2.1 manifest skeleton and the two-key config; MCP `Install`/`Readme` tools pick up the new shape.
 
 ## 6. Failure surface
 
@@ -338,22 +410,50 @@ require-check; `bc-check` leaves in Phase 1 because every phase is breaking).
 | 1 | command failure `No source file for $class` | generator pre-flight, before any write |
 | 2 | `RuntimeException` `$class is not declared in its resolved source` / `PhpParser\Error` | generator pre-flight |
 | 3 | `--check` non-zero | regenerated bytes ≠ `manifest.schema.json` |
-| 4 | `LogicException` unknown `resolve` vocabulary / `make` id / `timing` | the engine meeting a block map or curation value outside §2 |
+| 4 | `LogicException` unknown `resolve` vocabulary | the engine meeting a curation value outside §2.2 |
 | 5 | `LogicException` `.php` reference did not return a Closure | `ρ(closure)` |
-| 6 | schema validation errors | `declaration:validate` — the only validation layer |
-| 7 | native PHP/Laravel failures (`ArgumentCountError`, `TypeError`, `BadMethodCallException`, Fluent silence) | wherever the call site would fail in hand-written PHP — never pre-empted |
+| 6 | schema validation errors | `declaration:validate` — the only validation layer; a root key that is neither an `Application` method, a static receiver, nor a data key is schema-invalid |
+| 7 | native PHP/Laravel failures (`Error: Call to undefined method`, `ArgumentCountError`, `TypeError`, `BadMethodCallException`, Fluent silence) | wherever the call site would fail in hand-written PHP — never pre-empted |
 
 ## 7. Out of scope
 
-- Additional components (`csrf`, `url`, `rate_limiter`, …): each is a block-map entry plus curation, after this migration.
+- Additional components (`csrf`, `url`, `rate_limiter`, …): each is a class added to the generator's scope plus curation, after this migration; the manifest addresses it with `afterResolving:` or `make:` like every other service.
 - The Tier-2 seams' orchestration (`DeclaredRequest`, `DeclaredModel`, `DeclaredQuery`, `DeclaredView`): only their data source changes.
 - The MCP server.
-- Multi-connection `schema`/`db` beyond "one block entry per connection".
+- Non-Laravel roots: `body()` takes any receiver; only the provider's one call site names the `Application`.
 
 ## 8. Open items
 
 | # | Item | Resolution path |
 | --- | --- | --- |
 | 1 | The entries/row discriminator forbids a map key equal to any parameter name of the method (e.g. a middleware alias literally named `name`); the row form is the escape hatch | documented in the generated description stub; revisit only if an oracle manifest hits it |
-| 2 | `after-resolving` blocks and `route:cache`/`config:cache` — the engine registers closures at boot exactly as today's providers do | the existing cache-safety tests move with the suites in Phase 2 |
-| 3 | Which curated `description` prose survives when a key's form changes (e.g. `routes` → `router`) | re-merge keys by `(FQCN, method)`; prose on retired definitions is dropped with a `--report` line |
+| 2 | `afterResolving` registered in `register()` fires for `router`, `view`, `blade.compiler`, `validator`, the gate and the kernel because none is resolved before our provider registers; a host app that resolves one earlier must use `make:` | the retargeted timing tests pin the order under testbench; the README states the rule |
+| 3 | `route:cache`/`config:cache` — the engine registers closures at boot exactly as today's providers do | the existing cache-safety tests move with the suites in Phase 2 |
+| 4 | Which curated `description` prose survives when a key moves (e.g. `routes.addRoute` → `Router::addRoute`) | re-merge keys by `(FQCN, method)`; prose on retired definitions is dropped with a `--report` line |
+
+## 9. Implementation notes
+
+What the implementation settled where the plan left room, and where it deviates from §1–§5, each with the reason.
+
+| # | Plan | Implemented | Why |
+| --- | --- | --- | --- |
+| 1 | §1.5 `closure`: `fn (...$a) => $container->call($ref, $a)` | the wrapper pairs its positional arguments with the target's parameter names (by reflection on the reference) and then calls `$container->call($ref, $named + $rest)` | `Container::call` does not map positional arguments onto untyped or builtin-typed parameters (`BoundMethod::addDependencyForCallParameter` throws "Unable to resolve dependency"); `compile(string $expression)`, `__invoke($startedAt, $request, $response)` and `handle(Request $request, Throwable $e)` only work with named pairing. The first-class callable is bound inside `Resolve` because `Macroable` rebinds the wrapper's scope to the macro host |
+| 2 | §2.2 `resolve: <vocabulary>` per key | `resolve: {param: vocabulary}` per key | a key has several parameters (`addNamespace($namespace, $hints)` resolves `hints` as a path, never `namespace`); the vocabulary belongs to a parameter |
+| 3 | §1.0 static receiver = a projected FQCN whose Σ is all-static | a projected FQCN with at least one static key; its root key admits only its static keys | `Illuminate\Pagination\Paginator` carries 50 instance methods beside its presets, so the plan's own example would not have qualified; `Router::macro` and every other Macroable static are addressable the same way |
+| 4 | §1.4 `def()` walks `get_parent_class` | walks parents, then interfaces (`class_implements`) | the concrete `Illuminate\Auth\Access\Gate` is projected; a definition keyed by a contract still resolves for the bound concrete |
+| 5 | §1.3 root = `$ref Application ∪ data keys ∪ static FQCNs` with `additionalProperties: false` | every root key is a JSON-pointer `$ref` into `definitions.<Application>.properties.<m>`; the ROW of row 5 is likewise a pointer into the key's own `anyOf`; a shared `definitions.bodies` carries the projected-FQCN `$ref`s rows 6/7 use | a `$ref` to a whole definition cannot be unioned with extra keys under `additionalProperties: false`; pointers keep the file at ~650 KB instead of 1.6 MB |
+| 6 | §1.3 rows 1 and 2 as separate schema rows | merged into `{"type": ["null", "boolean", "string", "integer", "number"]}` when the first parameter is untyped; the ROW omits `properties` for unknown types and `additionalProperties: true` | size; identical validation |
+| 7 | §1.2 row 3 (`p0.type = array` → the list is the argument) | unless every item is a row (a map whose first key is a parameter name), which is row 5 | `Router::group(array $attributes, $routes)` takes a list of rows (`group: [{attributes: …, routes: …}]`) |
+| 8 | §1.1 `ReflectionClass::getMethods()` order: aliases appended after their `use` statement | an `as` alias is inserted immediately before the method it names, in trait order | that is PHP's binding order (`zend_traits_copy_functions`); the parity harness over the 19 shipped classes and the fixture proved the previous rule only matched `Router` by coincidence |
+| 9 | §1.3 `τ(p)` = `{$ref: <vocabulary>}` for a curated `resolve` | the `phpFile` vocabulary emits `true` | the resolver passes every non-`.php` value through, so the file is one option, not the type (`instance: {app.signature: "1.0"}`) |
+| 10 | §2.1 `afterResolving: {Illuminate\Database\Connection: {listen: …}}` "fires for the connection that resolves" | `booted: {make: {Illuminate\Database\Connection: {listen: […]}}}` | `DB::` obtains connections through `DatabaseManager`, not the container, so `afterResolving` never fires for them; `make` at boot end addresses the default connection |
+| 11 | §2.4 lifecycle Blueprint verbs "excluded from the projected definition" | projected (generation is total); the migrate command's guard returns `false` for them | the guard table is command data; the definition stays a faithful projection |
+| 12 | §2.4 `body($builder, …)` per verb | the `table` phase feeds one key at a time (`body($builder, ['table' => [$table => [$method => $value]]])`) and the action tally restarts before it | each guard must see committed state (`renameIndex` then `dropIndex` on the renamed index) |
+| 13 | `x-manifest.params` as `list<{name, type, variadic}>` | a `{name: type}` map in declaration order, a variadic spelled `...name`, `static` only when true | size and readability of the shipped file |
+| 14 | §1.1 Σ type for unions | a union with exactly one non-null member is that member; any other union is untyped | `?Closure` and `?int` are common and precise; `string|array` has no single JSON form |
+| 15 | §2.1 bootstrap curation | `bind`/`bindIf`/`singleton`/`singletonIf`/`scoped`/`scopedIf` resolve both `abstract` and `concrete` as `concrete`; `ContextualBindingBuilder::give` is `list: argument` + `concrete`; `ResponseFactory::macro` resolves `closure`; `Route::missing` and `PendingResourceRegistration::missing` resolve `closure` | a `.php` list item under `bind` binds its own name through the Closure's return type; a typed variadic contextual binding takes the list whole; a `Class@method` macro must be callable |
+
+Known limits the forms admit:
+
+- A map whose first key is `0` is a PHP list (`array_is_list`): `whenRequestLifecycleIsLongerThan: {0: …}` fans out as a list; write `1:` or the row form.
+- The entries/row discriminator (`propertyNames`) is not enforced by `justinrainbow/json-schema`; editors using ajv (yaml-language-server) do enforce it. A map value whose key is literally a parameter name (`share: {key: …}`) is a row; use the row form for such keys (open item 1).

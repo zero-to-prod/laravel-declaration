@@ -2,18 +2,9 @@
 
 declare(strict_types=1);
 
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as KernelContract;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Middleware\SubstituteBindings;
-use Symfony\Component\HttpFoundation\Response;
-use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Append;
-use ZeroToProd\LaravelDeclaration\Attributes\Attributes\AppendTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Prepend;
-use ZeroToProd\LaravelDeclaration\Attributes\Attributes\PrependTo;
-use ZeroToProd\LaravelDeclaration\Attributes\Attributes\Setter;
-use ZeroToProd\LaravelDeclaration\Kernel;
-use ZeroToProd\LaravelDeclaration\Providers\KernelDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\MiddlewareLog;
@@ -113,18 +104,18 @@ it('invokes lifecycle duration handlers when duration exceeds threshold', functi
     expect(MiddlewareLog::entries())->toContain(SlowRequestReporter::class);
 });
 
-it('supports interval string and php file references in duration handlers', function (): void {
+it('supports a numeric threshold and a php file reference in duration handlers', function (): void {
     $reporterPath = realpath(__DIR__.'/../Fixtures/App/Middleware/slow-reporter.php');
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<YAML
-        kernel:
-          whenRequestLifecycleIsLongerThan:
-            0ms: $reporterPath
-        routes:
-          addRoute:
-            - methods: get
-              uri: /interval-test
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserController@show
+    $file = $this->manifest(<<<YAML
+        afterResolving:
+          Illuminate\\Foundation\\Http\\Kernel:
+            whenRequestLifecycleIsLongerThan:
+              1: $reporterPath                      # {0: …} would be a PHP list; the slow action outlasts 1ms
+          Illuminate\\Routing\\Router:
+            addRoute:
+              - methods: GET
+                uri: /interval-test
+                action: ZeroToProd\\LaravelDeclaration\\Tests\\Fixtures\\App\\UserController@slow
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -137,15 +128,16 @@ it('supports interval string and php file references in duration handlers', func
 it('replaces global middleware, middleware groups, and middleware priority wholesale', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        kernel:
-          setGlobalMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware
-          setMiddlewareGroups:
-            custom_group:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware
-          setMiddlewarePriority:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setGlobalMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalFirstMiddleware
+            setMiddlewareGroups:
+              custom_group:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GlobalLastMiddleware
+            setMiddlewarePriority:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraHighPriorityMiddleware
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\UltraLowPriorityMiddleware
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -166,15 +158,16 @@ it('replaces global middleware, middleware groups, and middleware priority whole
 it('supports single-string values for group and priority mutators', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        kernel:
-          appendMiddlewareToGroup:
-            web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity
-          prependMiddlewareToGroup:
-            web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass
-          addToMiddlewarePriorityBefore:
-            Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
-          addToMiddlewarePriorityAfter:
-            Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            appendMiddlewareToGroup:
+              web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TrackWebActivity
+            prependMiddlewareToGroup:
+              web: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\WebMaintenanceBypass
+            addToMiddlewarePriorityBefore:
+              Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PreSubstituteBindingsMiddleware
+            addToMiddlewarePriorityAfter:
+              Illuminate\Routing\Middleware\SubstituteBindings: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\PostSubstituteBindingsMiddleware
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -192,44 +185,7 @@ it('supports single-string values for group and priority mutators', function ():
         ->and($priority[$subIndex + 1])->toBe(PostSubstituteBindingsMiddleware::class);
 });
 
-it('ignores kernels that do not extend HttpKernel', function (): void {
-    $dummy = new class implements KernelContract
-    {
-        public function bootstrap(): void {}
-
-        public function handle($request): Response
-        {
-            return new Response;
-        }
-
-        public function terminate($request, $response): void {}
-
-        public function getApplication(): Application
-        {
-            return app();
-        }
-    };
-
-    $provider = new KernelDeclarationServiceProvider(app());
-    $reflection = new ReflectionMethod($provider, 'registerKernel');
-
-    $kernelModel = Kernel::from([]);
-    $reflection->invoke($provider, $kernelModel, $dummy);
-
-    expect(true)->toBeTrue();
-});
-
-it('ignores unknown kernel keys', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        kernel:
-          unknownKey: []
-        YAML);
-
-    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
-});
-
-it('applies nothing without a kernel block', function (): void {
+it('applies nothing without a kernel body', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/requests.yml']);
 
     /** @var HttpKernel $kernel */
@@ -238,28 +194,7 @@ it('applies nothing without a kernel block', function (): void {
     expect($kernel->hasMiddleware(GlobalFirstMiddleware::class))->toBeFalse();
 });
 
-it('laravel-declaration:validate accepts the kernel block', function () use ($manifest): void {
+it('laravel-declaration:validate accepts the kernel body', function () use ($manifest): void {
     $this->artisan('laravel-declaration:validate', ['--manifest' => $manifest])
         ->assertSuccessful();
-});
-
-it('selects setter, append, prepend, appendTo, and prependTo properties via attributes', function (): void {
-    expect(Kernel::selected(Setter::class))->toBe([
-        Kernel::setGlobalMiddleware,
-        Kernel::setMiddlewareGroups,
-        Kernel::setMiddlewareAliases,
-        Kernel::setMiddlewarePriority,
-    ])->and(Kernel::selected(Append::class))->toBe([
-        Kernel::pushMiddleware,
-        Kernel::appendToMiddlewarePriority,
-    ])->and(Kernel::selected(Prepend::class))->toBe([
-        Kernel::prependMiddleware,
-        Kernel::prependToMiddlewarePriority,
-    ])->and(Kernel::selected(AppendTo::class))->toBe([
-        Kernel::appendMiddlewareToGroup,
-        Kernel::addToMiddlewarePriorityBefore,
-    ])->and(Kernel::selected(PrependTo::class))->toBe([
-        Kernel::prependMiddlewareToGroup,
-        Kernel::addToMiddlewarePriorityAfter,
-    ]);
 });

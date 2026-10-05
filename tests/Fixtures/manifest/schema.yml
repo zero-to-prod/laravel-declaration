@@ -1,16 +1,17 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
 schema:
-  connection: ~
   create:
     users:
       id: ~
       string:
         - name
         - column: email
-          unique: true
+          unique: ~
         - password
       timestamp:
         column: email_verified_at
-        nullable: true
+        nullable: ~
       rememberToken: ~
       timestamps: ~
 
@@ -19,13 +20,13 @@ schema:
       foreignId:
         column: user_id
         constrained: users
-        cascadeOnDelete: true
+        cascadeOnDelete: ~
       string:
         column: title
         length: 255
       text:
         column: description
-        nullable: true
+        nullable: ~
       boolean:
         column: completed
         default: false
@@ -41,7 +42,7 @@ schema:
       string:
         column: name
         length: 50
-        unique: true
+        unique: ~
       timestamps: ~
 
     audits:
@@ -52,4 +53,4 @@ schema:
         - columns: user_id
           on: users
           references: id
-          cascadeOnDelete: true
+          cascadeOnDelete: ~

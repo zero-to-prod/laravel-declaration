@@ -38,10 +38,23 @@ it('answers the declared verb and uri', function () use ($manifest): void {
     $this->putJson('/users/5')->assertOk()->assertJson(['action' => 'update']);
 });
 
-it('uppercases lowercase verbs', function () use ($manifest): void {
+it('passes the declared verb through verbatim', function () use ($manifest): void {
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
 
     $this->patchJson('/users/5')->assertOk()->assertJson(['action' => 'update']);
+});
+
+it('does not match a lowercase verb, which Laravel never uppercases', function (): void {
+    $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: lower
+                methods: get
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+        YAML)]);
+
+    $this->getJson('/lower')->assertNotFound();
 });
 
 it('applies prefix and domain', function () use ($manifest): void {
@@ -109,27 +122,23 @@ it('wraps the missing handler in a cache-safe Closure', function () use ($manife
 });
 
 it('rejects a non-invokable missing handler', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        routes:
-          addRoute:
-            - uri: "/"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              name: temp-home
-              missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
+    $file = $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "/"
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                name: temp-home
+                missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable
         YAML);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-        $missing = app(Router::class)->getRoutes()->getByName('temp-home')->getMissing();
+    $missing = app(Router::class)->getRoutes()->getByName('temp-home')->getMissing();
 
-        $missing(new Request, new ModelNotFoundException);
-    } finally {
-        unlink($file);
-    }
-})->throws(LogicException::class);
+    $missing(new Request, new ModelNotFoundException);
+})->throws(ReflectionException::class, 'Method ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\NotInvokable::__invoke() does not exist');
 
 it('registers no routes without a manifest', function (): void {
     expect(app(Router::class)->getRoutes()->count())->toBe(0)
@@ -137,55 +146,46 @@ it('registers no routes without a manifest', function (): void {
 });
 
 it('verifies HTTP verb arrays and dynamic route constraints', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        routes:
-          addRoute:
-            - uri: "items/{id}/{type}"
-              methods: [GET, POST]
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              name: items.show
-              whereNumber: id
-              whereAlpha: type
-              bindingFields:
-                id: slug
-              fallback: false
-              block: ~
+    $file = $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "items/{id}/{type}"
+                methods: [GET, POST]
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                name: items.show
+                whereNumber: id
+                whereAlpha: type
+                setBindingFields:
+                  id: slug
+                block: ~
         YAML);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-        $router = app(Router::class);
-        $route = $router->getRoutes()->getByName('items.show');
+    $router = app(Router::class);
+    $route = $router->getRoutes()->getByName('items.show');
 
-        $ref = new ReflectionProperty($route, 'bindingFields');
-        expect($route)->not->toBeNull()
-            ->and($route->methods())->toContain('GET', 'POST')
-            ->and($route->wheres['id'])->toBe('[0-9]+')
-            ->and($route->wheres['type'])->toBe('[a-zA-Z]+')
-            ->and($ref->getValue($route)['id'])->toBe('slug');
-    } finally {
-        unlink($file);
-    }
+    expect($route)->not->toBeNull()
+        ->and($route->methods())->toContain('GET', 'POST')
+        ->and($route->wheres['id'])->toBe('[0-9]+')
+        ->and($route->wheres['type'])->toBe('[a-zA-Z]+')
+        ->and($route->bindingFields())->toBe(['id' => 'slug'])
+        ->and($route->locksFor())->toBe(10);                                 // `block: ~` calls block() with Laravel's defaults
 });
 
-it('throws LogicException when route specifies no action', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        routes:
-          addRoute:
-            - uri: "/no-action"
-              methods: GET
+it('fails natively when a route row omits the action', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "/no-action"
+                methods: GET
         YAML);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
-        app(Router::class);
-    } finally {
-        unlink($file);
-    }
-})->throws(LogicException::class, 'Route for URI [/no-action] must specify an action.');
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
+    app(Router::class);
+})->throws(ArgumentCountError::class);
 
 it('registers the flat surface under addRoute', function () use ($registrars): void {
     $this->withConfig(['laravel-declaration.manifest' => $registrars]);
@@ -275,29 +275,27 @@ it('registers redirect shortcuts', function () use ($registrars): void {
     $this->get('/legacy')->assertStatus(301);
 });
 
-it('adapts list options to the pending signature shape', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        routes:
-          addRoute:
-            - uri: "/"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              name: temp-home
-          apiResource:
-            - name: things
-              controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              options:
-                only: [index, show]                                      # single-array parameter
-                whereIn: [thing, [a, b]]                                 # two-argument parameter
-                withTrashed: [show]                                      # single-array parameter
-                shallow: false                                           # skipped
-                metadata: ~                                              # skipped
-          resource:
-            - name: gadgets
-              controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-              options:
-                name:                                                    # Rule 2 map form
+it('rides every row key onto the pending registration', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "/"
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                name: temp-home
+            apiResource:
+              - name: things
+                controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                only: [index, show]                                      # the list IS the argument
+                whereIn:                                                 # the native two-parameter row
+                  parameters: thing
+                  values: [a, b]
+                withTrashed: [show]                                      # array-typed parameter
+            resource:
+              - name: gadgets
+                controller: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
+                names:                                                   # the map IS the argument
                   index: gadgets.index
                 parameter:
                   gadgets: device
@@ -305,23 +303,19 @@ it('adapts list options to the pending signature shape', function (): void {
                   destroy: [web]
         YAML);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-        $Routes = app(Router::class)->getRoutes();
+    $Routes = app(Router::class)->getRoutes();
 
-        expect($Routes->hasNamedRoute('things.index'))->toBeTrue()
-            ->and($Routes->getByName('things.show')->wheres['thing'])->toBe('a|b')
-            ->and($Routes->getByName('things.show')->allowsTrashedBindings())->toBeTrue()
-            ->and($Routes->hasNamedRoute('gadgets.index'))->toBeTrue()
-            ->and($Routes->getByName('gadgets.show')->uri())->toBe('gadgets/{device}')
-            ->and($Routes->getByName('gadgets.destroy')->excludedMiddleware())->toContain('web');
-    } finally {
-        unlink($file);
-    }
+    expect($Routes->hasNamedRoute('things.index'))->toBeTrue()
+        ->and($Routes->getByName('things.show')->wheres['thing'])->toBe('a|b')
+        ->and($Routes->getByName('things.show')->allowsTrashedBindings())->toBeTrue()
+        ->and($Routes->hasNamedRoute('gadgets.index'))->toBeTrue()
+        ->and($Routes->getByName('gadgets.show')->uri())->toBe('gadgets/{device}')
+        ->and($Routes->getByName('gadgets.destroy')->excludedMiddleware())->toContain('web');
 });
 
 it('fails an unknown pending option with Laravel\'s exception', function (): void {
-    // Fixture `route-registrars-invalid.yml` declares a resource with `options: {nonexistent: true}`.
+    // Fixture `route-registrars-invalid.yml` declares a resource row with an unknown key `nonexistent: ~`.
     $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/route-registrars-invalid.yml']);
 })->throws(BadMethodCallException::class);   // Macroable::__call at boot

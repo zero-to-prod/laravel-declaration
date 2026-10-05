@@ -1,5 +1,7 @@
 # Declarative Pagination — Implementation Plan (Tier 1 §1.1)
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 > **Status: implemented.** This plan closed §1.1 of [declarative-tier1-remaining.md](declarative-tier1-remaining.md): the three missing `AbstractPaginator` preset methods (`useBootstrap()`, `useBootstrapThree()`, `useBootstrapFour()`) onto the existing `pagination:` block (`src/Pagination.php`, `Providers/PaginationDeclarationServiceProvider.php`). Final shape: the presets are wired through a `#[Preset]` **property attribute** + `DataModel::selected()` reflection dispatch (the `Kernel`/`Router` pattern) instead of the `presets` const sketched below — same key list, same order (property declaration order), zero model-side bookkeeping (§3).
 
 Source of truth: `vendor/laravel/framework/src/Illuminate/Pagination` (`laravel/framework` **v13.33.0**), verified by direct source inspection on the date of this document, against package source (`src/`) and the shipped feature test (`tests/Feature/PaginationRegistrationTest.php`). Every claim below is a **claim → package source → vendor source → verdict** comparison per the repo's verification convention.

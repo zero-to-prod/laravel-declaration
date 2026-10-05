@@ -1,5 +1,7 @@
 # Declarative Inline Template Rendering — `Illuminate\Support\Facades\Blade::render()` Dynamic Dispatch, View Evaluation & Response Generation in `DeclaredView`
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/View/Compilers/BladeCompiler.php` (`BladeCompiler.php:340`), with:
 - `Illuminate\Support\Facades\Blade.php` (`Blade.php:15`)
 - `Illuminate\View\Component.php` (`Component.php:142`, `174`, `196`)

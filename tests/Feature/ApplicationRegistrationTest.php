@@ -3,9 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Translation\Translator;
-use Illuminate\Foundation\Application;
-use ZeroToProd\LaravelDeclaration\App;
-use ZeroToProd\LaravelDeclaration\Providers\AppDeclarationServiceProvider;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Cache;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Clock;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Application\Contracts\Pdf;
@@ -72,11 +69,12 @@ it('skips bindIf for a deferred service', function () use ($manifest): void {
     expect(app('translator'))->toBeInstanceOf(Translator::class);
 });
 
-it('binds instances as-is, eagerly makes class-strings and requires .php files', function () use ($manifest): void {
+it('binds instances as-is, requires .php files and shares a singleton class', function () use ($manifest): void {
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
 
     expect(app('app.signature'))->toBe('1.0')
         ->and(app(Clock::class))->toBeInstanceOf(Clock::class)
+        ->and(app(Clock::class))->toBe(app(Clock::class))
         ->and(app('app.rate_limiter')->capacity)->toBe(60)
         ->and(HookLog::entries())->toContain('Clock');
 });
@@ -106,10 +104,8 @@ it('rebinds the declared paths under basePath', function () use ($manifest): voi
 });
 
 it('uses an absolute path value verbatim', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
-          useAppPath: /tmp/declaration-app-path
+    $file = $this->manifest(<<<'YAML'
+        useAppPath: /tmp/declaration-app-path
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -133,7 +129,6 @@ it('fires the declared lifecycle hooks in order', function () use ($manifest): v
     $this->withConfig(['laravel-declaration.manifest' => $manifest]);
 
     expect(HookLog::entries())->toBe([
-        'Clock',
         'LocaleUpdated:fr',
         'registered.php',
         'WarmConnections:booting',
@@ -159,68 +154,55 @@ it('requires a .php reference exactly once across two boots', function () use ($
     expect(app('app.rate_limiter'))->toBe($limiter);
 });
 
-it('rejects a .php reference that does not return a Closure', function (): void {
+it('rejects a .php closure reference that does not return a Closure', function (): void {
     $php = tempnam(sys_get_temp_dir(), 'reference-').'.php';
     file_put_contents($php, '<?php return 42;');
 
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, "app:\n  bind:\n    Foo: {$php}\n");
+    $file = $this->manifest("registered:\n  booting:\n    - {$php}\n");
 
     expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
         ->toThrow(LogicException::class, 'must return a Closure, int returned');
 });
 
-it('rejects a null list item', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
+it('passes a null list item through to Laravel, which rejects it natively', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        registered:
           bind:
             - ~
         YAML);
 
     expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
-        ->toThrow(LogicException::class, 'The `app.bind` list declares a null item');
+        ->toThrow(TypeError::class, 'Argument #2 ($concrete) must be of type Closure|string|null');
 });
 
-it('ignores a .php list item under the If keys', function (string $key): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, "app:\n  {$key}:\n    - app/binders/slugger.php\n");
-
-    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
-})->with(['bindIf', 'singletonIf', 'scopedIf']);
-
-it('ignores unknown app keys', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
-          singelton:
-            Foo: Bar
+it('fails an unknown application key with the Macroable exception', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        singelton:
+          Foo: Bar
         YAML);
 
-    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull()
-        ->and(app()->bound('Foo'))->toBeFalse();
+    expect(fn (): bool => $this->withConfig(['laravel-declaration.manifest' => $file]) !== null)
+        ->toThrow(BadMethodCallException::class, 'Method Illuminate\Foundation\Application::singelton does not exist.');
 });
 
-it('hydrates container and application path properties', function (): void {
-    $app = App::from([
-        'tag' => ['service' => ['tag1', 'tag2']],
-        'when' => ['ServiceClass' => ['needs' => 'DepClass', 'give' => 'ConcreteClass']],
-        'useBootstrapPath' => 'bootstrap',
-        'useConfigPath' => 'config',
-        'useEnvironmentPath' => 'env',
-    ]);
+it('fails an unknown router key with Laravel\'s own exception', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        afterResolving:
+          Illuminate\Routing\Router:
+            patterns_typo:
+              id: '[0-9]+'
+        YAML);
 
-    expect($app->tag)->toBe(['service' => ['tag1', 'tag2']])
-        ->and($app->when)->toBe(['ServiceClass' => ['needs' => 'DepClass', 'give' => 'ConcreteClass']])
-        ->and($app->useBootstrapPath)->toBe('bootstrap')
-        ->and($app->useConfigPath)->toBe('config')
-        ->and($app->useEnvironmentPath)->toBe('env');
+    expect(function () use ($file): mixed {
+        $this->withConfig(['laravel-declaration.manifest' => $file]);
+
+        return app('router');
+    })->toThrow(InvalidArgumentException::class, 'Attribute [patterns_typo] does not exist.');
 });
 
-it('applies tag, when, resolving, afterResolving, and path setters', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-app-bindings-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
+it('applies tag, resolving, afterResolving, and path setters', function (): void {
+    $file = $this->manifest(<<<'YAML'
+        registered:
           tag:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
               - my_tag
@@ -235,51 +217,36 @@ it('applies tag, when, resolving, afterResolving, and path setters', function ()
           useEnvironmentPath: env
         YAML);
 
-    try {
-        AppTestHelper::$resolvingCalled = false;
-        AppTestHelper::$afterResolvingCalled = false;
+    AppTestHelper::$resolvingCalled = false;
+    AppTestHelper::$afterResolvingCalled = false;
 
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-        $tagged = app()->tagged('my_tag');
-        expect($tagged)->toHaveCount(1);
+    $tagged = app()->tagged('my_tag');
+    expect($tagged)->toHaveCount(1);
 
-        app()->make(MockClass::class, ['name' => 'test']);
+    app()->make(MockClass::class, ['name' => 'test']);
 
-        expect(AppTestHelper::$resolvingCalled)->toBeTrue()
-            ->and(AppTestHelper::$afterResolvingCalled)->toBeTrue();
-    } finally {
-        unlink($file);
-    }
+    expect(AppTestHelper::$resolvingCalled)->toBeTrue()
+        ->and(AppTestHelper::$afterResolvingCalled)->toBeTrue()
+        ->and(app()->bootstrapPath())->toBe(app()->basePath('bootstrap'))
+        ->and(app()->configPath())->toBe(app()->basePath('config'))
+        ->and(app()->environmentPath())->toBe(app()->basePath('env'));
 });
 
 it('applies contextual when binding', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-app-when-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        app:
+    $file = $this->manifest(<<<'YAML'
+        registered:
           when:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass:
               needs: '$name'
               give: contextual-value
         YAML);
 
-    try {
-        $this->withConfig(['laravel-declaration.manifest' => $file]);
+    $this->withConfig(['laravel-declaration.manifest' => $file]);
 
-        $instance = app()->make(MockClass::class);
-        expect($instance->name)->toBe('contextual-value');
-    } finally {
-        unlink($file);
-    }
-});
-
-it('does not register application bindings when Manifest is not bound in container', function (): void {
-    $container = new Application;
-    $provider = new AppDeclarationServiceProvider($container);
-    $provider->register();
-
-    $ref = new ReflectionProperty($container, 'registeredCallbacks');
-    expect($ref->getValue($container))->toBeEmpty();
+    $instance = app()->make(MockClass::class);
+    expect($instance->name)->toBe('contextual-value');
 });
 
 class AppTestHelper

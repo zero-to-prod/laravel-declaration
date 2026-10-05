@@ -1,5 +1,7 @@
 # Declarative Model Configuration — the Completed `models:` Property/Method Surface & the Non-Goal Reclassification (Gap Inventory §2.6)
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php` (`laravel/framework` v13.33.0), with `Eloquent/Concerns/HasAttributes.php`, `Concerns/GuardsAttributes.php`, `Concerns/HidesAttributes.php`, `Concerns/HasTimestamps.php`, `Concerns/HasEvents.php`, `Concerns/HasGlobalScopes.php`, `Concerns/HasRelationships.php`, `Eloquent/Casts/Attribute.php`, `Eloquent/Scope.php`, `Eloquent/Prunable.php`, `Eloquent/MassPrunable.php` and `Eloquent/SoftDeletes.php`.
 
 Grounding documentation: [declarative-model.md](declarative-model.md) (the completed `models:` specification — §1 lifecycle, §1.2 properties, §2.5 registration, §2.6 non-goals), [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md) §2 Design Rules (Stage 18, Phase 2 scope), and [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.6 — the Tier 1 gap row this document resolves.

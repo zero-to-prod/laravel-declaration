@@ -9,10 +9,13 @@ use ZeroToProd\LaravelDeclaration\Internal\Mcp\Tools\Install;
 
 beforeEach(function (): void {
     File::delete(Installer::path());
+    File::delete(Installer::manifestPath());
 });
 
 afterEach(function (): void {
     File::delete(Installer::path());
+    File::delete(Installer::manifestPath());
+    File::deleteDirectory(dirname(Installer::manifestPath()));
 });
 
 it('describes the tool so an agent knows when to call it', function (): void {
@@ -72,4 +75,20 @@ it('keeps a file that says something else until told to overwrite it', function 
         ->assertSee('updated');
 
     expect(File::get(Installer::path()))->toContain("'handle' => 'package-docs',");
+});
+
+it('writes the manifest skeleton once and reports an existing manifest as left alone', function (): void {
+    Server::tool(Install::class)
+        ->assertOk()
+        ->assertSee('The manifest skeleton was written to '.Installer::manifestPath());
+
+    expect(File::get(Installer::manifestPath()))->toBe(Installer::manifest());
+
+    File::put(Installer::manifestPath(), "register: []\n");
+
+    Server::tool(Install::class)
+        ->assertOk()
+        ->assertSee('The manifest at '.Installer::manifestPath().' was left alone.');
+
+    expect(File::get(Installer::manifestPath()))->toBe("register: []\n");
 });

@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
-use ZeroToProd\LaravelDeclaration\Manifest;
-use ZeroToProd\LaravelDeclaration\Validator;
 
 $manifest = __DIR__.'/../Fixtures/manifest/validator.yml';
 
@@ -107,13 +105,14 @@ it('throws when a rule entry declares both when and unless', function (): void {
                   unless:
                     condition: true
                     rules: [required]
-        routes:
-          addRoute:
-            - uri: both
-              methods: POST
-              action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-              metadata:
-                request: both
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: both
+                methods: POST
+                action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+                metadata:
+                  request: both
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -130,13 +129,14 @@ it('throws when a conditional rule declares no condition', function (): void {
               email:
                 - when:
                     rules: [required]
-        routes:
-          addRoute:
-            - uri: no-condition
-              methods: POST
-              action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-              metadata:
-                request: no-condition
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: no-condition
+                methods: POST
+                action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+                metadata:
+                  request: no-condition
         YAML)]);
 
     $this->withoutExceptionHandling();
@@ -148,30 +148,5 @@ it('throws when a conditional rule declares no condition', function (): void {
 it('applies nothing without a validator block', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/requests.yml']);
 
-    expect(app(Manifest::class)->validator)->toBeNull()
-        ->and(app(ValidationFactory::class)->make(['name' => 'x'], ['name' => 'required'])->passes())->toBeTrue();
-});
-
-it('ignores unknown validator keys', function (): void {
-    $file = $this->manifest(<<<'YAML'
-        validator:
-          bogus:
-            rule: App\Never\Registered
-        YAML);
-
-    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
-});
-
-it('hydrates validator configuration properties', function (): void {
-    $validator = Validator::from([
-        'extend' => ['uppercase' => 'App\Validators\Uppercase@check'],
-        'extendImplicit' => ['phone' => ['extension' => 'App\Validators\Phone']],
-        'extendDependent' => ['guardedMin' => ['extension' => 'App\Validators\GuardedMin@check', 'message' => 'Too short.']],
-        'replacer' => ['uppercase' => 'App\Validators\Uppercase@replace'],
-    ]);
-
-    expect($validator->extend)->toBe(['uppercase' => 'App\Validators\Uppercase@check'])
-        ->and($validator->extendImplicit)->toBe(['phone' => ['extension' => 'App\Validators\Phone']])
-        ->and($validator->extendDependent)->toBe(['guardedMin' => ['extension' => 'App\Validators\GuardedMin@check', 'message' => 'Too short.']])
-        ->and($validator->replacer)->toBe(['uppercase' => 'App\Validators\Uppercase@replace']);
+    expect(app(ValidationFactory::class)->make(['name' => 'x'], ['name' => 'required'])->passes())->toBeTrue();
 });

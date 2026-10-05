@@ -1,5 +1,7 @@
 # Declarative View Data — `Illuminate\Routing\ViewController` Data References & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/ViewController.php` (`laravel/framework` v13.33.0), with `Illuminate/Routing/Router.php`, `Illuminate/Routing/Route.php`, `Illuminate/Routing/RouteParameterBinder.php`, `Illuminate/Routing/ControllerDispatcher.php`, `Illuminate/Routing/Controller.php`, `Illuminate/Routing/ResponseFactory.php`, `Illuminate/View/Factory.php`, `Illuminate/Container/BoundMethod.php`, `Illuminate/Routing/AbstractRouteCollection.php` and `Illuminate/Routing/CompiledRouteCollection.php`.
 
 Goal: a view route whose **`setDefaults` keys are `Router::view()`'s parameter names** (`view`, `data`, `status`, `headers`) and whose **`data` values are view variables, or a PHP reference that returns one**. This is Phase 3 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): stage 9 (dynamic view data), joining stage 7 (`DeclaredRequest`) to stage 10 (`view:`). The package ships one class, `DeclaredView extends ViewController` (§2.5). It adds no manifest key, no DataModel, no `Manifest` property and no provider code: `action`, `metadata` and `setDefaults` are existing route keys, and `registerRoutes()` already applies them.

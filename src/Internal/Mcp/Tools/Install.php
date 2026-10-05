@@ -20,7 +20,7 @@ use ZeroToProd\LaravelDeclaration\Internal\Installer;
 #[IsIdempotent]
 class Install extends Tool
 {
-    protected string $description = 'Installs the package by writing its configuration file. Mirrors the laravel-declaration:install command.';
+    protected string $description = 'Installs the package by writing its configuration file and, when none exists, the manifest skeleton. Mirrors the laravel-declaration:install command.';
 
     /** @return array<string, mixed> */
     #[\Override]
@@ -46,10 +46,14 @@ class Install extends Tool
             static fn (): bool => $request->boolean('overwrite'),
         );
 
+        $manifest = Installer::writeManifest(Installer::manifest()) === 'created'
+            ? sprintf(' The manifest skeleton was written to %s.', Installer::manifestPath())
+            : sprintf(' The manifest at %s was left alone.', Installer::manifestPath());
+
         return Response::text(match ($status) {
             'kept' => sprintf('%s says something else and was left alone. Call again with overwrite=true to replace it.', Installer::path()),
             'unchanged' => sprintf('%s already says this. Nothing was written.', Installer::path()),
             default => sprintf('%s %s. The configuration takes effect on the next boot.', Installer::path(), $status),
-        });
+        }.$manifest);
     }
 }

@@ -1,5 +1,7 @@
 # Declarative HTTP Kernel — `Illuminate\Foundation\Http\Kernel` Middleware Pipeline, Groups, Priority & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php` (`laravel/framework` v13.33.0), with `Illuminate/Contracts/Http/Kernel.php`, `Illuminate/Routing/Router.php`, `Illuminate/Routing/Pipeline.php`, `Illuminate/Routing/SortedMiddleware.php`, `Illuminate/Routing/MiddlewareNameResolver.php`, `Illuminate/Foundation/Configuration/ApplicationBuilder.php`, `Illuminate/Foundation/Configuration/Middleware.php`, `Illuminate/Foundation/Events/Terminating.php`, `Illuminate/Foundation/Http/Events/RequestHandled.php`, and `Illuminate/Foundation/Application.php`.
 
 Grounding documentation: `docs/repos/laravel/docs/lifecycle.md`, `docs/repos/laravel/docs/middleware.md`, `docs/repos/laravel/docs/routing.md`, and `docs/declarative-request-to-view-roadmap.md` §3 Phase 5.

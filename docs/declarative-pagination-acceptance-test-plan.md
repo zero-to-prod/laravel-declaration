@@ -1,5 +1,7 @@
 # Declarative Pagination — Acceptance Test Plan (`pagination:`)
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 **Subject under test:** the manifest's `pagination:` key — **implemented** (`[x] Mapped` in [declarative-framework-api-mapping.md](declarative-framework-api-mapping.md) Domain 4, built per [declarative-pagination.md](declarative-pagination.md)). Each key is a native `Illuminate\Pagination\Paginator` static preset; the declared surface ([README.md — Pagination](../README.md#pagination)) is:
 
 ```yaml

@@ -7,35 +7,30 @@ namespace ZeroToProd\LaravelDeclaration\Tests\Feature;
 use Illuminate\Support\Facades\Blade as BladeFacade;
 use Illuminate\View\Compilers\BladeCompiler;
 use ReflectionProperty;
-use ZeroToProd\LaravelDeclaration\Manifest;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass;
-
-it('returns early when manifest has no blade block', function (): void {
-    $manifest = Manifest::from([]);
-    expect($manifest->blade)->toBeNull();
-});
 
 it('registers blade compiler directives, conditions, components, and stringables', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-blade-').'.yml';
     file_put_contents($file, <<<'YAML'
-        blade:
-          directive:
-            uppercase: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::directiveUppercase
-          if:
-            admin: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::ifAdmin
-          component:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: mock-component
-          components:
-            mock-comp: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
-          anonymousComponentPath:
-            - path: resources/views/components
-              prefix: ui
-          anonymousComponentNamespace:
-            - directory: resources/views/namespaced
-              prefix: ns
-          stringable:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::stringableMock
-          withoutDoubleEncoding: true
+        afterResolving:
+          Illuminate\View\Compilers\BladeCompiler:
+            directive:
+              uppercase: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::directiveUppercase
+            if:
+              admin: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::ifAdmin
+            component:
+              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: mock-component
+            components:
+              mock-comp: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass
+            anonymousComponentPath:
+              - path: resources/views/components
+                prefix: ui
+            anonymousComponentNamespace:
+              - directory: resources/views/namespaced
+                prefix: ns
+            stringable:
+              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass: ZeroToProd\LaravelDeclaration\Tests\Feature\BladeTestHelper::stringableMock
+            withoutDoubleEncoding: ~
         YAML);
 
     try {

@@ -1,11 +1,23 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-router:
-  model:
-    airline: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
+afterResolving:
+  Illuminate\Routing\Router:
+    model:
+      airline: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
+    addRoute:
+      - uri: "airlines/{airline}/flights"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\DeclaredView
+        name: airline.flights
+        middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+        setDefaults:
+          view: flights
+          data:
+            title: Flights List
+            flights: airline-flights
 
-view:
-  addLocation: [resources/declared-views]
+  Illuminate\View\Factory:
+    addLocation: [resources/declared-views]
 
 models:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Airline
@@ -42,16 +54,3 @@ queries:
   - name: flight-count
     model: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
     count: true
-
-routes:
-  addRoute:
-    - uri: "airlines/{airline}/flights"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\DeclaredView
-      name: airline.flights
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-      setDefaults:
-        view: flights
-        data:
-          title: Flights List
-          flights: airline-flights

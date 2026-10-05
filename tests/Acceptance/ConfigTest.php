@@ -34,9 +34,10 @@ use function Orchestra\Testbench\default_skeleton_path;
 // in your application … using 'dot' syntax, which includes the name of the file and option".
 it('serves a declared value through dot syntax from a route and the facade', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -56,9 +57,10 @@ it('serves a declared value through dot syntax from a route and the facade', fun
 // specified and will be returned if the configuration option does not exist."
 it('returns the default when the option does not exist', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -71,9 +73,10 @@ it('returns the default when the option does not exist', function (): void {
 // will be thrown" — the Repository throws InvalidArgumentException.
 it('supports typed retrieval and throws on a type mismatch', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -88,9 +91,10 @@ it('supports typed retrieval and throws on a type mismatch', function (): void {
 // opposite precedence (existing values win), which is why the manifest can win at all.
 it('replaces an existing value with the declared one', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     // 'Legacy' sits in the repository where the file's `env('APP_NAME')` would have landed
@@ -105,9 +109,10 @@ it('replaces an existing value with the declared one', function (): void {
 // 'timezone'), untouched by the declaration.
 it('keeps the siblings of a declared key', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -124,9 +129,10 @@ it('keeps the siblings of a declared key', function (): void {
 // stores.redis survives`" — a key that is itself a dot-path sets one nested node.
 it('sets a dot-path key as one nested node, keeping the rest of the node', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          cache:
-            stores.redis.connection: acceptance-cache
+        make:
+          Illuminate\Config\Repository:
+            set:
+              cache.stores.redis.connection: acceptance-cache
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -140,9 +146,10 @@ it('sets a dot-path key as one nested node, keeping the rest of the node', funct
 // key no config file declares starts from nothing, with no extra registration mechanism.
 it('gains a file key no config file declares', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          sentinel:
-            meters: true
+        make:
+          Illuminate\Config\Repository:
+            set:
+              sentinel.meters: true
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -156,10 +163,11 @@ it('gains a file key no config file declares', function (): void {
 // nested key, declare its dot-path" — the rejected alternative was recursive merging.
 it('replaces a map value wholesale instead of merging it recursively', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          database:
-            redis:
-              host: declared-host
+        make:
+          Illuminate\Config\Repository:
+            set:
+              database.redis:
+                host: declared-host
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -179,9 +187,10 @@ it('replaces a map value wholesale instead of merging it recursively', function 
 // order.
 it('makes the declared values visible to the boot of providers registered earlier', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -199,11 +208,12 @@ it('makes the declared values visible to the boot of providers registered earlie
 // after the set and sees the declared values.
 it('makes the declared values visible to a declared provider register and boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            name: Tenant Console
-        providers:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.name: Tenant Console
+        register:
+          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\ConfigSpyProvider
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -229,10 +239,11 @@ it('changes only the repository when the bootstrap-consumed keys are declared', 
     $timezoneBefore = date_default_timezone_get();
 
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            env: staging
-            timezone: Antarctica/Troll
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.env: staging
+              app.timezone: Antarctica/Troll
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -265,9 +276,10 @@ it('wins over the env-sourced value while env keeps returning the raw one', func
         expect(config('app.name'))->toBe('Legacy');
 
         $file = $this->manifest(<<<'YAML'
-            config:
-              app:
-                name: Tenant Console
+            make:
+              Illuminate\Config\Repository:
+                set:
+                  app.name: Tenant Console
             YAML);
 
         $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -290,7 +302,7 @@ it('writes the declared values into the config cache and serves them from it', f
     file_put_contents($skeleton.'/bootstrap/cache/testbench.yaml', "providers:\n  - ".LaravelDeclarationProvider::class."\n");
 
     mkdir(getcwd().'/manifest', recursive: true);
-    file_put_contents(getcwd().'/manifest/app.yml', "config:\n  app:\n    name: Tenant Console\n");
+    file_put_contents(getcwd().'/manifest/app.yml', "make:\n  Illuminate\\Config\\Repository:\n    set:\n      app.name: Tenant Console\n");
 
     try {
         $this->artisan('config:cache')->expectsOutputToContain('Configuration cached successfully.');
@@ -323,13 +335,13 @@ it('keeps a removed key in a stale cache and purges it with config:clear', funct
     file_put_contents($skeleton.'/bootstrap/cache/testbench.yaml', "providers:\n  - ".LaravelDeclarationProvider::class."\n");
 
     mkdir(getcwd().'/manifest', recursive: true);
-    file_put_contents(getcwd().'/manifest/app.yml', "config:\n  app:\n    name: Tenant Console\n");
+    file_put_contents(getcwd().'/manifest/app.yml', "make:\n  Illuminate\\Config\\Repository:\n    set:\n      app.name: Tenant Console\n");
 
     try {
         $this->artisan('config:cache')->expectsOutputToContain('Configuration cached successfully.');
 
-        // the manifest no longer declares config.app.name
-        file_put_contents(getcwd().'/manifest/app.yml', "providers: []\n");
+        // the manifest no longer declares app.name
+        file_put_contents(getcwd().'/manifest/app.yml', "register: []\n");
 
         // the stale cache still resolves the removed key
         $staleApp = Application::configure(basePath: $skeleton)->create();
@@ -360,11 +372,12 @@ it('keeps a removed key in a stale cache and purges it with config:clear', funct
 // the manifest path deliberately does not perform.
 it('passes yaml literals through typed without env-style re-evaluation', function (): void {
     $file = $this->manifest(<<<'YAML'
-        config:
-          app:
-            debug: true
-            retries: 3
-            vendor: "null"
+        make:
+          Illuminate\Config\Repository:
+            set:
+              app.debug: true
+              app.retries: 3
+              app.vendor: "null"
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

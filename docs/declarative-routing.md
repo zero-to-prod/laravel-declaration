@@ -1,5 +1,7 @@
 # Declarative Routing — `Illuminate\Routing\Route` API & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Route.php` (`laravel/framework` v13.33.0).
 
 Goal: a `routes:` block in `tests/Fixtures/manifest/app.yml` whose **keys map 1:1 onto `Route` method names** and whose **values map 1:1 onto those methods' signatures**, so a provider can register every route with a small, fixed dispatch loop (§2.5).

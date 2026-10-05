@@ -1,5 +1,7 @@
 # Declarative Router Bindings — `Router::model()` / `Router::bind()` & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `Illuminate/Routing/RouteBinding.php`, `Illuminate/Routing/Middleware/SubstituteBindings.php`, `Illuminate/Routing/ImplicitRouteBinding.php`, `Illuminate/Foundation/Configuration/Middleware.php`, `Illuminate/Foundation/Http/Kernel.php`, `Illuminate/Database/Eloquent/Model.php` and `Illuminate/Broadcasting/Broadcasters/Broadcaster.php`.
 
 Goal: add `model` and `bind` to the existing `router:` block ([declarative-router.md](declarative-router.md)). Each **key is a `Router` method name**, each **map entry is one call**: its key is `$key`, its value the second argument (`$class` / `$binder`). This is stage 6 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md) §1: "Parameter → model / value". A declared action (`ViewController`, `DeclaredView`) type-hints nothing, so implicit binding never runs (roadmap §1.1). Explicit binding needs no type-hint. The provider adds two loops beside `pattern`'s (§2.5) and resolves nothing: Laravel's `RouteBinding` resolves the strings.

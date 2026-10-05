@@ -14,6 +14,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use LogicException;
+use ZeroToProd\LaravelDeclaration\Internal\ManifestStore;
 
 class DeclaredRequest extends FormRequest
 {
@@ -38,25 +39,25 @@ class DeclaredRequest extends FormRequest
     {
         $declaration = $this->declaration();
 
-        if ($declaration->redirect !== null) {
-            $this->redirect = $declaration->redirect;
+        if (is_string($declaration['redirect'] ?? null)) {
+            $this->redirect = $declaration['redirect'];
         }
 
-        if ($declaration->redirectRoute !== null) {
-            $this->redirectRoute = $declaration->redirectRoute;
+        if (is_string($declaration['redirectRoute'] ?? null)) {
+            $this->redirectRoute = $declaration['redirectRoute'];
         }
 
-        if ($declaration->redirectAction !== null) {
-            $this->redirectAction = $declaration->redirectAction;
+        if (is_string($declaration['redirectAction'] ?? null)) {
+            $this->redirectAction = $declaration['redirectAction'];
         }
 
-        $this->errorBag = $declaration->errorBag;
-        $this->stopOnFirstFailure = $declaration->stopOnFirstFailure;
+        $this->errorBag = is_string($declaration['errorBag'] ?? null) ? $declaration['errorBag'] : 'default';
+        $this->stopOnFirstFailure = ($declaration['stopOnFirstFailure'] ?? false) === true;
     }
 
     public function authorize(): bool|Response
     {
-        $authorize = $this->declaration()->authorize;
+        $authorize = $this->declaration()['authorize'] ?? null;
 
         /** @var bool|Response $result */
         $result = match (true) {
@@ -68,7 +69,7 @@ class DeclaredRequest extends FormRequest
         return $result;
     }
 
-    /** @param  array<string, array<string, mixed>>  $authorize */
+    /** @param  array<mixed>  $authorize */
     private function gateCall(array $authorize): bool|Response
     {
         if (count($authorize) !== 1) {
@@ -77,7 +78,8 @@ class DeclaredRequest extends FormRequest
 
         $method = array_key_first($authorize);
 
-        $parameters = $authorize[$method];
+        /** @var array<string, mixed> $parameters */
+        $parameters = is_array($authorize[$method]) ? $authorize[$method] : [];
 
         if (array_key_exists(self::arguments, $parameters)) {
             $arguments = $parameters[self::arguments];
@@ -110,7 +112,7 @@ class DeclaredRequest extends FormRequest
     public function messages(): array
     {
         /** @var array<string, string> $messages */
-        $messages = $this->resolve($this->declaration()->messages);
+        $messages = $this->resolve($this->declaration()['messages'] ?? []);
 
         return $messages;
     }
@@ -119,7 +121,7 @@ class DeclaredRequest extends FormRequest
     public function attributes(): array
     {
         /** @var array<string, string> $attributes */
-        $attributes = $this->resolve($this->declaration()->attributes);
+        $attributes = $this->resolve($this->declaration()['attributes'] ?? []);
 
         return $attributes;
     }
@@ -128,39 +130,44 @@ class DeclaredRequest extends FormRequest
     public function validationData(): array
     {
         /** @var array<string, mixed>|null $data */
-        $data = $this->resolve($this->declaration()->validationData);
+        $data = $this->resolve($this->declaration()['validationData'] ?? null);
 
         return $data ?? parent::validationData();
     }
 
     protected function prepareForValidation(): void
     {
-        $this->resolve($this->declaration()->prepareForValidation);
+        $this->resolve($this->declaration()['prepareForValidation'] ?? null);
     }
 
     protected function passedValidation(): void
     {
-        $this->resolve($this->declaration()->passedValidation);
+        $this->resolve($this->declaration()['passedValidation'] ?? null);
     }
 
     public function withValidator(Validator $Validator): void
     {
-        $this->resolve($this->declaration()->withValidator, ['validator' => $Validator]);
+        $this->resolve($this->declaration()['withValidator'] ?? null, ['validator' => $Validator]);
     }
 
     /** @return list<Closure(Validator): mixed> */
     public function after(?Validator $Validator = null): array
     {
+        $after = $this->declaration()['after'] ?? [];
+
+        /** @var list<string> $hooks */
+        $hooks = is_array($after) ? array_values($after) : [];
+
         return array_map(
             fn (string $hook): Closure => fn (Validator $Validator): mixed => $this->resolve($hook, ['validator' => $Validator]),
-            $this->declaration()->after,
+            $hooks,
         );
     }
 
     public function validator(ValidationFactory $ValidationFactory): Validator
     {
         /** @var Validator|null $validator */
-        $validator = $this->resolve($this->declaration()->validator, ['factory' => $ValidationFactory]);
+        $validator = $this->resolve($this->declaration()['validator'] ?? null, ['factory' => $ValidationFactory]);
 
         return $validator ?? $this->createDefaultValidator($ValidationFactory);
     }
@@ -168,8 +175,10 @@ class DeclaredRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $rules = $this->resolve($this->declaration()['rules'] ?? []);
+
         /** @var array<string, mixed> $rules */
-        $rules = $this->resolve($this->declaration()->rules);
+        $rules = is_array($rules) ? $rules : [];
 
         return array_map(
             fn (mixed $field_rules): mixed => is_array($field_rules) && array_is_list($field_rules)
@@ -181,36 +190,35 @@ class DeclaredRequest extends FormRequest
 
     protected function shouldFailOnUnknownFields(): bool
     {
-        $shouldFail = $this->declaration()->shouldFailOnUnknownFields;
+        $shouldFail = $this->declaration()['shouldFailOnUnknownFields'] ?? null;
 
-        return $shouldFail ?? parent::shouldFailOnUnknownFields();
+        return is_bool($shouldFail) ? $shouldFail : parent::shouldFailOnUnknownFields();
     }
 
     protected function failedValidation(Validator $validator): void
     {
-        $this->resolve($this->declaration()->failedValidation, ['validator' => $validator]);
+        $this->resolve($this->declaration()['failedValidation'] ?? null, ['validator' => $validator]);
 
         parent::failedValidation($validator);
     }
 
     protected function failedAuthorization(): never
     {
-        $this->resolve($this->declaration()->failedAuthorization);
+        $this->resolve($this->declaration()['failedAuthorization'] ?? null);
 
         throw new AuthorizationException;
     }
 
-    private function declaration(): Request
+    /** @return array<string, mixed> the `requests` item the route's `request` metadata names */
+    private function declaration(): array
     {
-        /** @var string|null $name */
-        $name = $this->route()->getMetadata('request') ?? $this->route()->defaults['request'] ?? null;
+        $name = $this->route()->getMetadata('request');
 
-        /** @var Request|null $Request */
-        $Request = $this->container->make(Manifest::class)->requests->get($name);
+        $declaration = is_string($name) ? $this->container->make(ManifestStore::class)->item('requests', 'name', $name) : null;
 
-        return $Request
+        return $declaration
             ?? throw new LogicException(
-                "The route declares no `request` metadata or default, or [{$name}] is not declared under `requests`.",
+                'The route declares no `request` metadata, or ['.(is_string($name) ? $name : '').'] is not declared under `requests`.',
             );
     }
 

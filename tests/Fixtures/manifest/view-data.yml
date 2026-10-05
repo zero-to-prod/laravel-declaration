@@ -1,50 +1,49 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-router:
-  model:
-    user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
+afterResolving:
+  Illuminate\Routing\Router:
+    model:
+      user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
+    addRoute:
+      - uri: "users/{user}/posts"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\DeclaredView
+        middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
+        metadata:
+          request: post-filters
+        setDefaults:
+          view: users.posts
+          data:
+            title: Posts
+            posts: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\UserPosts
+            stats: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\PostStats@forUser
+            user: shadowed
+          status: 200
+          headers: {Cache-Control: private}
 
-view:
-  addLocation: [resources/declared-views]
-  share:
-    brand: Tenant Console
+      - uri: "greet/{name}"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\DeclaredView
+        setDefaults:
+          view: [missing, plain]
+          data:
+            greeting: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Greeting::for
+            email: ada@example.com
+
+      - uri: created
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\DeclaredView
+        setDefaults:
+          view: greeting
+          status: 201
+          headers: {X-Declared: 'yes'}
+
+  Illuminate\View\Factory:
+    addLocation: [resources/declared-views]
+    share:
+      brand: Tenant Console
 
 requests:
   - name: post-filters
     rules:
       sort: [nullable, 'in:created_at,title']
-
-routes:
-  addRoute:
-    - uri: "users/{user}/posts"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\DeclaredView
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-      metadata:
-        request: post-filters
-      setDefaults:
-        view: users.posts
-        data:
-          title: Posts
-          posts: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\UserPosts
-          stats: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\PostStats@forUser
-          user: shadowed
-        status: 200
-        headers: {Cache-Control: private}
-
-    - uri: "greet/{name}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\DeclaredView
-      setDefaults:
-        view: [missing, plain]
-        data:
-          greeting: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Data\Greeting::for
-          email: ada@example.com
-
-    - uri: created
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\DeclaredView
-      setDefaults:
-        view: greeting
-        status: 201
-        headers: {X-Declared: 'yes'}

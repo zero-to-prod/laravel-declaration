@@ -1,18 +1,27 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-validator:                                                # ——— Tier 1: Factory registry methods ———
-  extend:                                                 # -> extend($rule, $extension, $message = null)
-    uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@check'
-    slug:                                                 # the optional $message via the native parameter names
-      extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
-      message: 'The :attribute must be a slug.'
-  extendImplicit:                                         # runs even when the field is absent/empty
-    phone:
-      extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Phone'
-  extendDependent:                                        # parameters may reference other fields
-    guardedMin: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\GuardedMin@check'
-  replacer:                                               # -> replacer($rule, $replacer); default method `replace`
-    uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@replace'
+afterResolving:
+  Illuminate\Validation\Factory:                 # ——— Factory registry methods ———
+    extend:                                       # -> extend($rule, $extension, $message = null), one row per call
+      - rule: uppercase
+        extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@check'
+      - rule: slug                                # the optional $message via the native parameter names
+        extension: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\SlugExtension@check'
+        message: 'The :attribute must be a slug.'
+    extendImplicit:                               # runs even when the field is absent/empty
+      phone: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Phone'
+    extendDependent:                              # parameters may reference other fields
+      guardedMin: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\GuardedMin@check'
+    replacer:                                     # -> replacer($rule, $replacer); default method `replace`
+      uppercase: 'ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Validation\Uppercase@replace'
+
+  Illuminate\Routing\Router:
+    addRoute:
+      - uri: profile
+        methods: POST
+        action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+        metadata:
+          request: profile
 
 requests:
   - name: profile
@@ -45,11 +54,3 @@ requests:
         when:
           condition: false                                # bool conditions pass through untouched
           rules: [required, string]
-
-routes:
-  addRoute:
-    - uri: profile
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: profile

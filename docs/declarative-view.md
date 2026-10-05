@@ -1,5 +1,7 @@
 # Declarative View — `Illuminate\View\Factory` Lookup, Shared Data, Composers & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/View/Factory.php` (`laravel/framework` v13.33.0), with `Illuminate/View/Concerns/ManagesEvents.php`, `Illuminate/View/FileViewFinder.php`, `Illuminate/View/View.php`, `Illuminate/View/ViewName.php`, `Illuminate/View/ViewServiceProvider.php`, `Illuminate/Events/Dispatcher.php`, `Illuminate/Support/ServiceProvider.php`, `Illuminate/Routing/ViewController.php`, `Illuminate/Foundation/Console/ViewCacheCommand.php` and `Illuminate/Foundation/Console/ServeCommand.php`.
 
 Goal: a `view:` block in `manifest/app.yml` whose **keys map 1:1 onto `Factory` method names** and whose **values map 1:1 onto those methods' signatures**. This is Phase 2 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md): stage 11 (view lookup: `addLocation`, `prependLocation`, `addNamespace`, `prependNamespace`, `replaceNamespace`, `addExtension`) and stage 10 (shared and composed view data: `share`, `composer`, `creator`). The provider applies the block with nine pass-through calls (§2.5), queued the way Laravel's own `ServiceProvider::loadViewsFrom()` queues its namespace: `callAfterResolving('view')` (§1.1). Every string reference is forwarded untouched; Laravel's `ManagesEvents` resolves it.

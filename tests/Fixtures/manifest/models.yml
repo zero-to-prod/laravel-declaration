@@ -1,8 +1,14 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-router:
-  model:
-    flight: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+afterResolving:
+  Illuminate\Routing\Router:
+    model:
+      flight: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
+    addRoute:
+      - uri: "flights/{flight}"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
+        middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
 
 models:
   - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Models\Flight
@@ -39,10 +45,3 @@ models:
     guarded: []
     visible: [id, name, flights_count]
     withCount: [flights]
-
-routes:
-  addRoute:
-    - uri: "flights/{flight}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]

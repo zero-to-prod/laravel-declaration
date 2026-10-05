@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use ZeroToProd\LaravelDeclaration\View;
-
 $manifest = __DIR__.'/../Fixtures/manifest/view.yml';
 
 it('applies the block when Laravel first resolves the view factory', function () use ($manifest): void {
@@ -51,42 +49,15 @@ it('applies nothing without a view block', function (): void {
         ->and(app('view')->getFinder()->getPaths())->toBe([resource_path('views')]);
 });
 
-it('ignores unknown view keys', function (): void {
-    $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
-    file_put_contents($file, <<<'YAML'
-        view:
-          composers:
-            App\View\Composers\UserMenu: users.*
-        YAML);
-
-    expect($this->withConfig(['laravel-declaration.manifest' => $file]))->not->toBeNull();
-});
-
-it('hydrates view configuration properties', function (): void {
-    $view = View::from([
-        'addLocation' => ['path/a'],
-        'prependLocation' => ['path/b'],
-        'composer' => ['home' => 'App\View\Composers\HomeComposer'],
-        'creator' => ['home' => 'App\View\Creators\HomeCreator'],
-        'flushFinderCache' => true,
-        'flushState' => true,
-    ]);
-
-    expect($view->addLocation)->toBe(['path/a'])
-        ->and($view->prependLocation)->toBe(['path/b'])
-        ->and($view->composer)->toBe(['home' => 'App\View\Composers\HomeComposer'])
-        ->and($view->creator)->toBe(['home' => 'App\View\Creators\HomeCreator'])
-        ->and($view->flushFinderCache)->toBeTrue()
-        ->and($view->flushState)->toBeTrue();
-});
-
-it('flushes stale finder entries when the factory resolved before the block applied', function (): void {
+it('flushes stale finder entries when the factory resolved before the body applied', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            view:
-              prependLocation:
-                - resources/declared-views/theme
-              flushFinderCache: true
+            booted:
+              make:
+                Illuminate\View\Factory:
+                  prependLocation:
+                    - resources/declared-views/theme
+                  flushFinderCache: ~
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -97,9 +68,11 @@ it('flushes stale finder entries when the factory resolved before the block appl
 it('keeps stale finder entries without flushFinderCache', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            view:
-              prependLocation:
-                - resources/declared-views/theme
+            booted:
+              make:
+                Illuminate\View\Factory:
+                  prependLocation:
+                    - resources/declared-views/theme
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -110,8 +83,10 @@ it('keeps stale finder entries without flushFinderCache', function (): void {
 it('resets render bookkeeping when flushState is declared', function (): void {
     $this->withConfig([
         'laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-            view:
-              flushState: true
+            booted:
+              make:
+                Illuminate\View\Factory:
+                  flushState: ~
             YAML),
         'laravel-declaration.warm-views' => true,
     ]);
@@ -121,7 +96,7 @@ it('resets render bookkeeping when flushState is declared', function (): void {
 
 it('keeps render bookkeeping without flushState', function (): void {
     $this->withConfig([
-        'laravel-declaration.manifest' => $this->manifest('view: {}'),
+        'laravel-declaration.manifest' => $this->manifest('booted: {make: {Illuminate\View\Factory: {}}}'),
         'laravel-declaration.warm-views' => true,
     ]);
 

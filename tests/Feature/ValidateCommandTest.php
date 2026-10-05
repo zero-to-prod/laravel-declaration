@@ -67,23 +67,24 @@ test('laravel-declaration:validate accepts the end-to-end unified manifest', fun
         ->assertSuccessful();
 });
 
-test('laravel-declaration:validate rejects a non-boolean singularResourceParameters', function (): void {
+test('laravel-declaration:validate rejects a string for an array-typed parameter', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-').'.yml';
     file_put_contents($file, <<<'YAML'
-        router:
-          singularResourceParameters: "nope"
+        afterResolving:
+          Illuminate\Routing\Router:
+            resourceParameters: "nope"
         YAML);
 
     $this->artisan('laravel-declaration:validate', ['--manifest' => $file])
-        ->expectsOutputToContain('singularResourceParameters')
+        ->expectsOutputToContain('resourceParameters')
         ->assertFailed();
 });
 
 test('laravel-declaration:validate reports each schema violation', function (): void {
-    File::put(storage_path('invalid.yml'), "routes: 5\nbogus: 1\n");
+    File::put(storage_path('invalid.yml'), "requests: 5\nbogus: 1\n");
 
     $this->artisan('laravel-declaration:validate', ['--manifest' => storage_path('invalid.yml')])
-        ->expectsOutputToContain('routes: Integer value found, but an object is required.')
+        ->expectsOutputToContain('requests: Integer value found, but an array is required.')
         ->expectsOutputToContain('value: The property bogus is not defined')
         ->assertFailed();
 });

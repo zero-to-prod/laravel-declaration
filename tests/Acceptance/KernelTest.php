@@ -53,16 +53,19 @@ beforeEach(function (): void {
 // request to your application, you may append it to the global middleware stack".
 it('runs middleware appended to the global stack during every HTTP request', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Recorder
-        routes:
-          addRoute:
-            - uri: recorder/one
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Recorder
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: recorder/one
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
 
-            - uri: recorder/two
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController@alternate
+              - uri: recorder/two
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController@alternate
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -80,15 +83,17 @@ it('runs middleware appended to the global stack during every HTTP request', fun
 // supplies the default-stack members whose effects bracket both positions.
 it('places prepended middleware at the beginning of the global list and appended middleware at its end', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          prependMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\FirstSnapshotter
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\LastSnapshotter
-        routes:
-          addRoute:
-            - uri: snapshot
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            prependMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\FirstSnapshotter
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\LastSnapshotter
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: snapshot
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -105,20 +110,22 @@ it('places prepended middleware at the beginning of the global list and appended
 // (the uncommented documented default members) plus the plan's declared Recorder.
 it('runs the documented default stack provided to setGlobalMiddleware as the global stack', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setGlobalMiddleware:
-            - Illuminate\Foundation\Http\Middleware\InvokeDeferredCallbacks
-            - Illuminate\Http\Middleware\TrustProxies
-            - Illuminate\Http\Middleware\HandleCors
-            - Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance
-            - Illuminate\Http\Middleware\ValidatePostSize
-            - Illuminate\Foundation\Http\Middleware\TrimStrings
-            - Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Recorder
-        routes:
-          addRoute:
-            - uri: snapshot
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setGlobalMiddleware:
+              - Illuminate\Foundation\Http\Middleware\InvokeDeferredCallbacks
+              - Illuminate\Http\Middleware\TrustProxies
+              - Illuminate\Http\Middleware\HandleCors
+              - Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance
+              - Illuminate\Http\Middleware\ValidatePostSize
+              - Illuminate\Foundation\Http\Middleware\TrimStrings
+              - Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Recorder
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: snapshot
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -145,17 +152,19 @@ it('runs the documented default stack provided to setGlobalMiddleware as the glo
 // requests.md — Disabling Input Normalization observes the same from the remove side.
 it('treats the manually provided stack as the entire global stack', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setGlobalMiddleware:
-            - Illuminate\Foundation\Http\Middleware\InvokeDeferredCallbacks
-            - Illuminate\Http\Middleware\TrustProxies
-            - Illuminate\Http\Middleware\HandleCors
-            - Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance
-            - Illuminate\Http\Middleware\ValidatePostSize
-        routes:
-          addRoute:
-            - uri: snapshot
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setGlobalMiddleware:
+              - Illuminate\Foundation\Http\Middleware\InvokeDeferredCallbacks
+              - Illuminate\Http\Middleware\TrustProxies
+              - Illuminate\Http\Middleware\HandleCors
+              - Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance
+              - Illuminate\Http\Middleware\ValidatePostSize
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: snapshot
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SnapshotEchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -179,13 +188,15 @@ it('treats the manually provided stack as the entire global stack', function ():
 // Console Kernels places the middleware stack before routing.
 it('lets a global middleware reject the request with a redirect before the application or allow it deeper', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
-        routes:
-          addRoute:
-            - uri: token
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: token
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -204,13 +215,15 @@ it('lets a global middleware reject the request with a redirect before the appli
 // Finishing Up: the response travels back outward giving the application a chance to modify it.
 it('lets a global middleware act on the outgoing response after the request is handled', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\AfterMiddleware
-        routes:
-          addRoute:
-            - uri: after
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\AfterMiddleware
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: after
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -224,13 +237,15 @@ it('lets a global middleware act on the outgoing response after the request is h
 // container, so you may type-hint any dependencies you need within a middleware's constructor".
 it('injects declared middleware constructor dependencies from the service container', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\DependencyMiddleware
-        routes:
-          addRoute:
-            - uri: dependency
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\DependencyMiddleware
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: dependency
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -243,15 +258,17 @@ it('injects declared middleware constructor dependencies from the service contai
 // route middleware and does not apply to global middleware."
 it('keeps global middleware running when a route excludes it with withoutMiddleware', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
-        routes:
-          addRoute:
-            - uri: excluded
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
-              withoutMiddleware:
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: excluded
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+                withoutMiddleware:
+                  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureTokenIsValid
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -266,19 +283,21 @@ it('keeps global middleware running when a route excludes it with withoutMiddlew
 // "Middleware groups may be assigned to routes … using the same syntax as individual middleware".
 it('runs middleware appended to a group when the group is assigned to a route', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setMiddlewareGroups:
-            group-name: []
-          appendMiddlewareToGroup:
-            group-name:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
-        routes:
-          addRoute:
-            - uri: grouped
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
-              middleware:
-                - group-name
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setMiddlewareGroups:
+              group-name: []
+            appendMiddlewareToGroup:
+              group-name:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: grouped
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+                middleware:
+                  - group-name
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -292,20 +311,22 @@ it('runs middleware appended to a group when the group is assigned to a route', 
 // two-member example — called directly beside `appendToGroup`.
 it('runs middleware prepended to a group when the group is assigned to a route', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setMiddlewareGroups:
-            group-name:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
-          prependMiddlewareToGroup:
-            group-name:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupPrepended
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
-        routes:
-          addRoute:
-            - uri: grouped
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
-              middleware:
-                - group-name
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setMiddlewareGroups:
+              group-name:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupFirst
+            prependMiddlewareToGroup:
+              group-name:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupPrepended
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\GroupSecond
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: grouped
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+                middleware:
+                  - group-name
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -324,17 +345,19 @@ it('runs middleware prepended to a group when the group is assigned to a route',
 // lifecycle.md — HTTP / Console Kernels attributes session state to.
 it('redefines the default web group entirely with only the declared middleware', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setMiddlewareGroups:
-            web:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\RecorderA
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\RecorderB
-        routes:
-          addRoute:
-            - uri: web-only
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SessionProbeController
-              middleware:
-                - web
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setMiddlewareGroups:
+              web:
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\RecorderA
+                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\RecorderB
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: web-only
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\SessionProbeController
+                middleware:
+                  - web
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -349,15 +372,17 @@ it('redefines the default web group entirely with only the declared middleware',
 // to routes" — the doc's `subscribed` => EnsureUserIsSubscribed example.
 it('resolves a declared alias to its middleware when the alias is assigned to a route', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setMiddlewareAliases:
-            subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureUserIsSubscribed
-        routes:
-          addRoute:
-            - uri: profile
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
-              middleware:
-                - subscribed
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setMiddlewareAliases:
+              subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\EnsureUserIsSubscribed
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: profile
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+                middleware:
+                  - subscribed
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -372,17 +397,19 @@ it('resolves a declared alias to its middleware when the alias is assigned to a 
 // "Middleware are executed in the order they are listed in the array".
 it('orders route middleware by the declared priority despite the route listing them in the opposite order', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          setMiddlewarePriority:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\High
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Low
-        routes:
-          addRoute:
-            - uri: priority
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
-              middleware:
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Low
-                - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\High
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            setMiddlewarePriority:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\High
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Low
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: priority
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+                middleware:
+                  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\Low
+                  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\High
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -398,17 +425,19 @@ it('orders route middleware by the declared priority despite the route listing t
 // the raw URI segment, not the model.
 it('inserts middleware before the SubstituteBindings anchor in the priority list', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          addToMiddlewarePriorityBefore:
-            Illuminate\Routing\Middleware\SubstituteBindings:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PreBindings
-        routes:
-          addRoute:
-            - uri: "users/{user}"
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\ShowUserController
-              middleware:
-                - Illuminate\Routing\Middleware\SubstituteBindings
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            addToMiddlewarePriorityBefore:
+              Illuminate\Routing\Middleware\SubstituteBindings:
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PreBindings
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "users/{user}"
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\ShowUserController
+                middleware:
+                  - Illuminate\Routing\Middleware\SubstituteBindings
+                  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PreBindings
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -431,17 +460,19 @@ it('inserts middleware before the SubstituteBindings anchor in the priority list
 // observable: middleware running after the SubstituteBindings anchor sees the retrieved model.
 it('inserts middleware after the SubstituteBindings anchor in the priority list', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          addToMiddlewarePriorityAfter:
-            Illuminate\Routing\Middleware\SubstituteBindings:
-              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PostBindings
-        routes:
-          addRoute:
-            - uri: "users/{user}"
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\ShowUserController
-              middleware:
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            addToMiddlewarePriorityAfter:
+              Illuminate\Routing\Middleware\SubstituteBindings:
                 - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PostBindings
-                - Illuminate\Routing\Middleware\SubstituteBindings
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: "users/{user}"
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\ShowUserController
+                middleware:
+                  - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\PostBindings
+                  - Illuminate\Routing\Middleware\SubstituteBindings
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -465,13 +496,15 @@ it('inserts middleware after the SubstituteBindings anchor in the priority list'
 // both the request and the response".
 it('calls the terminate method of a global middleware after the response is sent', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\TerminatingMiddleware
-        routes:
-          addRoute:
-            - uri: terminating
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\TerminatingMiddleware
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: terminating
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -487,13 +520,15 @@ it('calls the terminate method of a global middleware after the response is sent
 // container" — the doc's default, with no singleton registration.
 it('resolves a fresh instance from the service container for the terminate call', function (): void {
     $file = $this->manifest(<<<'YAML'
-        kernel:
-          pushMiddleware:
-            - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\TerminatingMiddleware
-        routes:
-          addRoute:
-            - uri: terminating
-              action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
+        afterResolving:
+          Illuminate\Foundation\Http\Kernel:
+            pushMiddleware:
+              - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Middleware\TerminatingMiddleware
+          Illuminate\Routing\Router:
+            addRoute:
+              - uri: terminating
+                methods: GET
+                action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\EchoController
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

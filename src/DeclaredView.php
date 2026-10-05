@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\View\Factory;
 use LogicException;
 use ReflectionMethod;
+use ZeroToProd\LaravelDeclaration\Internal\ManifestStore;
 
 class DeclaredView extends ViewController
 {
@@ -50,10 +51,10 @@ class DeclaredView extends ViewController
 
         /** @var array<string, mixed> $data */
         $data = $args['data'];
-        $Manifest = app(Manifest::class);
+        $Store = app(ManifestStore::class);
 
         $resolvedData = array_map(
-            static fn (mixed $value): mixed => self::resolveReference($value, $parameters, $Manifest),
+            static fn (mixed $value): mixed => self::resolveReference($value, $parameters, $Store),
             $data,
         );
 
@@ -71,7 +72,7 @@ class DeclaredView extends ViewController
             /** @var array<string, mixed> $factory */
             $factory = $args['factory'];
 
-            return $this->renderFactory($factory, $parameters, $Manifest, $mergedData, $args);
+            return $this->renderFactory($factory, $parameters, $Store, $mergedData, $args);
         }
 
         if (isset($args['template']) && is_string($args['template'])) {
@@ -110,7 +111,7 @@ class DeclaredView extends ViewController
     private function renderFactory(
         array $factory,
         array $parameters,
-        Manifest $Manifest,
+        ManifestStore $Store,
         array $mergedData,
         array $args,
     ): Response {
@@ -121,7 +122,7 @@ class DeclaredView extends ViewController
         $method = array_key_first($factory);
         $Factory = app(Factory::class);
 
-        $arguments = $this->arguments($method, $factory[$method], $parameters, $Manifest, $mergedData);
+        $arguments = $this->arguments($method, $factory[$method], $parameters, $Store, $mergedData);
 
         $result = $Factory->{$method}(...$arguments);
 
@@ -147,7 +148,7 @@ class DeclaredView extends ViewController
         string $method,
         mixed $callArgs,
         array $parameters,
-        Manifest $Manifest,
+        ManifestStore $Store,
         array $mergedData,
     ): array {
         if ($callArgs === true || $callArgs === null) {
@@ -160,7 +161,7 @@ class DeclaredView extends ViewController
 
         /** @var array<int|string, mixed> $callArgs */
         $callArgs = array_map(
-            static fn (mixed $value): mixed => self::resolveReference($value, $parameters, $Manifest),
+            static fn (mixed $value): mixed => self::resolveReference($value, $parameters, $Store),
             $callArgs,
         );
 
@@ -199,9 +200,9 @@ class DeclaredView extends ViewController
     }
 
     /** @param  array<string, mixed>  $parameters */
-    private static function resolveReference(mixed $value, array $parameters, Manifest $Manifest): mixed
+    private static function resolveReference(mixed $value, array $parameters, ManifestStore $Store): mixed
     {
-        if (is_string($value) && $Manifest->queries->has($value)) {
+        if (is_string($value) && $Store->item('queries', 'name', $value) !== null) {
             return DeclaredQuery::run($value, $parameters);
         }
 

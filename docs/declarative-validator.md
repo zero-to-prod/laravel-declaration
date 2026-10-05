@@ -1,5 +1,7 @@
 # Declarative Validation Factory Extensions — the `validator:` Tier 1 Block & Conditional Rules in `requests.rules`
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Validation/Factory.php`, `Validator.php`, `Concerns/FormatsMessages.php`, `Rule.php`, `ConditionalRules.php`, `ValidationRuleParser.php`, `ValidationServiceProvider.php`, and `Contracts/Validation/Factory.php` (`laravel/framework` v13.33.0), verified by direct reflection and two empirical harness runs. This document closes [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.4 — the remaining gap behind `§1 row 6 — Form Request Declaration, requests: [/] (narrower)`, where `shouldFailOnUnknownFields` is already native-named and rule class-strings already container-resolve.
 
 Two native surfaces remain unmapped:

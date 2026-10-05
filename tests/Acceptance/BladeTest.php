@@ -24,12 +24,13 @@ beforeEach(function (): void {
 // contains."
 it('compiles the declared directive through the callback with the directive expression', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          directive:
-            datetime: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DatetimeDirective::compile
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            directive:
+              datetime: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DatetimeDirective::compile
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -44,12 +45,13 @@ it('compiles the declared directive through the callback with the directive expr
 // using the view:clear Artisan command."
 it('keeps old directive logic in the compiled view cache until view:clear', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          directive:
-            versioned: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\VersionedDatetimeDirective::compile
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            directive:
+              versioned: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\VersionedDatetimeDirective::compile
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -74,12 +76,13 @@ it('keeps old directive logic in the compiled view cache until view:clear', func
 // `stringable` entry for an unrelated type, and none of them covers PlainStringable.
 it('echoes objects through __toString when no stringable handler covers the type', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          stringable:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\MoneyEchoHandler::render
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            stringable:
+              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\MoneyEchoHandler::render
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -92,12 +95,13 @@ it('echoes objects through __toString when no stringable handler covers the type
 // This closure should type-hint the type of object that it is responsible for rendering."
 it('renders the stringable handler instead of __toString for the declared class', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          stringable:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\MoneyEchoHandler::render
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            stringable:
+              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Money: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\MoneyEchoHandler::render
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -113,12 +117,13 @@ it('renders the stringable handler instead of __toString for the declared class'
 // matching @disk/@elsedisk branch, else @else, renders.
 it('renders only the branch whose condition matches the declared if handler', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          if:
-            disk: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DiskCondition::check
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            if:
+              disk: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DiskCondition::check
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file, 'filesystems.default' => 'local']);
@@ -140,12 +145,13 @@ it('renders only the branch whose condition matches the declared if handler', fu
 // when it returns false).
 it('renders the unless-variant body only when the condition handler returns false', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          if:
-            disk: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DiskCondition::check
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            if:
+              disk: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\DiskCondition::check
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file, 'filesystems.default' => 'local']);
@@ -161,9 +167,10 @@ it('renders the unless-variant body only when the condition handler returns fals
 // function) will double encode HTML entities."
 it('double-encodes HTML entities by default', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -176,11 +183,12 @@ it('double-encodes HTML entities by default', function (): void {
 // AppServiceProvider."
 it('encodes HTML entities once when withoutDoubleEncoding is declared', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          withoutDoubleEncoding: true
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            withoutDoubleEncoding: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -193,12 +201,13 @@ it('encodes HTML entities once when withoutDoubleEncoding is declared', function
 // in the auto-discovered app/View/Components directory.
 it('renders the component class under its declared tag alias', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          component:
-            ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Components\Alert: package-alert
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            component:
+              ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Blade\Components\Alert: package-alert
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -213,12 +222,13 @@ it('renders the component class under its declared tag alias', function (): void
 // discovery from resources/views/components, so <x-badge/> is resolved alongside <x-panel />.
 it('resolves an anonymous component from the declared unprefixed path', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          anonymousComponentPath:
-            - path: resources/acceptance-components
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            anonymousComponentPath:
+              - path: resources/acceptance-components
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -231,13 +241,14 @@ it('resolves an anonymous component from the declared unprefixed path', function
 // component name when the component is rendered: <x-dashboard::panel />".
 it('resolves an anonymous component from the declared prefixed path', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-        blade:
-          anonymousComponentPath:
-            - path: resources/acceptance-components
-              prefix: dashboard
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+          Illuminate\View\Compilers\BladeCompiler:
+            anonymousComponentPath:
+              - path: resources/acceptance-components
+                prefix: dashboard
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

@@ -1,5 +1,7 @@
 # Declarative View Factory Render Methods — Dynamic `Illuminate\View\Factory` Dispatch in `DeclaredView` & the `view:` Epilogue
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/View/Factory.php` (`laravel/framework` v13.33.0), with:
 - `Illuminate/View/View.php` (`View.php:157`, `182`)
 - `Illuminate/View/FileViewFinder.php` (`FileViewFinder.php:29`, `264`)

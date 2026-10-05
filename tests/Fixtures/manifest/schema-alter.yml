@@ -1,12 +1,12 @@
+# yaml-language-server: $schema=./../../../manifest.schema.json
+
 schema:
-  connection: ~
   dropIfExists:
     - scratch
   drop:
     - legacy
   rename:
-    - from: old_users
-      to: users
+    old_users: users
   create:
     people:
       id: ~
@@ -25,7 +25,7 @@ schema:
           length: 64
         - column: title
           length: 200
-          change: true
+          change: ~
       integer:
         - column: priority
           default: 0
@@ -41,12 +41,12 @@ schema:
         - people_title_index
       index:
         - columns: [owner_id, priority]
-          nullsNotDistinct: true
+          nullsNotDistinct: ~
       foreign:
         - columns: owner_id
           on: people
           references: id
-          cascadeOnDelete: true
+          cascadeOnDelete: ~
       dropTimestamps: ~
     users:
       dropForeign:

@@ -45,7 +45,7 @@ it('defaults the pagination views to the Tailwind pair', function (): void {
 // paginator instance, you may pass the view name as the first argument to the method."
 it('overrides the default view for a single instance via the links argument', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
+        Illuminate\Pagination\Paginator:
           defaultView: pagination::custom
         YAML);
 
@@ -80,7 +80,7 @@ it('forwards additional data passed to links to the view', function (): void {
 // CursorPaginator.php:100, which reads `Paginator::$defaultSimpleView`).
 it('feeds length-aware paginators defaultView and simple & cursor paginators defaultSimpleView', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
+        Illuminate\Pagination\Paginator:
           defaultView: pagination::custom
           defaultSimpleView: pagination::simple-custom
         YAML);
@@ -100,8 +100,8 @@ it('feeds length-aware paginators defaultView and simple & cursor paginators def
 // preset" dispatching `Paginator::useTailwind()` (AbstractPaginator.php:617-621).
 it('maps useTailwind to both Tailwind default views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useTailwind: true
+        Illuminate\Pagination\Paginator:
+          useTailwind: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -117,8 +117,8 @@ it('maps useTailwind to both Tailwind default views', function (): void {
 // (AbstractPaginator.php:628-631).
 it('maps the useBootstrap alias to the Bootstrap 4 views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrap: true
+        Illuminate\Pagination\Paginator:
+          useBootstrap: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -133,8 +133,8 @@ it('maps the useBootstrap alias to the Bootstrap 4 views', function (): void {
 // `defaultSimpleView('pagination::simple-bootstrap-3')` (AbstractPaginator.php:638-642).
 it('maps useBootstrapThree to the Bootstrap 3 views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapThree: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapThree: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -149,8 +149,8 @@ it('maps useBootstrapThree to the Bootstrap 3 views', function (): void {
 // App\Providers\AppServiceProvider class."
 it('maps useBootstrapFour to the built-in Bootstrap 4 views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapFour: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapFour: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -163,8 +163,8 @@ it('maps useBootstrapFour to the built-in Bootstrap 4 views', function (): void 
 // `useBootstrapFour` or `useBootstrapFive` methods").
 it('maps useBootstrapFive to the built-in Bootstrap 5 views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapFive: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapFive: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -177,9 +177,9 @@ it('maps useBootstrapFive to the built-in Bootstrap 5 views', function (): void 
 // views, so the last truthy preset wins."
 it('applies presets in declaration order — the last truthy preset wins', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useTailwind: true
-          useBootstrapThree: true
+        Illuminate\Pagination\Paginator:
+          useTailwind: ~
+          useBootstrapThree: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -193,9 +193,9 @@ it('applies presets in declaration order — the last truthy preset wins', funct
 // wins" (AbstractPaginator.php:649-664 — each preset is a plain overwrite of both statics).
 it('lets the last truthy preset win within the Bootstrap family', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapFour: true
-          useBootstrapFive: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapFour: ~
+          useBootstrapFive: ~
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -204,15 +204,12 @@ it('lets the last truthy preset win within the Bootstrap family', function (): v
         ->and(defaultSimpleView())->toBe('pagination::simple-bootstrap-5');
 });
 
-// AT-12 — README § Pagination: "Omitted or `false` presets are never applied."
-it('never applies presets declared false', function (): void {
+// AT-12 — README § Pagination: "Omitted presets are never applied." A present key always
+// calls its method (`~` = no arguments); the only opt-out is to omit the key.
+it('never applies presets that are omitted', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useTailwind: false
-          useBootstrap: false
-          useBootstrapThree: false
-          useBootstrapFour: false
-          useBootstrapFive: false
+        Illuminate\Pagination\Paginator:
+          defaultSimpleView: pagination::simple-tailwind
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -222,11 +219,11 @@ it('never applies presets declared false', function (): void {
         ->and(defaultSimpleView())->toBe('pagination::simple-tailwind');
 });
 
-// AT-13 — README § Pagination: the presets are declared "in the `pagination` object"; a manifest
-// that does not declare the block has nothing to apply.
-it('touches nothing when the manifest has no pagination block', function (): void {
+// AT-13 — README § Pagination: the presets are declared under the `Illuminate\Pagination\Paginator`
+// root key; a manifest that does not declare it has nothing to apply.
+it('touches nothing when the manifest has no Paginator key', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app: {}
+        register: []
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -242,7 +239,7 @@ it('touches nothing when the manifest has no pagination block', function (): voi
 // (AbstractPaginator.php:596-599 — the native setter writes only its own static).
 it('designates the default pagination view via defaultView alone', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
+        Illuminate\Pagination\Paginator:
           defaultView: pagination::custom
         YAML);
 
@@ -256,7 +253,7 @@ it('designates the default pagination view via defaultView alone', function (): 
 // `Paginator::defaultSimpleView('view-name');` (AbstractPaginator.php:607-610).
 it('designates the default simple pagination view via defaultSimpleView alone', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
+        Illuminate\Pagination\Paginator:
           defaultSimpleView: pagination::simple-custom
         YAML);
 
@@ -270,8 +267,8 @@ it('designates the default simple pagination view via defaultSimpleView alone', 
 // override them."
 it('applies the explicit views after the presets, overriding them', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapFour: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapFour: ~
           defaultView: pagination::custom
           defaultSimpleView: pagination::simple-custom
         YAML);
@@ -288,8 +285,8 @@ it('applies the explicit views after the presets, overriding them', function ():
 // write only their own static (AbstractPaginator.php:596-599,607-610).
 it('keeps the explicit keys independent — defaultSimpleView does not disturb a preset defaultView', function (): void {
     $file = $this->manifest(<<<'YAML'
-        pagination:
-          useBootstrapFive: true
+        Illuminate\Pagination\Paginator:
+          useBootstrapFive: ~
           defaultSimpleView: pagination::simple-custom
         YAML);
 

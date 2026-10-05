@@ -10,5 +10,3 @@ parameters:
         analyse:
             - tests/Feature
             - tests/Acceptance
-    ignoreErrors:
-        - identifier: property.uninitializedReadonly

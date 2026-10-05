@@ -1,5 +1,7 @@
 # Declarative Action & Redirects — `Illuminate\Routing\Controller` State Mutations, Dynamic Dispatch & Redirect Responses
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Controller.php` (`laravel/framework` v13.33.0), with:
 - `Illuminate\Routing\RedirectController.php` (`RedirectController.php:10`)
 - `Illuminate\Routing\Redirector.php` (`Redirector.php:9`)

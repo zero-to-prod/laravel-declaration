@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Contracts\Container\BindingResolutionException;
 use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockClass;
 
-it('returns a defines providers', function (): void {
+it('registers the manifest\'s own providers', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => __DIR__.'/../Fixtures/manifest/app.yml']);
 
     expect(app(MockClass::class)->name)->toBe('name');

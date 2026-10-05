@@ -104,6 +104,7 @@ abstract class TestCase extends Orchestra
             'app/acceptance/resolve-listener.php' => 'References/resolve-listener.php',
             'app/acceptance/cache-extend.php' => 'References/cache-extend.php',
             'app/acceptance/registered.php' => 'References/registered.php',
+            'app/acceptance/clock.php' => 'References/clock.php',
         ] as $relative => $fixture) {
             $this->copyFixtureIntoSkeleton($skeleton, $relative, __DIR__.'/Fixtures/App/Acceptance/'.$fixture);
         }

@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Config;
 use ZeroToProd\LaravelDeclaration\Internal\Installer;
 
 /**
- * Asks for every value the package can be configured with and writes them to
- * config/laravel-declaration.php.
+ * Asks for every value the package can be configured with, writes them to
+ * config/laravel-declaration.php, and writes the manifest skeleton when none exists.
  *
  * @internal
  */
@@ -34,6 +34,8 @@ class InstallCommand extends Command
             Installer::configuration($mcp, $handle),
             fn (): bool => $this->confirm('['.$file.'] differs from these answers. Overwrite it?', true),
         ));
+
+        $this->components->twoColumnDetail(Installer::manifestPath(), Installer::writeManifest(Installer::manifest()));
 
         $this->components->info('Installed. The configuration takes effect on the next boot.');
 

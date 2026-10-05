@@ -1,5 +1,7 @@
 # Declarative Schema Table Operations — `Schema::table()` / `rename()` / `drop()` / `dropIfExists()`, Alter Blueprints & the Foreign-Key Modifier Defect
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php` (`laravel/framework` v13.33.0), with `Blueprint.php`, `ColumnDefinition.php`, `ForeignIdColumnDefinition.php`, `ForeignKeyDefinition.php`, `IndexDefinition.php`, `BlueprintState.php`, `Illuminate/Support/Fluent.php`, and Laravel documentation: `docs/repos/laravel/docs/migrations.md`.
 
 Goal: resolve Tier 1 gap inventory [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.5 — "Database Schema & Blueprint `schema:` `[/] (narrower)`" — remediation ordering items **1** (the `ForeignKeyDefinition` modifier-discard defect + flat-form index list) and **2** (table operations `alter`, `rename`, `drop`, `dropIfExists`). Column types/modifiers are already fully dynamic; what remains is the **lifecycle around the blueprint**.

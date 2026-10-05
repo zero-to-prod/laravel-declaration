@@ -1,32 +1,38 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-view:
-  addLocation:
-    - resources/declared-views
-  prependLocation:
-    - resources/declared-views/theme
-  addNamespace:
-    admin: resources/declared-views/admin
-  prependNamespace:
-    admin: [resources/declared-views/admin-theme]
-  replaceNamespace:
-    legacy: resources/declared-views/admin
-  addExtension:
-    html: blade
-  share:
-    brand: Tenant Console
-    title: shared
-  composer:
-    users.*: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu
-    '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant
-    "users.show, greeting": ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary
-  creator:
-    "users.show,greeting": ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
-    single: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
+afterResolving:
+  Illuminate\View\Factory:
+    addLocation:
+      - resources/declared-views
+    prependLocation:
+      - resources/declared-views/theme
+    addNamespace:
+      admin: resources/declared-views/admin
+    prependNamespace:
+      admin: [resources/declared-views/admin-theme]
+    replaceNamespace:
+      legacy: resources/declared-views/admin
+    addExtension:
+      html: blade
+    share:
+      brand: Tenant Console
+      title: shared
+    composer:                                     # one row per composer($views, $callback)
+      - views: users.*
+        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\UserMenu
+      - views: '*'
+        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\CurrentTenant
+      - views: [users.show, greeting]             # the native array of views
+        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Menus@primary
+    creator:
+      - views: [users.show, greeting]
+        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
+      - views: single
+        callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Breadcrumbs
 
-routes:
-  addRoute:
-    - uri: "users/{user}"
-      methods: GET
-      action: Illuminate\Routing\ViewController
-      setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}
+  Illuminate\Routing\Router:
+    addRoute:
+      - uri: "users/{user}"
+        methods: GET
+        action: Illuminate\Routing\ViewController
+        setDefaults: {view: users.show, data: {title: route}, status: 200, headers: {}}

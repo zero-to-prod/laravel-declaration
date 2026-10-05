@@ -9,7 +9,7 @@ declare(strict_types=1);
 // AT-16 — localization.md — Configuring the Locale / Determining the Current Locale.
 it('sets the runtime default language', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           setLocale: fr
         YAML);
 
@@ -25,7 +25,7 @@ it('sets the runtime default language', function (): void {
 // the declared setFallbackLocale is applied.
 it('serves strings missing from the default language through the fallback language', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           setLocale: fr
           setFallbackLocale: es
         YAML);

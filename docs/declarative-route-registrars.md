@@ -1,5 +1,7 @@
 # Declarative Route Registrars — `Router::group()` / Resource Registration / Native Shortcuts & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `RouteGroup.php`, `RouteRegistrar.php`, `ResourceRegistrar.php`, `PendingResourceRegistration.php`, `PendingSingletonResourceRegistration.php`, `RouteFileRegistrar.php`, `ViewController.php`, `RedirectController.php` and `Illuminate/Routing/Route.php`.
 
 Goal: resolve Tier 1 gap inventory [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.2 — "Route Registration — `routes:` `[/] (narrower)`". The route-level surface is shipped ([declarative-routing.md](declarative-routing.md): native `uri` noun + dynamic `builders` dispatch). What remains are the **Router-level registration surfaces** that a `Route`-builder-level dispatch cannot express, because they *create route collections*: `Router::group()`, the resource registrar family, and the native shortcuts (`Router::view()` / `Router::redirect()` / `Router::permanentRedirect()`).

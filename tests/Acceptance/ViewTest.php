@@ -24,14 +24,18 @@ use ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\UserReposit
 
 // AT-01 — views.md — Sharing Data With All Views: "you may need to share data with all
 // views that are rendered by your application. You may do so using the View facade's
-// share method." — the doc's `View::share('key', 'value')`.
+// share method." — the doc's `View::share('key', 'value')`, spelled as a row because the shared
+// key is literally named `key`, the method's own first parameter (the entries form would read it
+// as `share(key: 'value')`).
 it('makes the declared shared data available to every rendered view', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-          share:
-            key: value
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+            share:
+              - key: key
+                value: value
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -47,11 +51,12 @@ it('makes the declared shared data available to every rendered view', function (
 // next count proves compose ran again rather than replaying memoized data.
 it('runs the declared composer each time its view is rendered', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-          composer:
-            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+            composer:
+              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -70,11 +75,12 @@ it('runs the declared composer each time its view is rendered', function (): voi
 // composer's constructor dependency.
 it('resolves the declared composer through the service container', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-          composer:
-            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+            composer:
+              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -85,15 +91,17 @@ it('resolves the declared composer through the service container', function (): 
 });
 
 // AT-05 — views.md — Attaching a Composer to Multiple Views: "passing an array of views as
-// the first argument to the composer method" — the comma-separated key is the declared
-// surface's expression of the doc's `['profile', 'dashboard']` first argument.
+// the first argument to the composer method" — the row form `{views: [...], callback}` is the
+// doc's `['profile', 'dashboard']` first argument spelled by parameter name.
 it('runs the composer declared for multiple views on each attached view', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-          composer:
-            "profile,dashboard": ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\MultiComposer
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+            composer:
+              - views: [profile, dashboard]
+                callback: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\MultiComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -106,11 +114,12 @@ it('runs the composer declared for multiple views on each attached view', functi
 // accepts the * character as a wildcard, allowing you to attach a composer to all views."
 it('attaches the declared wildcard composer to all views', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views
-          composer:
-            '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\WildcardComposer
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views
+            composer:
+              '*': ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\WildcardComposer
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -124,13 +133,14 @@ it('attaches the declared wildcard composer to all views', function (): void {
 // composer observes the creator's data already bound, and the output shows it.
 it('runs the creator before render-time composing', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addLocation:
-            - resources/declared-views/creator
-          creator:
-            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileCreator
-          composer:
-            profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\CreatorOrderObserver
+        afterResolving:
+          Illuminate\View\Factory:
+            addLocation:
+              - resources/declared-views/creator
+            creator:
+              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\ProfileCreator
+            composer:
+              profile: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\View\Acceptance\CreatorOrderObserver
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -142,9 +152,10 @@ it('runs the creator before render-time composing', function (): void {
 // syntax convention ... you may load the dashboard view from the courier package".
 it('loads a namespaced view through package::view syntax', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addNamespace:
-            courier: resources/package-views/courier
+        afterResolving:
+          Illuminate\View\Factory:
+            addNamespace:
+              courier: resources/package-views/courier
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -158,11 +169,12 @@ it('loads a namespaced view through package::view syntax', function (): void {
 // vendor override first.
 it('prefers the vendor override directory over the package directory', function (): void {
     $file = $this->manifest(<<<'YAML'
-        view:
-          addNamespace:
-            courier:
-              - resources/views/vendor/courier
-              - resources/package-views/courier
+        afterResolving:
+          Illuminate\View\Factory:
+            addNamespace:
+              courier:
+                - resources/views/vendor/courier
+                - resources/package-views/courier
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);

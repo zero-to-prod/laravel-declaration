@@ -32,7 +32,7 @@ beforeEach(function (): void {
 // container, per the plan's When.
 it('extends a resolved service with the declared extender', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           extend:
             cache.store: app/acceptance/decorate-store.php
         YAML);
@@ -51,7 +51,7 @@ it('extends a resolved service with the declared extender', function (): void {
 // documented surface.
 it('resolves tagged bindings together through tagged', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           bind:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\CpuReport
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\MemoryReport
@@ -72,7 +72,7 @@ it('resolves tagged bindings together through tagged', function (): void {
 // AT-12 — container.md — Contextual Binding.
 it('injects a different implementation into each class that needs the same interface', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           when:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\PhotoController:
               needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filesystem
@@ -93,7 +93,7 @@ it('injects a different implementation into each class that needs the same inter
 // reference returning a Closure, which the container unwraps and injects.
 it('injects a primitive from the contextual give closure', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           when:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Controllers\UserController:
               needs: '$userId'
@@ -108,7 +108,7 @@ it('injects a primitive from the contextual give closure', function (): void {
 // AT-14 — container.md — Binding Typed Variadics.
 it('resolves typed variadics from an array of declared class names', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           when:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Firewall:
               needs: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\Filter
@@ -129,7 +129,7 @@ it('resolves typed variadics from an array of declared class names', function ()
 // AT-15 — container.md — Container Events.
 it('fires the resolving event for each resolution before the object reaches its consumer', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
+        registered:
           resolving:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\Transistor: app/acceptance/resolve-listener.php
         YAML);

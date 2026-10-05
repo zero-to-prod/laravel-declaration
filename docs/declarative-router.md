@@ -1,5 +1,7 @@
 # Declarative Router — `Illuminate\Routing\Router` Global Patterns & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `Illuminate/Routing/Route.php`, `Illuminate/Routing/AbstractRouteCollection.php`, `Illuminate/Routing/CompiledRouteCollection.php`, `Illuminate/Routing/RoutingServiceProvider.php`, `Illuminate/Foundation/Application.php`, `Illuminate/Foundation/Configuration/ApplicationBuilder.php`, `Illuminate/Foundation/Support/Providers/RouteServiceProvider.php` and `vendor/symfony/routing/Route.php` (`symfony/routing` v8.1.6).
 
 Goal: a `router:` block in `manifest/app.yml` whose **keys map 1:1 onto `Router` method names** and whose **values map 1:1 onto those methods' signatures**. This migration adds the block's first key, `pattern` (`Router::pattern($key, $pattern)`, Laravel's "global constraints"). It is stage 4 of [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md) §1. The provider applies it with one loop (§2.5), in the phase Laravel's docs use (`boot()`, §1.1). `model` and `bind` (stage 6): [declarative-router-bindings.md](declarative-router-bindings.md).

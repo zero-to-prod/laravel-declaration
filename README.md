@@ -1,6 +1,6 @@
 # Laravel Declaration
 
-A declarative plugin for Laravel.
+A general-purpose manifest engine for Laravel: one YAML body on `Illuminate\Foundation\Application`, validated by a schema projected from the framework's own classes.
 
 ## Prompts
 name: plan
@@ -22,7 +22,7 @@ Implementation Goal: implement a yml data structure and php implementation that 
 Strategy:
 - Use dynamic dispatch to keep naming vertically consistent and code simple
 - The keys map to function names, the values map to the function signature
-- Use Attribute Oriented Programming (AOP) over of imperative programming.
+- Every key is a native method name; the forms (README § How a key is read) decide the call — no per-component code.
 - Use existing patterns in the codebase
 
 Deliverable: 
@@ -51,7 +51,7 @@ name: plan-simplify
 Review <plan> and align it to these goals
 - [ ] Look at deep underlying patters to expose commonalities
 - [ ] Leverage the commonalities to simplify the code
-- [ ] Use Attribute Oriented Programming to eliminate switch/match statements
+- [ ] Use the forms table (one ordered decision list) to eliminate switch/match statements
 - [ ] Use dynamic dispatch to keep naming vertically aligned and bound to the laravel public api
 - [ ] Break existing code that does not map onto the API
 - [ ] Identify and eliminate all implementation opinions. 
@@ -79,38 +79,38 @@ The deliverable is a Markdown document in @docs/. Do not implement the tests.
 
 
 ### Core Architecture, Container & Configuration
-- [x] [Service Container & Application](#application): `app:` | AC
-- [x] [Configuration Repository](#config): `config:` | AC
-- [x] [Service Providers](#providers):`providers:` | AC
+- [x] [Service Container & Application](#application): `registered:` | AC
+- [x] [Configuration Repository](#config): `make: Illuminate\Config\Repository` | AC
+- [x] [Service Providers](#providers):`register:` | AC
 
 ### HTTP Kernel & Middleware Pipeline
-- [x] [HTTP Kernel & Middleware Pipeline](#kernel): `kernel:`
+- [x] [HTTP Kernel & Middleware Pipeline](#kernel): `afterResolving: Illuminate\Foundation\Http\Kernel`
 - [ ] CSRF Verification & Route Exclusions: `csrf:`
 - [ ] HTTP Precognition: `precognition:`
 
 ### HTTP Routing, Pipeline, URLs & Throttling
-- [x] [Router Configuration & Binders](#router): `router:`
-- [x] [Route Registration](#routes): `routes:`
+- [x] [Router Configuration & Binders](#router): `afterResolving: Illuminate\Routing\Router`
+- [x] [Route Registration](#routes): `Router::addRoute` …
 - [ ] URL Generation & Signed URLs: `url:`
 - [ ] Rate Limiter: `rate_limiter:`
 
 ### View Layer, Blade Engine & Presentation
-- [x] [View Factory & Namespaces](#view): `view:` | AC
-- [x] [Blade Compiler & Directives](#blade): `blade:` | AC
-- [x] [Pagination View Resolvers & Styling](#pagination): `pagination:`
+- [x] [View Factory & Namespaces](#view): `afterResolving: Illuminate\View\Factory` | AC
+- [x] [Blade Compiler & Directives](#blade): `afterResolving: Illuminate\View\Compilers\BladeCompiler` | AC
+- [x] [Pagination View Resolvers & Styling](#pagination): `Illuminate\Pagination\Paginator:`
 
 ### Request Lifecycle, Input Resolution & Validation
 - [x] [Form Request Declaration](#requests): `requests:`
-- [x] [Validation Factory & Custom Rules](#requests): `validator:` (documented under Requests) | AC
+- [x] [Validation Factory & Custom Rules](#requests): `afterResolving: Illuminate\Validation\Factory` (documented under Requests) | AC
 
 ### Response Generation, Redirects & Transport
-- [/] [Response Factory & Macros](#response): `responses:`
+- [/] [Response Factory & Macros](#response): `afterResolving: Illuminate\Routing\ResponseFactory`
 - [ ] Redirector & Redirect Responses: `redirect:`
 - [ ] Cookies & Cookie Jar: `cookie:`
 - [ ] API Resources & JSON Serialization: `resources:`
 
 ### Database Connection, Query Builder, Transactions & Seeding
-- [/] [Database Connection & Transactions](#database): `db:`
+- [/] [Database Connection & Transactions](#database): `make: Illuminate\Database\Connection`
 - [ ] Database Query Builder (Table-Level Queries): `queries:` / `queries.table`
 - [x] [Database Schema & Blueprint](#schema): `schema:`
 - [ ] Database Seeding & Factories: `seeds:`
@@ -120,7 +120,7 @@ The deliverable is a Markdown document in @docs/. Do not implement the tests.
 - [/] [Eloquent Query Builder (Model Queries)](#queries): `queries:`
 
 ### Security, Identity & Access Control
-- [/] [Authorization Gates & Policies](#gate): `gate:`
+- [/] [Authorization Gates & Policies](#gate): `afterResolving: Illuminate\Auth\Access\Gate`
 - [ ] Authentication Manager & Guards: `auth:`
 - [ ] Session Store & Flash Data: `session:`
 - [ ] Hashing & Encryption: `hashing:`, `encryption:`
@@ -194,79 +194,149 @@ claude mcp add laravel-declaration -- php artisan mcp:start laravel-declaration
 ## Development
 
 ```bash
-composer check   # lint, rector, phpstan, 100% coverage, bc-check — mutates nothing
+composer check   # lint, rector, phpstan, 100% coverage, schema check — mutates nothing
 composer fix     # rector then pint
+composer schema  # regenerate manifest.schema.json from its own x-manifest.classes
 composer mcp list                      # the server's tools
 composer mcp call api '{}'             # call one
 ```
 
+The schema is generated, never hand-edited:
+
+```bash
+php artisan declaration:generate-manifest-schema [classes…] [--from=] [--out=] [--check] [--report]
+```
+
+`classes` are the native FQCNs to project; omitted, they come from the prior schema's `x-manifest.classes`, so the
+scope lives in the schema it generates and nowhere else. `--from` names the prior whose curated prose and
+`x-manifest` curation re-merge on top of the regenerated shapes (default: the `--out` file), `--check` fails when
+the regenerated bytes differ from the file (part of `composer check`), `--report` prints the curation-only and
+`TODO` keys and writes nothing.
+
 ## Manifest
 
-Your application can be defined by a single file called a `manifest`. 
+Your application is defined by a single YAML file, the `manifest`. The default location is `./manifest/app.yml`
+(`laravel-declaration.manifest`).
 
-The default location for this file is `./manifest/app.yml`.
+The manifest is a **body on `Illuminate\Foundation\Application`**: every root key is one of its methods, applied
+in manifest order when the package registers, and the value is that method's argument(s). Timing is written with
+the application's own lifecycle methods — `make` for a service that is already resolved, `registered`, `booting`
+and `booted` for the three boot hooks, `afterResolving` for a body on a service when it first resolves. Anything
+beneath those keys is a body on whichever object the call returns or hands to its callback, read by the same ten
+rules. Five root keys are data (`requests`, `models`, `queries`, `schema`, `extra`): stored, never dispatched.
+
+```yaml
+# manifest/app.yml — root receiver: Illuminate\Foundation\Application
+make:                                                # the services already resolved at register()
+  Illuminate\Config\Repository:
+    set: {app.name: Tenant Console}
+registered:                                          # once every provider has registered
+  bind: {App\Contracts\Pdf: App\Services\DomPdf}
+  register: [App\Providers\AppServiceProvider]
+afterResolving:                                      # when each service first resolves
+  Illuminate\Routing\Router:
+    addRoute:
+      - {methods: GET, uri: /, action: App\Http\HomeController, name: home}
+Illuminate\Pagination\Paginator:                     # a static receiver
+  useBootstrapFive: ~
+schema:                                              # a data key, consumed by declaration:migrate
+  create: {users: {id: ~, timestamps: ~}}
+```
+
+Validate it against `manifest.schema.json` — the only validation layer:
+
+```bash
+php artisan laravel-declaration:validate [--manifest=]
+```
+
+### How a key is read
+
+Every key is a native method name; its value is read against that method's signature, first match wins:
+
+1. `~` or `true` — the method is called with no arguments. **A present key always calls**; omit the key to opt out.
+2. a scalar — one call with that argument. `false` is a scalar: `shallow: false` calls `shallow(false)`.
+3. a list — one call per item, unless the first parameter is array-typed (or curated so), in which case the list
+   is the argument. A list item that is a map is a row (rule 5).
+4. a map whose keys are **not** parameter names — one call per entry, `method($key, $value)`; a list value fans out
+   per item; a map value under a closure parameter is a body on the closure's argument (`afterResolving: {FQCN:
+   {…}}`, `create: {users: {…}}`).
+5. a map whose first key **is** a parameter name — one call with named arguments; every other key rides the
+   **return value** (`addRoute: [{methods, uri, action, name: home, where: {…}}]`, `foreignId: {column: user_id,
+   constrained: users, cascadeOnDelete: ~}`).
+6. a map under a closure-typed parameter (or `registered`/`booting`/`booted`) — a body on the closure's argument.
+
+Arguments pass through untouched, with four curated resolvers the schema names per parameter: `closure`
+(`Class@method`, `Class::method`, an invokable class or a function, wrapped so its positional arguments are paired
+by name and the rest injected by the container; or a `.php` file returning a Closure), `phpFile` (a `.php` file's
+return value), `concrete` (a class-string, `~` or a `.php` resolver) and `path` (relative paths resolve under
+`base_path()`). Everything else is Laravel's: `methods: patch` is passed verbatim (write `PATCH`),
+`instance: {Clock: App\Clock}` binds the string (use `singleton`), an unknown key fails with PHP's or Laravel's own
+exception, and a key whose method is static (`Illuminate\Pagination\Paginator`) is addressed at the root by its FQCN.
 
 ## Config
 
-You can define your applications configuration in the `config` object.
-
-Your existing configurations are merged. The `manifest` values win over existing values.
-
-Complete structure:
+Set configuration through `Illuminate\Config\Repository::set`. The repository is already resolved when the package
+registers, so it is addressed with `make`; a dotted key is one `config()` path, and a map value replaces that node
+whole.
 
 ```yaml
-config:                       # the config() key space
-  app:                        # ./config/app.php
-    name: Tenant Console      # config('app.name'); other app.* keys survive
-  cache:
-    stores.redis.connection: cache  # one nested key; the rest of stores.redis survives
-  sentinel:                   # a key no file declares: gained whole
-    meters: true
+make:
+  Illuminate\Config\Repository:
+    set:                                  # -> set($key, $value), one call per entry
+      app.name: Tenant Console            # config('app.name'); other app.* keys survive
+      cache.stores.redis.connection: cache  # one nested key; the rest of stores.redis survives
+      sentinel: {meters: true}            # a key no file declares: gained whole
 ```
 
 ## Application
 
-Define your application in the `app` object.
-
-Complete structure:
+Container bindings, paths, locale and lifecycle hooks are `Illuminate\Foundation\Application` methods. Declare
+them at the root for register time, or under `registered:` to apply once every provider has registered — the place
+for bindings that must win over the application's own providers.
 
 ```yaml
-app:
-  bind:                                         # -> bind($abstract, $concrete)
+registered:
+  bind:                                         # -> bind($abstract, $concrete), one call per entry
     App\Contracts\Pdf: App\Services\DomPdf      # class-string or another bound abstract
     App\Contracts\Slugger: app/binders/slugger.php   # .php: the returned Closure, called ($app, $parameters)
   bindIf:                                       # -> bindIf(); skipped when bound, deferred services included
     App\Contracts\Cache: App\Services\RedisCache
   singleton:                                    # -> singleton()
     App\Services\TenantContext: ~               # ~ -> self-binding
-  singletonIf:                                  # -> singletonIf()
-    - App\Services\SlowWarmup                   # list: every item self-binds; no .php under *If
+    App\Contracts\Clock: App\Services\Clock     # the native way to share one instance
+  singletonIf:
+    - App\Services\SlowWarmup                   # list: every item binds its own name
   scoped:                                       # -> scoped(); shared until forgetScopedInstances()
-    - app/binders/request-log.php               # .php list item: bound under its Closure's return types
-  scopedIf:                                     # -> scopedIf()
-    App\Services\BudgetGuard: ~
+    - App\Services\RequestLog
   instance:                                     # -> instance($abstract, $instance)
     app.signature: "1.0"                        # literal, bound as YAML decoded it
-    App\Contracts\Clock: App\Services\Clock     # class-string -> make()d eagerly
     app.rate_limiter: app/instances/limiter.php # .php: its return value, any type
   alias:                                        # -> alias($abstract, $alias); abstract first
     App\Services\TenantContext: context         # app('context') resolves the singleton
   extend:                                       # -> extend($abstract, Closure); receives $instance, $app
     cache.store: app/extensions/store-cache.php
+  tag:                                          # -> tag($abstracts, $tags)
+    App\Reports\Cpu: reports
+  when:                                         # -> when($concrete)->needs()->give(): a body on the builder
+    App\Http\Controllers\PhotoController:
+      needs: App\Contracts\Filesystem
+      give: App\Services\LocalFs                # or a .php file; a list for a typed variadic
   useAppPath: src                               # -> useAppPath(base_path('src')); rebinds `path`
-  useDatabasePath: database                     # -> useDatabasePath()
-  useLangPath: resources/lang                   # -> useLangPath(); applied before setLocale
-  usePublicPath: public                         # -> usePublicPath()
-  useStoragePath: /var/app/storage              # -> useStoragePath(); absolute, used as-is
+  useLangPath: resources/lang                   # relative paths resolve under base_path()
+  useStoragePath: /var/app/storage              # absolute, used as-is
   setLocale: fr                                 # -> setLocale(); dispatches LocaleUpdated
-  setFallbackLocale: en                         # -> setFallbackLocale()
-  registered:                                   # -> registered(); fires right after the block, receives $app
+  setFallbackLocale: en
+  resolving:                                    # -> resolving($abstract, Closure), one call per entry
+    App\Services\Transistor: app/listeners/warm.php
+  registered:                                   # -> registered($callback): a reference per item …
     - app/hooks/registered.php
-  booting:                                      # -> booting(); first in boot()
+  booting:                                      # … or a map: a body on the application at that moment
     - App\Hooks\WarmConnections
-  booted:                                       # -> booted(); last in boot()
-    - App\Hooks\Metrics@warm
-  terminating:                                  # -> terminating(); after the response, type-hints only
+  booted:
+    make:
+      Illuminate\Database\Connection:           # a service other providers resolved first
+        listen: [App\Listeners\LogQuery]
+  terminating:                                  # -> terminating(); after the response, injected by the container
     - App\Hooks\FlushMetrics
 ```
 
@@ -278,240 +348,248 @@ use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Foundation\Application;
 
 return static function (Repository $instance, Application $app): Repository {
-    return $instance;   // $instance and $app match by name; anything else by type-hint
+    return $instance;   // called ($instance, $app) by the container
 };
-```
-
-## Router
-
-Define your application's global routes in the `router` object.
-
-Complete structure:
-
-```yaml
-router:
-  pattern:                    # -> pattern($key, $pattern), one call per entry
-    id: '[0-9]+'              # every {id} of every route created afterwards
-    account: '[a-z]+'         # domain parameters too: {account}.example.com
-  model:                      # -> model($key, $class), one call per entry
-    user: App\Models\User     # {user} -> User::resolveRouteBinding($value); 404 when null
-  bind:                       # -> bind($key, $binder), one call per entry
-    post: App\Routing\PostBinder     # make(PostBinder)->bind($value, $route)
-    team: App\Routing\Teams@bySlug   # make(Teams)->bySlug($value, $route)
-  middlewareGroup:            # -> middlewareGroup($name, $middleware), one call per entry
-    tenant:                   # middleware: [tenant] expands to these at dispatch
-      - auth
-      - App\Http\Middleware\TenantIdentified
-  aliasMiddleware:            # -> aliasMiddleware($name, $class), one call per entry
-    subscribed: App\Http\Middleware\EnsureSubscription
-  prependMiddlewareToGroup:   # -> prependMiddlewareToGroup($group, $middleware), one call per item
-    web: [App\Http\Middleware\TenantLocate]
-  pushMiddlewareToGroup:      # -> pushMiddlewareToGroup($group, $middleware), one call per item
-    api: [App\Http\Middleware\RequestTracing]
-  removeMiddlewareFromGroup:  # -> removeMiddlewareFromGroup($group, $middleware), one call per item
-    api: [App\Http\Middleware\StatefulGuard]
-  singularResourceParameters: false   # -> singularResourceParameters(false): {posts}, not {post}
-  resourceParameters:         # -> resourceParameters($parameters), one call with the whole map
-    posts: item
-  resourceVerbs:              # -> resourceVerbs($verbs), one call with the whole map
-    create: nuevo
-  matched:                    # -> matched($callback), one call per item
-    - App\Listeners\LogMatched@handle
-```
-
-`middlewareGroup` is `Router::middlewareGroup($name, $middleware)`, `aliasMiddleware` is
-`Router::aliasMiddleware($name, $class)`, `pushMiddlewareToGroup` / `prependMiddlewareToGroup`
-/ `removeMiddlewareFromGroup` are the group-mutation trio (one call per item), and `matched`
-registers `RouteMatched` listeners (one call per item; `Class` uses `handle`, bare invokables
-fall back to `__invoke`, called with `($event)` before route middleware). Items may be aliases
-(`throttle:60,1`). `kernel:` middleware keys win for any group/alias the kernel also declares
-(its setters re-sync the router); router-only keys persist, and `router:` keys work even when
-the HTTP kernel never resolves (console). `singularResourceParameters` / `resourceParameters`
-/ `resourceVerbs` are `ResourceRegistrar` global statics for resource routes: re-run
-`route:cache` after editing them, unlike the middleware and `matched` keys.
-
-## View
-
-Define your application's view composers and factories in the `view` object.
-
-Complete structure:
-
-```yaml
-view:
-  addLocation: [resources/declared-views]      # -> addLocation($location), one call per item
-  prependLocation: [resources/theme]           # searched before config('view.paths')
-  addNamespace:                                # -> addNamespace($namespace, $hints)
-    admin: resources/admin-views               # view('admin::dashboard')
-  prependNamespace:
-    courier: [resources/overrides/courier]     # overrides a package's views
-  replaceNamespace:
-    legacy: resources/legacy-views
-  addExtension:                                # -> addExtension($extension, $engine)
-    html: blade
-  share:                                       # -> share($key): every view gets $brand
-    brand: Tenant Console
-  composer:                                    # -> composer($views, $callback), keyed as Factory::composers()
-    App\View\Composers\UserMenu: users.*       # make(UserMenu)->compose($view)
-    App\View\Composers\CurrentTenant: '*'      # every view; quote `*`
-    App\View\Composers\Nav@primary: [layouts.app, layouts.admin]
-  creator:                                     # -> creator($views, $callback), default method `create`
-    App\View\Creators\Breadcrumbs: users.show
-  flushFinderCache: true                       # -> flushFinderCache(): empties the finder's resolved-view
-                                               #    cache after the block applies, so declared locations,
-                                               #    namespaces and extensions win over earlier finds
-  flushState: true                             # -> flushState(): resets renderCount, sections, stacks,
-                                               #    components and fragments (worker and test isolation)
-```
-
-View routes also declare a render-time Factory dispatch: `setDefaults.factory` maps one `Illuminate\View\Factory` method name to its argument list — `factory: {file: resources/legal/terms.html}` — dispatched as `$Factory->{$method}(...$arguments)` (docs/declarative-view-factory.md).
-
-## Blade
-
-Extend the shared `Illuminate\View\Compilers\BladeCompiler` in the `blade` object. Every key is a native compiler registry method, applied once when the compiler first resolves. Reference values resolve through the container.
-
-Complete structure:
-
-```yaml
-blade:
-  directive:                          # -> directive($name, $handler); receives $expression
-    uppercase: App\Blade\Directives@uppercase
-  if:                                 # -> if($name, $callback); declares @admin / @unlessadmin conditionals
-    admin: App\Blade\Conditions@isAdmin
-  component:                          # -> component($class, $alias); one call per entry
-    App\View\Components\Alert: alert
-  components:                         # -> components($aliases); one call with the whole map (alias -> class)
-    alert: App\View\Components\Alert
-  anonymousComponentPath:             # -> anonymousComponentPath($path, $prefix)
-    - path: resources/views/components
-      prefix: ui
-  anonymousComponentNamespace:        # -> anonymousComponentNamespace($directory, $prefix)
-    - directory: resources/views/namespaced
-      prefix: ns
-  stringable:                         # -> stringable($class, $handler); echo handler, receives $target
-    App\ValueObjects\Money: App\Blade\Money@render
-  withoutDoubleEncoding: true         # -> withoutDoubleEncoding(): {{ $html }} is not double-encoded
-```
-
-## Pagination
-
-Declare the global pagination view presets in the `pagination` object. Each key is a native `Illuminate\Pagination\Paginator` static preset.
-
-Complete structure:
-
-```yaml
-pagination:
-  useTailwind: true                   # -> Paginator::useTailwind()
-  useBootstrap: true                  # -> Paginator::useBootstrap() — alias for useBootstrapFour()
-  useBootstrapThree: true             # -> Paginator::useBootstrapThree()
-  useBootstrapFour: true              # -> Paginator::useBootstrapFour()
-  useBootstrapFive: true              # -> Paginator::useBootstrapFive()
-  defaultView: pagination::custom     # -> Paginator::defaultView($view)
-  defaultSimpleView: pagination::simple-custom   # -> Paginator::defaultSimpleView($view)
-```
-
-Presets apply in the order above and each overwrites both default views, so the **last truthy preset wins**; `defaultView` / `defaultSimpleView` apply after the presets and override them. Omitted or `false` presets are never applied.
-
-## Kernel
-
-Define your application's HTTP Kernel middleware pipeline, groups, aliases, priority sorting order, and request duration lifecycle handlers in the `kernel` object.
-
-Complete structure:
-
-```yaml
-kernel:
-  pushMiddleware:                             # -> pushMiddleware($middleware)
-    - App\Http\Middleware\GlobalLast
-  prependMiddleware:                          # -> prependMiddleware($middleware)
-    - App\Http\Middleware\GlobalFirst
-  setGlobalMiddleware:                        # -> setGlobalMiddleware($middleware)
-    - App\Http\Middleware\CustomGlobalStack
-  appendMiddlewareToGroup:                    # -> appendMiddlewareToGroup($group, $middleware)
-    web: App\Http\Middleware\TrackWebActivity
-    api:
-      - App\Http\Middleware\EnforceJsonResponse
-  prependMiddlewareToGroup:                   # -> prependMiddlewareToGroup($group, $middleware)
-    web: App\Http\Middleware\WebMaintenanceBypass
-  setMiddlewareGroups:                        # -> setMiddlewareGroups($groups)
-    custom:
-      - App\Http\Middleware\CustomMiddleware
-  setMiddlewareAliases:                       # -> setMiddlewareAliases($aliases)
-    subscribed: App\Http\Middleware\EnsureUserIsSubscribed
-    token_auth: App\Http\Middleware\EnsureTokenIsValid
-  setMiddlewarePriority:                      # -> setMiddlewarePriority($priority)
-    - App\Http\Middleware\HighPriority
-    - App\Http\Middleware\LowPriority
-  prependToMiddlewarePriority:                # -> prependToMiddlewarePriority($middleware)
-    - App\Http\Middleware\UltraHighPriority
-  appendToMiddlewarePriority:                 # -> appendToMiddlewarePriority($middleware)
-    - App\Http\Middleware\UltraLowPriority
-  addToMiddlewarePriorityBefore:              # -> addToMiddlewarePriorityBefore($before, $middleware)
-    Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PreSubstituteBindings
-  addToMiddlewarePriorityAfter:               # -> addToMiddlewarePriorityAfter($after, $middleware)
-    Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PostSubstituteBindings
-  whenRequestLifecycleIsLongerThan:           # -> whenRequestLifecycleIsLongerThan($threshold, $handler)
-    250: App\Listeners\ReportSlowRequest
 ```
 
 ## Providers
 
-Define your applications providers.
-
-Complete structure:
+Register the application's service providers with `register`, at register time and in manifest order; they boot
+with every other provider.
 
 ```yaml
-providers:
-  - class: App\Providers\AppServiceProvider   # ServiceProvider class-string
+register:
+  - App\Providers\AppServiceProvider      # -> register($provider), one call per item
 ```
 
-## Routes
+## Router
 
-Define your applications routes.
-
-Complete structure:
+Every `Illuminate\Routing\Router` method is a key under `afterResolving.Illuminate\Routing\Router`, applied in
+manifest order when the router first resolves: configuration and binders first, then the registration methods
+(`addRoute`, `group`, `resource`, `view`, `redirect`, …). A route's extra keys ride the returned `Route`.
 
 ```yaml
-routes:
-  - path: "users/{user}"
-    methods: GET                         # one verb, uppercased by the provider
-    action: [App\Http\Controllers\UserController, show]
-    name: users.show                     # -> Route::name()
-    prefix: api                          # -> Route::prefix() (applied before domain)
-    domain: "{account}.example.com"      # -> Route::domain()
-    middleware:                          # -> Route::middleware() (appends)
-      - auth:sanctum
-      - verified
-    withoutMiddleware: [web]             # -> Route::withoutMiddleware()
-    can:                                 # -> Route::can(ability: ..., models: ...)
-      ability: view
-      models: user                       # route parameter name or FQCN
-    where:                               # -> Route::where()
-      user: '[0-9]+'
-    setDefaults:                         # -> Route::setDefaults()
-      user: 1
-      # On a DeclaredView action, one render-time Factory dispatch:
-      # factory: {file: resources/legal/terms.html}   -> Factory::file('...')
-    missing: App\Http\Handlers\UserMissingHandler   # -> Route::missing(); invokable class wrapped in a cache-safe Closure
-    scopeBindings: true                  # -> Route::scopeBindings(); false skips the call
-    withoutScopedBindings: false         # -> Route::withoutScopedBindings(); false skips the call
-    withTrashed: true                    # -> Route::withTrashed()
-    block:                               # -> Route::block(lockSeconds: ..., waitSeconds: ...)
-      lockSeconds: 10
-      waitSeconds: 5
-    withoutBlocking: false               # -> Route::withoutBlocking(); false skips the call
-    metadata:                            # -> Route::metadata()
-      group: admin
+afterResolving:
+  Illuminate\Routing\Router:
+    pattern:                    # -> pattern($key, $pattern), one call per entry
+      id: '[0-9]+'              # every {id} of every route created afterwards
+      account: '[a-z]+'         # domain parameters too: {account}.example.com
+    model:                      # -> model($key, $class), one call per entry
+      user: App\Models\User     # {user} -> User::resolveRouteBinding($value); 404 when null
+    bind:                       # -> bind($key, $binder), one call per entry
+      post: App\Routing\PostBinder     # make(PostBinder)->bind($value, $route)
+      team: App\Routing\Teams@bySlug   # make(Teams)->bySlug($value, $route)
+    middlewareGroup:            # -> middlewareGroup($name, $middleware), one call per entry
+      tenant:                   # middleware: [tenant] expands to these at dispatch
+        - auth
+        - App\Http\Middleware\TenantIdentified
+    aliasMiddleware:            # -> aliasMiddleware($name, $class), one call per entry
+      subscribed: App\Http\Middleware\EnsureSubscription
+    prependMiddlewareToGroup:   # -> prependMiddlewareToGroup($group, $middleware), one call per item (reversed: declared order lands at the head)
+      web: [App\Http\Middleware\TenantLocate]
+    pushMiddlewareToGroup:      # -> pushMiddlewareToGroup($group, $middleware), one call per item
+      api: [App\Http\Middleware\RequestTracing]
+    removeMiddlewareFromGroup:  # -> removeMiddlewareFromGroup($group, $middleware), one call per item
+      api: [App\Http\Middleware\StatefulGuard]
+    singularResourceParameters: false   # -> singularResourceParameters(false): {posts}, not {post}
+    resourceParameters:         # -> resourceParameters($parameters), the whole map
+      posts: item
+    resourceVerbs:              # -> resourceVerbs($verbs), the whole map
+      create: nuevo
+    matched:                    # -> matched($callback), one call per item
+      - App\Listeners\LogMatched@handle
 
-  - path: "{any}"
-    methods: GET
-    action: App\Http\Controllers\FallbackController   # fallback routes require an action
-    where:
-      any: '.*'                          # mirrors Router::fallback(); without it {any} matches one segment
-    fallback: true                       # -> Route::fallback()
+    addRoute:                   # -> addRoute($methods, $uri, $action), one call per row
+      - uri: "users/{user}"
+        methods: GET                         # passed verbatim: write the verb Laravel expects
+        action: [App\Http\Controllers\UserController, show]
+        name: users.show                     # every other key rides the returned Route: -> name()
+        prefix: api                          # -> prefix()
+        domain: "{account}.example.com"      # -> domain()
+        middleware: [auth:sanctum, verified] # -> middleware(), one call per item
+        withoutMiddleware: [web]             # -> withoutMiddleware()
+        can: {ability: view, models: user}   # -> can(ability: …, models: …)
+        where: {user: '[0-9]+'}              # -> where($name, $expression), one call per entry
+        setDefaults: {user: 1}               # -> setDefaults($defaults)
+        setBindingFields: {user: slug}       # -> setBindingFields($fields)
+        missing: App\Http\Handlers\UserMissing   # -> missing(Closure): a `closure` reference, called ($request, $exception)
+        scopeBindings: ~                     # -> scopeBindings()
+        withTrashed: ~                       # -> withTrashed()
+        block: {lockSeconds: 10, waitSeconds: 5}   # -> block(lockSeconds: …, waitSeconds: …)
+        metadata: {group: admin}             # -> metadata($metadata)
+      - uri: "{any}"
+        methods: GET
+        action: App\Http\Controllers\FallbackController
+        where: {any: '.*'}                   # mirrors Router::fallback(); without it {any} matches one segment
+        fallback: ~                          # -> fallback()
+
+    group:                      # -> group($attributes, $routes): the native attributes + a body on the router inside
+      - attributes: {prefix: admin, as: admin., middleware: [web], where: {id: '[0-9]+'}}
+        routes:
+          addRoute:
+            - {uri: dashboard, methods: GET, action: App\Http\Admin\DashboardController, name: dashboard}
+          group:                # nested groups concatenate prefix/as/namespace
+            - attributes: {prefix: settings, as: settings.}
+              routes: {addRoute: [{uri: profile, methods: GET, action: App\Http\Admin\ProfileController, name: profile}]}
+
+    resource:                   # -> resource($name, $controller); the other keys ride the PendingResourceRegistration
+      - name: photos
+        controller: App\Http\Controllers\PhotoController
+        only: [index, show]     # -> only([index, show])
+        middleware: [web]
+        whereNumber: photo
+        scoped: ~               # -> scoped()
+        names: {index: gallery.index}
+        missing: App\Http\Handlers\PhotoMissing
+    apiResource:
+      - {name: posts, controller: App\Http\Controllers\PostController, except: [destroy]}
+    singleton:
+      - {name: profile, controller: App\Http\Controllers\ProfileController, creatable: ~}
+    view:                       # -> view($uri, $view, $data, $status, $headers) (GET|HEAD)
+      - {uri: about, view: pages.about, data: {title: About}, headers: {X-Frame-Options: DENY}}
+    redirect:                   # -> redirect($uri, $destination, $status)
+      - {uri: "old-posts/{post}", destination: "posts/{post}", status: 302}
+    permanentRedirect:
+      - {uri: legacy, destination: /}
+```
+
+`singularResourceParameters` / `resourceParameters` / `resourceVerbs` are `ResourceRegistrar` global statics for
+resource routes: re-run `route:cache` after editing them. An unknown key riding a `PendingResourceRegistration`
+fails at boot with Laravel's own `BadMethodCallException`. The HTTP kernel syncs its own middleware groups and
+aliases to the router when it resolves, so a group both declare is the kernel's.
+
+## Kernel
+
+`Illuminate\Foundation\Http\Kernel` methods, applied when the HTTP kernel first resolves. The callback is matched
+by type, so the concrete FQCN fires for the contract-bound `Illuminate\Contracts\Http\Kernel`.
+
+```yaml
+afterResolving:
+  Illuminate\Foundation\Http\Kernel:
+    pushMiddleware:                             # -> pushMiddleware($middleware), one call per item
+      - App\Http\Middleware\GlobalLast
+    prependMiddleware:                          # -> prependMiddleware($middleware), one call per item (reversed)
+      - App\Http\Middleware\GlobalFirst
+    setGlobalMiddleware:                        # -> setGlobalMiddleware($middleware), the whole list
+      - App\Http\Middleware\CustomGlobalStack
+    appendMiddlewareToGroup:                    # -> appendMiddlewareToGroup($group, $middleware), one call per item
+      web: App\Http\Middleware\TrackWebActivity
+      api:
+        - App\Http\Middleware\EnforceJsonResponse
+    prependMiddlewareToGroup:                   # -> prependMiddlewareToGroup($group, $middleware), reversed
+      web: App\Http\Middleware\WebMaintenanceBypass
+    setMiddlewareGroups:                        # -> setMiddlewareGroups($groups), the whole map
+      custom:
+        - App\Http\Middleware\CustomMiddleware
+    setMiddlewareAliases:                       # -> setMiddlewareAliases($aliases), the whole map
+      subscribed: App\Http\Middleware\EnsureUserIsSubscribed
+      token_auth: App\Http\Middleware\EnsureTokenIsValid
+    setMiddlewarePriority:                      # -> setMiddlewarePriority($priority), the whole list
+      - App\Http\Middleware\HighPriority
+      - App\Http\Middleware\LowPriority
+    prependToMiddlewarePriority:                # -> prependToMiddlewarePriority($middleware), reversed
+      - App\Http\Middleware\UltraHighPriority
+    appendToMiddlewarePriority:                 # -> appendToMiddlewarePriority($middleware)
+      - App\Http\Middleware\UltraLowPriority
+    addToMiddlewarePriorityBefore:              # -> addToMiddlewarePriorityBefore($before, $middleware)
+      Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PreSubstituteBindings
+    addToMiddlewarePriorityAfter:               # -> addToMiddlewarePriorityAfter($after, $middleware)
+      Illuminate\Routing\Middleware\SubstituteBindings: App\Http\Middleware\PostSubstituteBindings
+    whenRequestLifecycleIsLongerThan:           # -> whenRequestLifecycleIsLongerThan($threshold, $handler)
+      250: App\Listeners\ReportSlowRequest      # milliseconds; a `closure` reference called ($startedAt, $request, $response)
+```
+
+## View
+
+`Illuminate\View\Factory` methods, applied when the view factory first resolves.
+
+```yaml
+afterResolving:
+  Illuminate\View\Factory:
+    addLocation: [resources/declared-views]      # -> addLocation($location), one call per item; relative under base_path()
+    prependLocation: [resources/theme]           # searched before config('view.paths')
+    addNamespace:                                # -> addNamespace($namespace, $hints), one call per entry
+      admin: resources/admin-views               # view('admin::dashboard')
+    prependNamespace:
+      courier: [resources/overrides/courier]     # overrides a package's views
+    replaceNamespace:
+      legacy: resources/legacy-views
+    addExtension:                                # -> addExtension($extension, $engine)
+      html: blade
+    share:                                       # -> share($key, $value), one call per entry
+      brand: Tenant Console
+    composer:                                    # -> composer($views, $callback)
+      - {views: users.*, callback: App\View\Composers\UserMenu}          # make(UserMenu)->compose($view)
+      - {views: '*', callback: App\View\Composers\CurrentTenant}         # every view; quote `*`
+      - {views: [layouts.app, layouts.admin], callback: App\View\Composers\Nav@primary}
+    creator:                                     # -> creator($views, $callback), default method `create`
+      users.show: App\View\Creators\Breadcrumbs  # the entry form for one view
+```
+
+When another provider resolved the factory before this package registered (its finder has cached finds),
+address it once every provider has booted:
+
+```yaml
+booted:
+  make:
+    Illuminate\View\Factory:
+      prependLocation: [resources/theme]
+      flushFinderCache: ~                        # -> flushFinderCache(): declared locations win over earlier finds
+      flushState: ~                              # -> flushState(): resets sections, stacks, components and fragments
+```
+
+View routes also declare a render-time Factory dispatch: `setDefaults.factory` maps one `Illuminate\View\Factory`
+method name to its argument list — `factory: {file: resources/legal/terms.html}` — dispatched as
+`$Factory->{$method}(...$arguments)` (docs/declarative-view-factory.md).
+
+## Blade
+
+`Illuminate\View\Compilers\BladeCompiler` methods, applied when the compiler first resolves. `callable`
+parameters take `closure` references.
+
+```yaml
+afterResolving:
+  Illuminate\View\Compilers\BladeCompiler:
+    directive:                          # -> directive($name, $handler); receives $expression
+      uppercase: App\Blade\Directives@uppercase
+    if:                                 # -> if($name, $callback); declares @admin / @unlessadmin conditionals
+      admin: App\Blade\Conditions@isAdmin
+    component:                          # -> component($class, $alias), one call per entry
+      App\View\Components\Alert: alert
+    components:                         # -> components($components), the whole map (alias -> class)
+      alert: App\View\Components\Alert
+    anonymousComponentPath:             # -> anonymousComponentPath($path, $prefix), one call per row
+      - path: resources/views/components
+        prefix: ui
+    anonymousComponentNamespace:        # -> anonymousComponentNamespace($directory, $prefix)
+      - directory: resources/views/namespaced
+        prefix: ns
+    stringable:                         # -> stringable($class, $handler); echo handler, receives $target
+      App\ValueObjects\Money: App\Blade\Money::render
+    withoutDoubleEncoding: ~            # -> withoutDoubleEncoding(): {{ $html }} is not double-encoded
+```
+
+## Pagination
+
+`Illuminate\Pagination\Paginator`'s presets are static methods, so the paginator is a root key addressed by its
+FQCN. Keys apply in manifest order; each preset overwrites both default views, so the last one declared wins,
+and `defaultView` / `defaultSimpleView` override a preset declared before them. A present key calls: omit a
+preset to leave it unapplied (`useTailwind: false` still calls it).
+
+```yaml
+Illuminate\Pagination\Paginator:
+  useTailwind: ~                      # -> Paginator::useTailwind()
+  useBootstrap: ~                     # -> Paginator::useBootstrap() — alias for useBootstrapFour()
+  useBootstrapThree: ~                # -> Paginator::useBootstrapThree()
+  useBootstrapFour: ~                 # -> Paginator::useBootstrapFour()
+  useBootstrapFive: ~                 # -> Paginator::useBootstrapFive()
+  defaultView: pagination::custom     # -> Paginator::defaultView($view)
+  defaultSimpleView: pagination::simple-custom   # -> Paginator::defaultSimpleView($view)
 ```
 
 ## Requests
 
-Define your applications requests.
+Define your applications requests in the `requests` data list; a route names one through `metadata: {request: …}`.
 
 Complete structure:
 
@@ -547,32 +625,34 @@ requests:
     redirectAction: App\Http\Controllers\UserController@index   # -> $redirectAction
     errorBag: user                                # -> $errorBag ≙ #[ErrorBag]
     stopOnFirstFailure: true                      # -> $stopOnFirstFailure ≙ #[StopOnFirstFailure]
-    failOnUnknownFields: true                     # -> shouldFailOnUnknownFields() ≙ #[FailOnUnknownFields]
+    shouldFailOnUnknownFields: true               # -> shouldFailOnUnknownFields() ≙ #[FailOnUnknownFields]
 
-routes:
-  - path: users
-    methods: POST
-    action: [App\Http\Controllers\UserController, store]
-    metadata:
-      request: user                               # -> Route::metadata(['request' => 'user'])
+afterResolving:
+  Illuminate\Routing\Router:
+    addRoute:
+      - uri: users
+        methods: POST
+        action: [App\Http\Controllers\UserController, store]
+        metadata:
+          request: user                           # -> Route::metadata(['request' => 'user'])
 ```
 
-Factory-wide custom rules declare beside the requests, in the `validator` object
-(docs/declarative-validator.md):
+Factory-wide custom rules are `Illuminate\Validation\Factory` registry methods, applied when the validator
+first resolves (docs/declarative-validator.md):
 
 ```yaml
-validator:                                      # every key is an Illuminate\Validation\Factory registry method
-  extend:                                       # -> extend($rule, $extension, $message = null)
-    uppercase: App\Validators\Uppercase@check  # Class@method | bare class-string (default method `validate`)
-    slug:
-      extension: App\Validators\Slug            # the optional $message via the native parameter names
-      message: 'The :attribute must be a slug.'
-  extendImplicit:                               # runs even when the field is absent/empty
-    phone: App\Validators\Phone
-  extendDependent:                              # parameters may reference other fields
-    guardedMin: App\Validators\GuardedMin@check
-  replacer:                                     # -> replacer($rule, $replacer); default method `replace`
-    uppercase: App\Validators\Uppercase@replace
+afterResolving:
+  Illuminate\Validation\Factory:
+    extend:                                       # -> extend($rule, $extension, $message = null)
+      uppercase: App\Validators\Uppercase@check  # Class@method | bare class-string (default method `validate`)
+    extendImplicit:                               # runs even when the field is absent/empty
+      - rule: phone                               # the row form names the optional $message
+        extension: App\Validators\Phone
+        message: 'The :attribute must be a phone number.'
+    extendDependent:                              # parameters may reference other fields
+      guardedMin: App\Validators\GuardedMin@check
+    replacer:                                     # -> replacer($rule, $replacer); default method `replace`
+      uppercase: App\Validators\Uppercase@replace
 ```
 
 The action:
@@ -588,16 +668,16 @@ public function store(DeclaredRequest $request): RedirectResponse
 
 ## Gate
 
-Register policies and abilities on the shared `Illuminate\Contracts\Auth\Access\Gate` with the
-`gate` object (docs/declarative-gate.md). Every key is a native `Gate` registry method, one call
-per entry, applied once when the Gate first resolves:
+Register policies and abilities on the shared gate with `Illuminate\Auth\Access\Gate` methods, applied when the
+gate first resolves (the concrete class is matched by type for the contract binding; docs/declarative-gate.md):
 
 ```yaml
-gate:
-  policy:                                            # ≙ Gate::policy($class, $policy)
-    App\Models\Post: App\Policies\PostPolicy
-  define:                                            # ≙ Gate::define($ability, $callback)
-    publish: App\Gates\PublishGate@publish           # 'Class@method' | bare invokable class-string
+afterResolving:
+  Illuminate\Auth\Access\Gate:
+    policy:                                            # -> policy($class, $policy), one call per entry
+      App\Models\Post: App\Policies\PostPolicy
+    define:                                            # -> define($ability, $callback), one call per entry
+      publish: App\Gates\PublishGate@publish           # 'Class@method' | bare invokable class-string
 ```
 
 A request's `authorize` map form declares one native Gate call for the request user — the key is
@@ -636,7 +716,7 @@ inside `passesAuthorization()` and throws there; `Gate::authorize()` throws dire
 
 ## Models
 
-Define your application's Eloquent models in the `models` list. Each class
+Define your application's Eloquent models in the `models` data list. Each class
 extends `ZeroToProd\LaravelDeclaration\DeclaredModel`, and its entry is the
 class body: every key is a `Model` property (or `observe`, `addGlobalScope`,
 `getRouteKeyName`). Relations, accessors and local scopes stay methods on the
@@ -670,7 +750,7 @@ models:
     observables: [boarding]                  # -> $observables
     observe: [App\Observers\FlightObserver]  # -> observe() at boot ≙ #[ObservedBy]
     addGlobalScope: [App\Models\Scopes\NotCancelled]   # -> addGlobalScope() at boot ≙ #[ScopedBy]
-    getRouteKeyName: code                    # -> getRouteKeyName() ≙ #[RouteKey]; router.model binds by it
+    getRouteKeyName: code                    # -> getRouteKeyName() ≙ #[RouteKey]; Router::model binds by it
 ```
 
 The class:
@@ -686,9 +766,9 @@ final class Flight extends DeclaredModel
 
 ## Queries
 
-Declare reusable Eloquent query pipelines in the `queries` list. The reserved
-key `name` names the query. The reserved key `from` roots the query on an
-Eloquent model class (`App\Models\Flight`) or a bound route parameter relation
+Declare reusable Eloquent query pipelines in the `queries` data list. The reserved
+key `name` names the query. `model` roots the query on an Eloquent model class
+(`App\Models\Flight`); `relation` roots it on a bound route parameter relation
 (`user.posts`). Every other key is an `Illuminate\Database\Eloquent\Builder`
 method name, and its value is that method's argument(s). A terminal execution
 method (`paginate`, `simplePaginate`, `cursorPaginate`, `get`, `first`,
@@ -702,7 +782,7 @@ Complete structure:
 queries:
   # Route parameter relation with scopes, eager loading and pagination
   - name: user-posts
-    from: user.posts                             # route parameter {user} -> $user->posts()
+    relation: user.posts                         # route parameter {user} -> $user->posts()
     where: [status, published]                   # -> where('status', '=', 'published')
     with: [author]                               # -> with(['author'])
     withCount: [comments]                        # -> withCount(['comments'])
@@ -712,7 +792,7 @@ queries:
 
   # Direct model root with scalar aggregate terminal
   - name: active-flight-count
-    from: App\Models\Flight                      # model root -> Flight::query()
+    model: App\Models\Flight                     # model root -> Flight::query()
     where: [status, active]
     count: true                                  # terminal -> count()
 ```
@@ -721,60 +801,68 @@ Declared query pipelines can be executed directly via `DeclaredQuery::run()` or
 resolved automatically in `DeclaredView` `data:` mappings:
 
 ```yaml
-routes:
-  - path: "users/{user}/posts"
-    methods: GET
-    action: ZeroToProd\LaravelDeclaration\DeclaredView
-    name: users.posts
-    middleware: [web]                            # SubstituteBindings binds {user}
-    setDefaults:
-      view: users.posts
-      data:
-        title: User Articles                     # literal string
-        posts: user-posts                        # declared query handle!
+afterResolving:
+  Illuminate\Routing\Router:
+    addRoute:
+      - uri: "users/{user}/posts"
+        methods: GET
+        action: ZeroToProd\LaravelDeclaration\DeclaredView
+        name: users.posts
+        middleware: [web]                            # SubstituteBindings binds {user}
+        setDefaults:
+          view: users.posts
+          data:
+            title: User Articles                     # literal string
+            posts: user-posts                        # declared query handle!
 ```
 
 ## Database
 
-Declare database query listeners in the `db` object. `connection` scopes every listener to one connection — `~` or absent is the default connection. Each `listen` item is a reference invoked with the `$query` object on every executed query.
-
-Complete structure:
+Query listeners are `Illuminate\Database\Connection::listen($callback)` calls. `DB::` resolves connections through
+the database manager rather than the container, so address the connection with `make` once every provider has
+booted; `make` resolves the default connection (`db.connection`).
 
 ```yaml
-db:
-  connection: ~                       # -> DatabaseManager::connection($name); ~ = default connection
-  listen:                             # -> connection(...)->listen($callback), one call per item
-    - App\Listeners\LogQueries@handle
+booted:
+  make:
+    Illuminate\Database\Connection:
+      listen:                             # -> listen(Closure), one call per item: a `closure` reference receiving $query
+        - App\Listeners\LogQueries@handle
 ```
 
 ## Schema
 
-Declare your database schema in the `schema` object (docs/declarative-schema.md,
-docs/declarative-schema-table-operations.md). The keys are the native
-`Illuminate\Database\Schema\Builder` operations — `connection`, `create`, `table`,
-`rename`, `drop`, `dropIfExists` — executed by `php artisan declaration:migrate` in
-that order with guard-derived idempotency. A table body is a `Blueprint`: every key
-is a `Blueprint` method name and its value is that method's argument(s) — `~` for no
-arguments, a list for one action per item, a map for named parameters followed by
-fluent modifiers (`unique: true` -> `->unique()`).
+Declare your database schema in the `schema` data key (docs/declarative-schema.md,
+docs/declarative-schema-table-operations.md). It is a body on
+`Illuminate\Database\Schema\Builder` — `create`, `table`, `rename`, `drop`,
+`dropIfExists` — driven by `php artisan declaration:migrate` in the order
+dropIfExists → drop → rename → create → table, each call guarded against the live
+schema (a table is created when missing, a column added when missing or changed when
+`change: ~` is declared, an index or foreign key added when missing, a `drop*` run
+when its target exists). A table body is a `Blueprint`: every key is a `Blueprint`
+method name and its value is that method's argument(s) — `~` for no arguments, a
+list for one call per item, a map keyed by parameter names for one call whose
+extra keys ride the returned column, index or foreign key (`unique: ~` -> `->unique()`).
 
 Complete structure:
 
 ```yaml
 schema:
-  connection: ~                       # the connection every operation runs on; ~ = default
-
   create:                             # -> create($table, $callback); skipped when the table exists
     users:
       id: ~                           # -> $table->id()
       string:
         - name                        # -> $table->string('name')
         - column: email               # named parameters match the native method's parameters
-          unique: true                # -> ->unique() modifier
+          unique: ~                   # -> ->unique() rides the ColumnDefinition
         - password
       timestamp:
         column: email_verified_at
-        nullable: true                # -> ->nullable() modifier
+        nullable: ~                   # -> ->nullable()
+      foreignId:
+        column: team_id
+        constrained: teams            # -> ->constrained('teams') returns the ForeignKeyDefinition …
+        cascadeOnDelete: ~            # … -> ->cascadeOnDelete() rides it
       rememberToken: ~
       timestamps: ~
 
@@ -787,30 +875,29 @@ schema:
       dropTimestamps: ~               # -> $table->dropTimestamps()
 
   rename:                             # -> rename($from, $to); one call per entry
-    - from: old_users
-      to: users
-  drop:                               # -> drop($table); unguarded: fails loudly when the table is missing
+    old_users: users
+  drop:                               # -> drop($table); fails loudly when the table is missing
     - legacy
-  dropIfExists:                       # -> dropIfExists($table); one call per entry
+  dropIfExists:                       # -> dropIfExists($table); one call per item
     - scratch
 ```
 
 Run it:
 
 ```bash
-php artisan declaration:migrate       # alias: laravel-declaration:migrate
+php artisan declaration:migrate [--connection=]   # alias: laravel-declaration:migrate
 ```
 
 ## Response
 
-Register macros on the shared `Illuminate\Routing\ResponseFactory` in the `responses` object. Each `macro` entry is one native `ResponseFactory::macro($name, $handler)` call; the handler reference resolves through the container with the macro's arguments.
-
-Complete structure:
+Register macros on the shared `Illuminate\Routing\ResponseFactory`, applied when the factory first resolves. The
+handler is a `closure` reference: it receives the macro's arguments and the container injects the rest.
 
 ```yaml
-responses:
-  macro:                              # -> ResponseFactory::macro($name, $handler)
-    csv: App\Http\Responses\Csv@make # response()->csv() -> app()->call(Csv@make, ...)
+afterResolving:
+  Illuminate\Routing\ResponseFactory:
+    macro:                              # -> macro($name, $macro), one call per entry
+      csv: App\Http\Responses\Csv@make  # response()->csv(...) -> Csv@make(...)
 ```
 
 Declarative response *forms* — `make`, `view`, `json`, `noContent`, `stream`, `download` — are not yet manifest surfaces (docs/declarative-tier1-remaining.md).

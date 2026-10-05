@@ -5,20 +5,15 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelDeclaration\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
-use ZeroToProd\LaravelDeclaration\Manifest;
-
-it('returns early when manifest has no db block', function (): void {
-    $manifest = Manifest::from([]);
-    expect($manifest->db)->toBeNull();
-});
 
 it('registers database query listeners from manifest', function (): void {
     $file = tempnam(sys_get_temp_dir(), 'manifest-db-').'.yml';
     file_put_contents($file, <<<'YAML'
-        db:
-          connection: ~
-          listen:
-            - ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery
+        booted:
+          make:
+            Illuminate\Database\Connection:
+              listen:
+                - ZeroToProd\LaravelDeclaration\Tests\Feature\DatabaseTestHelper::listenQuery
         YAML);
 
     try {

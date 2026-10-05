@@ -1,86 +1,47 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-router:
-  pattern:
-    id: '[0-9]+'
-    account: '[a-z]+'
-  model:
-    user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
-  bind:
-    post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PostBinder
-    team: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Teams@bySlug
-  middlewareGroup:
-    tenant:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TenantIdentified
-  aliasMiddleware:
-    subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
-  prependMiddlewareToGroup:
-    tenant:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
-  pushMiddlewareToGroup:
-    tenant:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPushed
-  removeMiddlewareFromGroup:
-    tenant:
-      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
-  singularResourceParameters: false
-  resourceParameters:
-    posts: item
-  resourceVerbs:
-    create: nuevo
-  matched:
-    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\MatchedListener
-    - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\InvokableMatchedListener
+afterResolving:
+  Illuminate\Routing\Router:
+    pattern:
+      id: '[0-9]+'
+      account: '[a-z]+'
+    model:
+      user: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\User
+    bind:
+      post: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\PostBinder
+      team: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\Teams@bySlug
+    middlewareGroup:
+      tenant:
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\TenantIdentified
+    aliasMiddleware:
+      subscribed: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\EnsureUserIsSubscribed
+    prependMiddlewareToGroup:
+      tenant:
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedFirst
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
+    pushMiddlewareToGroup:
+      tenant:
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPushed
+    removeMiddlewareFromGroup:
+      tenant:
+        - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\GroupPrependedSecond
+    singularResourceParameters: false
+    resourceParameters:
+      posts: item
+    resourceVerbs:
+      create: nuevo
+    matched:
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\MatchedListener
+      - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\InvokableMatchedListener
 
-routes:
-  addRoute:
-    - uri: "posts/{id}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-
-    - uri: "slugs/{id}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      where:
-        id: '[a-z]+'
-
-    - uri: tenants
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      domain: "{account}.example.com"
-
-    - uri: "users/{user}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-
-    - uri: "missing/{user}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-      missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler
-
-    - uri: "raw/{user}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-
-    - uri: "bound/{post}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-
-    - uri: "teams/{team}"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController
-      middleware: [Illuminate\Routing\Middleware\SubstituteBindings]
-
-    - uri: "tenant"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      middleware: [tenant, subscribed]
-
-    - uri: "unsubscribed"
-      methods: GET
-      action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController
-      middleware: [subscribed]
+    addRoute:
+      - {uri: "posts/{id}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController}
+      - {uri: "slugs/{id}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController, where: {id: '[a-z]+'}}
+      - {uri: tenants, methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController, domain: "{account}.example.com"}
+      - {uri: "users/{user}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController, middleware: [Illuminate\Routing\Middleware\SubstituteBindings]}
+      - {uri: "missing/{user}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController, middleware: [Illuminate\Routing\Middleware\SubstituteBindings], missing: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\UserMissingHandler}
+      - {uri: "raw/{user}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController}
+      - {uri: "bound/{post}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController, middleware: [Illuminate\Routing\Middleware\SubstituteBindings]}
+      - {uri: "teams/{team}", methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Routing\ParametersController, middleware: [Illuminate\Routing\Middleware\SubstituteBindings]}
+      - {uri: tenant, methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController, middleware: [tenant, subscribed]}
+      - {uri: unsubscribed, methods: GET, action: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\MockController, middleware: [subscribed]}

@@ -61,59 +61,17 @@ requests:
     rules:
       name: [required, string]
 
-routes:
-  addRoute:
-    - uri: users
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: user
-
-    - uri: data
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: data
-
-    - uri: avatar
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, avatar]
-      middleware: [web]
-      metadata:
-        request: avatar
-
-    - uri: hooks
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, hook]
-      metadata:
-        request: custom-failure
-
-    - uri: denied
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: denied
-
-    - uri: forbidden
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: forbidden
-
-    - uri: granted
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: granted
-
-    # names an undeclared request
-    - uri: ghost
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
-      metadata:
-        request: undeclared
-
-    # no `metadata.request`: the type-hint still resolves, and fails
-    - uri: untyped
-      methods: POST
-      action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]
+afterResolving:
+  Illuminate\Routing\Router:
+    addRoute:
+      - {uri: users, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: user}}
+      - {uri: data, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: data}}
+      - {uri: avatar, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, avatar], middleware: [web], metadata: {request: avatar}}
+      - {uri: hooks, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, hook], metadata: {request: custom-failure}}
+      - {uri: denied, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: denied}}
+      - {uri: forbidden, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: forbidden}}
+      - {uri: granted, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: granted}}
+      # names an undeclared request
+      - {uri: ghost, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store], metadata: {request: undeclared}}
+      # no `metadata.request`: the type-hint still resolves, and fails
+      - {uri: untyped, methods: POST, action: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\RequestController, store]}

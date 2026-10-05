@@ -1,5 +1,7 @@
 # Declarative Schema — `Illuminate\Database\Schema\Builder` & `Blueprint` Table Creation, Column Types, Modifiers, Indexes & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php` (`laravel/framework` v13.33.0), with `Illuminate/Database/Schema/Blueprint.php`, `Illuminate/Database/Schema/ColumnDefinition.php`, `Illuminate/Database/Schema/ForeignIdColumnDefinition.php`, `Illuminate/Database/Schema/ForeignKeyDefinition.php`, `Illuminate/Database/Schema/IndexDefinition.php`, `Illuminate/Database/Connection.php`, `Illuminate/Database/DatabaseManager.php`, `Illuminate/Database/DatabaseServiceProvider.php`, and Laravel documentation: `docs/repos/laravel/docs/migrations.md` and `docs/repos/laravel/docs/database.md`.
 
 Grounding documentation: `docs/declarative-request-to-view-roadmap.md` §1 Stage 5, §3 Phase 6.

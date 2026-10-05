@@ -1,5 +1,7 @@
 # Declarative Router Configuration — `Router` Middleware Registry, Resource Globals & Matched Listeners & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Routing/Router.php` (`laravel/framework` v13.33.0), with `Illuminate/Routing/ResourceRegistrar.php`, `Illuminate/Foundation/Http/Kernel.php`, `Illuminate/Foundation/Configuration/ApplicationBuilder.php`, `Illuminate/Foundation/Configuration/Middleware.php`, `Illuminate/Routing/MiddlewareNameResolver.php`, `Illuminate/Routing/Events/RouteMatched.php`, `Illuminate/Events/Dispatcher.php`, `Illuminate/Routing/Route.php` and `Illuminate/Routing/AbstractRouteCollection.php`.
 
 Grounding documentation: [declarative-router.md](declarative-router.md) (`pattern`), [declarative-router-bindings.md](declarative-router-bindings.md) (`model` / `bind`), [declarative-kernel.md](declarative-kernel.md) (the `kernel:` middleware stack), [declarative-request-to-view-roadmap.md](declarative-request-to-view-roadmap.md) §2 Design Rules, and [declarative-tier1-gap-inventory.md](declarative-tier1-gap-inventory.md) §2.1 — the Tier 1 gap this document resolves.

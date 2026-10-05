@@ -26,9 +26,8 @@ afterEach(function (): void {
 // AT-24 — http-client.md — Throwing Exceptions.
 it('applies the registered behavior when the registration phase completes', function (): void {
     $file = $this->manifest(<<<'YAML'
-        app:
-          registered:
-            - app/acceptance/registered.php
+        registered:
+          - app/acceptance/registered.php
         YAML);
 
     $this->withConfig(['laravel-declaration.manifest' => $file]);
@@ -40,11 +39,10 @@ it('applies the registered behavior when the registration phase completes', func
 // AT-25 — cache.md — Registering the Driver.
 it('makes the custom driver the booting callback registered available to provider boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        providers:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\MongoCacheProvider
-        app:
-          booting:
-            - app/acceptance/cache-extend.php
+        register:
+          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\MongoCacheProvider
+        booting:
+          - app/acceptance/cache-extend.php
         YAML);
 
     $this->withConfig([
@@ -59,9 +57,9 @@ it('makes the custom driver the booting callback registered available to provide
 // AT-26 — lifecycle.md — Service Providers / providers.md — The Boot Method.
 it('resolves the declared binding in every provider boot', function (): void {
     $file = $this->manifest(<<<'YAML'
-        providers:
-          - class: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\BindingConsumerProvider
-        app:
+        register:
+          - ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Providers\BindingConsumerProvider
+        registered:
           bind:
             ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Contracts\EventPusher: ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Acceptance\Services\RedisEventPusher
         YAML);

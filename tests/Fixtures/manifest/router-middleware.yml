@@ -1,10 +1,11 @@
 # yaml-language-server: $schema=./../../../manifest.schema.json
 
-router:
-  middlewareGroup:
-    web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\RouterWeb]
-    acme: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\AcmeGroupMember]
+afterResolving:
+  Illuminate\Routing\Router:
+    middlewareGroup:
+      web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\RouterWeb]
+      acme: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\AcmeGroupMember]
 
-kernel:
-  appendMiddlewareToGroup:
-    web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\KernelAppended]
+  Illuminate\Foundation\Http\Kernel:
+    appendMiddlewareToGroup:
+      web: [ZeroToProd\LaravelDeclaration\Tests\Fixtures\App\Middleware\KernelAppended]

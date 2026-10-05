@@ -46,20 +46,21 @@ it('defaults data, status and headers as Router::view() does', function () use (
 
 it('renders inline template using Blade::render with composing event', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        routes:
-          addRoute:
-            - uri: "inline-template"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\DeclaredView
-              name: inline.template
-              setDefaults:
-                template: "Hello {{ $name }}"
-                data:
-                  name: World
-                status: 201
-                headers:
-                  X-Custom: inline
-                deleteCachedView: false
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+                - uri: "inline-template"
+                  methods: GET
+                  action: ZeroToProd\LaravelDeclaration\DeclaredView
+                  name: inline.template
+                  setDefaults:
+                    template: "Hello {{ $name }}"
+                    data:
+                      name: World
+                    status: 201
+                    headers:
+                      X-Custom: inline
+                    deleteCachedView: false
         YAML)]);
 
     $this->get('/inline-template')
@@ -70,11 +71,12 @@ it('renders inline template using Blade::render with composing event', function 
 
 it('throws LogicException when neither template nor view is specified', function (): void {
     $this->withConfig(['laravel-declaration.manifest' => $this->manifest(<<<'YAML'
-        routes:
-          addRoute:
-            - uri: "no-view"
-              methods: GET
-              action: ZeroToProd\LaravelDeclaration\DeclaredView
+        afterResolving:
+          Illuminate\Routing\Router:
+            addRoute:
+                - uri: "no-view"
+                  methods: GET
+                  action: ZeroToProd\LaravelDeclaration\DeclaredView
         YAML)]);
 
     $this->withoutExceptionHandling();

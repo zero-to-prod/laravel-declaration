@@ -1,5 +1,7 @@
 # Declarative Configuration — `Illuminate\Config\Repository` API & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/LoadConfiguration.php`, `vendor/laravel/framework/src/Illuminate/Config/Repository.php`, `vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php` (`mergeConfigFrom()`), `vendor/laravel/framework/src/Illuminate/Foundation/Console/ConfigCacheCommand.php`, and `Illuminate/Foundation/helpers.php` (`config()`), `laravel/framework` v13.33.0.
 
 Goal: a `config:` block in `manifest/app.yml` that **is the argument to `config([...])`**. Each `<file>.<key>` path in the YAML is a `config()` key: `config: {app: {name: X}}` is `config(['app.name' => 'X'])`. The provider applies it in `register()` with one `Config::set()` per file (§2.5). No new config file, no publish step.

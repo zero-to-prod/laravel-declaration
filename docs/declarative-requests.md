@@ -1,5 +1,7 @@
 # Declarative Requests — `Illuminate\Foundation\Http\FormRequest` API & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Http/FormRequest.php` (`laravel/framework` v13.33.0), with `Illuminate/Validation/ValidatesWhenResolvedTrait.php`, `Illuminate/Foundation/Providers/FormRequestServiceProvider.php`, `Illuminate/Container/BoundMethod.php`, `Illuminate/Validation/ValidationRuleParser.php`, `Illuminate/Validation/Validator.php` and `Illuminate/Routing/Route.php`.
 
 Goal: a `requests:` block in `tests/Fixtures/manifest/requests.yml` whose **keys map 1:1 onto `FormRequest` method and property names** and whose **values are what those members return — or a PHP reference (class, method or function) that returns it** (§2.2). A request is declared entirely in YAML, once. A route references it by `name` through Laravel's own route metadata (`metadata: {request: <name>}`), so the route schema gains no key. The package ships one `FormRequest` subclass, `DeclaredRequest`, whose every member reads its key (§2.5). Dispatch stays 100% native Laravel (§1.1).

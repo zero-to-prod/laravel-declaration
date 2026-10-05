@@ -1,6 +1,6 @@
 {
     "name": "zero-to-prod/laravel-declaration",
-    "description": "A declarative plugin for Laravel",
+    "description": "A general-purpose manifest engine for Laravel: a YAML body on the application, validated by a schema projected from the framework classes",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -14,9 +14,7 @@
         "illuminate/console": "^13.0",
         "illuminate/support": "^13.0",
         "justinrainbow/json-schema": "^6.13",
-        "nikic/php-parser": "^5.9",
-        "zero-to-prod/data-model": "^81.20",
-        "zero-to-prod/data-model-helper": "^82.1"
+        "nikic/php-parser": "^5.9"
     },
     "require-dev": {
         "laravel/mcp": "^0.9",
@@ -34,7 +32,8 @@
     },
     "autoload": {
         "psr-4": {
-            "ZeroToProd\\LaravelDeclaration\\": "src/"
+            "ZeroToProd\\LaravelDeclaration\\": "src/",
+            "ZeroToProd\\Manifest\\": "manifest/"
         }
     },
     "autoload-dev": {
@@ -42,13 +41,14 @@
             "ZeroToProd\\LaravelDeclaration\\Tests\\": "tests/"
         },
         "files": [
-            "tests/Fixtures/App/Requests/functions.php"
+            "tests/Fixtures/App/Requests/functions.php",
+            "tests/Fixtures/Engine/functions.php"
         ]
     },
     "extra": {
         "laravel": {
             "providers": [
-                "ManifestServiceProvider2"
+                "ZeroToProd\\LaravelDeclaration\\LaravelDeclarationProvider"
             ]
         }
     },
@@ -62,10 +62,6 @@
         "rector": "rector process",
         "rector-lint": "rector process --dry-run",
         "mcp": "bin/mcp.sh",
-        "bc-check": [
-            "Composer\\Config::disableProcessTimeout",
-            "bin/bc-check.sh"
-        ],
         "require-check": [
             "Composer\\Config::disableProcessTimeout",
             "bin/require-check.sh"
@@ -75,12 +71,14 @@
             "@rector-lint",
             "@analyse",
             "@coverage",
-            "@bc-check"
+            "@schema-check"
         ],
         "fix": [
             "@rector",
             "@format"
-        ]
+        ],
+        "schema": "testbench declaration:generate-manifest-schema",
+        "schema-check": "testbench declaration:generate-manifest-schema --check"
     },
     "config": {
         "sort-packages": true,

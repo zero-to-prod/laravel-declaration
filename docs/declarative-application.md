@@ -1,5 +1,7 @@
 # Declarative Application — `Illuminate\Foundation\Application` API & Manifest Schema
 
+> Manifest forms in this document are the pre-engine block shapes; see docs/general-purpose-migration-plan.md §2.1 and README for the current forms.
+
 Source of truth: `vendor/laravel/framework/src/Illuminate/Foundation/Application.php` (`laravel/framework` v13.33.0), with `Illuminate/Container/Container.php`, `Illuminate/Container/BoundMethod.php`, `Illuminate/Foundation/ProviderRepository.php` and `Illuminate/Foundation/Configuration/ApplicationBuilder.php`.
 
 Goal: an `app:` block in `manifest/app.yml` whose **keys map 1:1 onto `Application` method names** and whose **values map 1:1 onto those methods' signatures**, so the provider applies the whole block with a small, fixed set of loops (§2.5), in the same phase as Laravel's own `ApplicationBuilder::withBindings()` (§1.1). `Application` **is** the container; its declarable surface is container bindings (§1.3), paths, lifecycle hooks and the locale. The root-level `config`, `providers`, `routes` and `requests` blocks are their own documents and are not repeated here; `app:` holds only the `Application` surface.
